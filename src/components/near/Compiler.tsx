@@ -27,7 +27,7 @@ import {
   CompilerNearCompileLoggedV1,
   REMIX_NEAR_COMPILE_REQUESTED_V2,
   RemixNearCompileRequestedV2,
-} from '@dsrvlabs/wds-event';
+} from 'wds-event';
 
 import { COMPILER_API_ENDPOINT, NEAR_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';

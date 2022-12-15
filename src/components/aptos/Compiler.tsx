@@ -18,7 +18,7 @@ import {
   CompilerAptosCompileLoggedV1,
   REMIX_APTOS_COMPILE_REQUESTED_V1,
   RemixAptosCompileRequestedV1,
-} from '@dsrvlabs/wds-event';
+} from 'wds-event';
 
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { AptosClient, BCS, HexString, TxnBuilderTypes } from 'aptos';

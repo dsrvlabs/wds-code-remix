@@ -15,7 +15,7 @@ import {
   CompilerJunoCompileLoggedV1,
   REMIX_JUNO_COMPILE_REQUESTED_V1,
   RemixJunoCompileRequestedV1,
-} from '@dsrvlabs/wds-event';
+} from 'wds-event';
 import { io } from 'socket.io-client';
 import { COMPILER_API_ENDPOINT, JUNO_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 import { readFile, stringify } from '../../utils/helper';
