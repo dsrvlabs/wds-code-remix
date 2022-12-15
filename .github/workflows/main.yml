@@ -2,7 +2,7 @@ name: wds-code-front-deploy
 on:
   push:
     branches:
-      - beta
+      - main
 
 env:
   REACT_APP_STAGE: ${{secrets.REACT_APP_STAGE}}
