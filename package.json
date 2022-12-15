@@ -1,6 +1,6 @@
 {
-  "name": "wds-code",
-  "version": "0.1.0",
+  "name": "wds-code-remix",
+  "version": "0.1.0-beta",
   "private": true,
   "dependencies": {
     "@cosmjs/proto-signing": "^0.28.11",
