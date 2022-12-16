@@ -7,7 +7,7 @@ import { FaSyncAlt } from 'react-icons/fa';
 import { Deploy } from './Deploy';
 
 import { io } from 'socket.io-client';
-import { parseContract } from 'near-contract-parser';
+import { parseContract } from 'wds-near-contract-parser';
 import { Contract } from './Contract';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';

@@ -47,7 +47,6 @@
     "jszip": "^3.10.0",
     "near-abi": "^0.1.0",
     "near-api-js": "git+https://github.com/daoauth/near-api-js.git",
-    "near-contract-parser": "^0.1.4",
     "pako": "^2.0.4",
     "react": "^18.0.0",
     "react-app": "^1.1.2",
@@ -62,6 +61,7 @@
     "util": "^0.12.4",
     "wasm-walrus-tools": "github:AhaLabs/wasm-walrus-tools#v0.1.0",
     "wds-event": "^1.0.17",
+    "wds-near-contract-parser": "^0.1.5",
     "web-vitals": "^2.1.4",
     "web3": "^1.3.6"
   },
