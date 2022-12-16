@@ -41,7 +41,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [lang, setLang] = useState<string>('rs');
   const [template, setTemplate] = useState<string>('as_counter');
-  const templateList = ['as_counter', 'rs_counter', 'rs_ft', 'rs_nft'];
+  const templateList = ['as_counter', 'rs_counter', 'js_counter', 'ts_counter', 'rs_ft', 'rs_nft'];
 
   useEffect(() => {
     getList();
