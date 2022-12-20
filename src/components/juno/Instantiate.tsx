@@ -192,19 +192,19 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           />
           <span style={{ color: 'red' }}>{initMsgErr}</span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'start',
-            margin: '0.3em 0.3em',
-          }}
-        >
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Amount</div>
-          <InputGroup>
-            <Form.Control type="text" placeholder="0" size="sm" />
-          </InputGroup>
-        </div>
+        {/*<div*/}
+        {/*  style={{*/}
+        {/*    display: 'flex',*/}
+        {/*    flexDirection: 'column',*/}
+        {/*    alignItems: 'start',*/}
+        {/*    margin: '0.3em 0.3em',*/}
+        {/*  }}*/}
+        {/*>*/}
+        {/*  <div style={{ marginRight: '1em', fontSize: '11px' }}>Amount</div>*/}
+        {/*  <InputGroup>*/}
+        {/*    <Form.Control type="text" placeholder="0" size="sm" />*/}
+        {/*  </InputGroup>*/}
+        {/*</div>*/}
       </Form.Group>
       <Form.Group>
         <Button

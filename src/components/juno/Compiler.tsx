@@ -312,6 +312,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     <>
       <Button
         variant="primary"
+        disabled={account === ''}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
