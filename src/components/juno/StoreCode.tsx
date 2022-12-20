@@ -1,10 +1,28 @@
 import React, { Dispatch, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
-import { StargateClient } from '@cosmjs/stargate';
+import { calculateFee, defaultRegistryTypes, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
-import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
+import {
+  MsgClearAdmin,
+  MsgExecuteContract,
+  MsgInstantiateContract,
+  MsgMigrateContract,
+  MsgStoreCode,
+  MsgUpdateAdmin,
+} from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
+import { GeneratedType, Registry } from '@cosmjs/proto-signing';
+import { Decimal } from '@cosmjs/math';
+
+export const wasmTypes: ReadonlyArray<[string, GeneratedType]> = [
+  ['/cosmwasm.wasm.v1.MsgClearAdmin', MsgClearAdmin],
+  ['/cosmwasm.wasm.v1.MsgExecuteContract', MsgExecuteContract],
+  ['/cosmwasm.wasm.v1.MsgMigrateContract', MsgMigrateContract],
+  ['/cosmwasm.wasm.v1.MsgStoreCode', MsgStoreCode],
+  ['/cosmwasm.wasm.v1.MsgInstantiateContract', MsgInstantiateContract],
+  ['/cosmwasm.wasm.v1.MsgUpdateAdmin', MsgUpdateAdmin],
+];
 
 interface InterfaceProps {
   dapp: any;
@@ -15,17 +33,18 @@ interface InterfaceProps {
   setWasm: Dispatch<React.SetStateAction<string>>;
 }
 
-export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, wallet }) => {
+export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, wallet, client }) => {
   const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
 
   const waitGetCodeID = async (hash: string) => {
     const rpcUrl = 'https://rpc.uni.junonetwork.io/';
-    const client = await StargateClient.connect(rpcUrl);
+    const stargateClient = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
-        const result = await client.getTx(hash);
+        const result = await stargateClient.getTx(hash);
+        log.debug('!!! waitGetCodeID interval', result);
         if (result) {
           const code_id = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
           log.debug(code_id);
@@ -62,57 +81,72 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
           // mainnet or testnet
           const rpcUrl = 'https://rpc.uni.junonetwork.io/';
 
-          const client = await StargateClient.connect(rpcUrl);
-          log.debug(client);
+          const stargateClient = await StargateClient.connect(rpcUrl);
+          log.debug(stargateClient);
 
-          const sequence = (await client.getSequence(result['juno'].address)).sequence;
+          const sequence = (await stargateClient.getSequence(result['juno'].address)).sequence;
           log.debug('sequence: ' + sequence);
 
-          const accountNumber = (await client.getSequence(result['juno'].address)).accountNumber;
+          const accountNumber = (await stargateClient.getSequence(result['juno'].address))
+            .accountNumber;
           log.debug('accountNumber: ' + accountNumber);
 
-          const chainId = await client.getChainId();
+          const chainId = await stargateClient.getChainId();
           log.debug('chainId: ' + chainId);
 
           // const compressed = pako.gzip((wasm), { level: 9 });
 
-          log.debug(wasm);
+          const messages = [
+            {
+              typeUrl: '/cosmwasm.wasm.v1.MsgStoreCode',
+              value: MsgStoreCode.fromPartial({
+                sender: result['juno'].address,
+                wasmByteCode: wasm as any,
+              }),
+            },
+          ];
 
-          const storeCodeMsg = {
-            typeUrl: '/cosmwasm.wasm.v1.MsgStoreCode',
-            value: MsgStoreCode.fromPartial({
-              sender: result['juno'].address,
-              wasmByteCode: wasm as any,
-            }),
-          };
+          const memo = undefined;
+          const gasEstimation = await simulate(
+            stargateClient,
+            messages,
+            memo,
+            result['juno'].pubKey,
+            sequence,
+          );
+          log.debug('@@@ gasEstimation', gasEstimation);
 
-          log.debug(storeCodeMsg);
+          const gasPrice = new GasPrice(Decimal.fromUserInput('0.0025', 18), 'ujunox');
+          const multiplier = 1.3;
+          const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gasPrice);
+          log.debug('@@@ usedFee', usedFee);
 
+          log.debug(messages[0]);
           const rawTx = {
             account_number: accountNumber,
             chain_id: chainId,
             sequence: sequence,
-            fee: {
-              amount: [{ denom: 'ujunox', amount: '50000' }],
-              gas: 200000,
-            },
-            msgs: [storeCodeMsg],
+            fee: usedFee,
+            msgs: messages,
           };
 
-          log.debug(rawTx);
+          log.debug(JSON.stringify(rawTx));
 
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:sendTransaction',
             params: [JSON.stringify(rawTx)],
           });
 
-          log.debug(res);
+          log.debug('@@@ dapp res', res);
 
           const code_id = await waitGetCodeID(res[0]);
+          await client.terminal.log({ type: 'info', value: `Code ID is ${code_id}` });
+
           log.debug('code_id', code_id);
           setCodeID(code_id as any);
-        } catch (error) {
-          log.error('>>>에러', error);
+        } catch (error: any) {
+          log.error('sendTransaction error', error);
+          await client.terminal.log({ type: 'error', value: error?.message?.toString() });
         }
       });
   };
@@ -134,3 +168,24 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
     </>
   );
 };
+
+async function simulate(
+  client: any,
+  messages: readonly any[],
+  memo: string | undefined,
+  pubKey: string,
+  sequence: number,
+) {
+  const registry = new Registry([...defaultRegistryTypes, ...wasmTypes]);
+  const anyMsgs = messages.map((m) => registry.encodeAsAny(m));
+  const simulateResult = await client.queryClient.tx.simulate(
+    anyMsgs,
+    memo,
+    {
+      type: 'tendermint/PubKeySecp256k1',
+      value: pubKey,
+    },
+    `${sequence}`,
+  );
+  return simulateResult.gasInfo.gasUsed;
+}

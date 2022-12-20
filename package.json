@@ -3,6 +3,7 @@
   "version": "0.1.0-beta",
   "private": true,
   "dependencies": {
+    "@cosmjs/math": "^0.28.11",
     "@cosmjs/proto-signing": "^0.28.11",
     "@cosmjs/stargate": "^0.28.11",
     "@cosmjs/tendermint-rpc": "^0.28.11",
@@ -38,6 +39,7 @@
     "cosmjs-types": "^0.5.0",
     "cosmwasm": "^1.1.1",
     "customize-cra": "^1.0.0",
+    "eslint-config-react-app": "^7.0.1",
     "fs": "^0.0.1-security",
     "fzstd": "^0.1.0",
     "hash-wasm": "^4.9.0",
