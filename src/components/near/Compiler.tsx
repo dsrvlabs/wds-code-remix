@@ -52,11 +52,11 @@ interface InterfaceProps {
 
 const COMPILE_OPTION_LIST = [
   { label: 'Rust', value: 'near-rs' },
-  { label: 'CARGO-NEAR', value: 'cargo-near' },
-  { label: 'EMBED-ABI', value: 'cargo-near-embed' },
-  { label: 'JavaScript', value: 'near-js' },
-  { label: 'TypeScript', value: 'near-ts' },
+  { label: 'Rust Cargo Near', value: 'cargo-near' },
+  { label: 'Rust Cargo Near EMBED-ABI', value: 'cargo-near-embed' },
   { label: 'AssemblyScript', value: 'near-as' },
+  { label: 'TypeScript', value: 'near-ts' },
+  { label: 'JavaScript', value: 'near-js' },
 ];
 
 export const Compiler: React.FunctionComponent<InterfaceProps> = ({
