@@ -186,7 +186,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         <div style={{ padding: '0.2em' }}>
           <Form.Control
             as="textarea"
-            rows={3}
+            rows={(initMsg.slice().match(/\n/g) || []).length + 1}
             value={initMsg}
             onChange={(e) => setInitMsg(e.target.value)}
           />
