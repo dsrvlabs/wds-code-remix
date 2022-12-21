@@ -188,8 +188,11 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
         };
 
         const hash = await dapp.request('celo', {
-          method: 'dapp:sendTransaction',
-          params: [JSON.stringify(rawTx)],
+          method: 'dapp:signAndSendTransaction',
+          params: [
+            // JSON.stringify(rawTx)
+            rawTx,
+          ],
         });
 
         const receipt = await waitGetTxReceipt(hash[0]);
