@@ -74,7 +74,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                 log.debug(balance);
                 setAccount(account['juno'].address);
 
-                setBalance(balance[0].amount + ' ' + balance[0].denom);
+                setBalance(balance);
                 setDapp(dappProvider);
               });
           });
