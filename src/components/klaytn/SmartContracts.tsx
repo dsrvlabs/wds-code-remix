@@ -20,6 +20,7 @@ import { renderToString } from 'react-dom/server';
 import { getConfig } from './config';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
+import { isEmptyList } from '../../utils/ListUtil';
 
 const EMPTYLIST = 'Currently you have no contract instances to interact with.';
 
@@ -153,22 +154,36 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
               }
             } else {
               try {
-                const hash = abi.name
-                  ? await dapp.request('klaytn', {
-                      method: 'dapp:sendTransaction',
-                      params: [
-                        JSON.stringify({
-                          from: account,
-                          to: address,
-                          data: newContract.methods[abi.name](...parms).encodeABI(),
-                        }),
-                      ],
-                    })
-                  : null;
+                if (!abi.name) {
+                  client?.terminal.log({
+                    type: 'error',
+                    value: 'abi name is empty',
+                  });
+                  return;
+                }
 
-                const receipt = await waitGetTxReceipt(hash[0]);
+                const hashes: string[] = await dapp.request('klaytn', {
+                  method: 'dapp:signAndSendTransaction',
+                  params: [
+                    {
+                      from: account,
+                      to: address,
+                      data: newContract.methods[abi.name](...parms).encodeABI(),
+                    },
+                  ],
+                });
 
-                const transaction = await web3.eth.getTransaction(hash[0]);
+                if (isEmptyList(hashes)) {
+                  client?.terminal.log({
+                    type: 'error',
+                    value: 'Failed to send transaction',
+                  });
+                  return;
+                }
+
+                const receipt = await waitGetTxReceipt(hashes[0]);
+
+                const transaction = await web3.eth.getTransaction(hashes[0]);
 
                 const html = (
                   <RenderTransactions
