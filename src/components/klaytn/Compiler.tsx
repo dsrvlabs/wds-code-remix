@@ -189,10 +189,8 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
         };
 
         const hash = await dapp.request('klaytn', {
-          method: 'dapp:sendTransaction',
-          // method: 'dapp:signAndSendTransaction',
-          params: [JSON.stringify(rawTx)],
-          // params: [rawTx],
+          method: 'dapp:signAndSendTransaction',
+          params: [rawTx],
         });
 
         const receipt = await waitGetTxReceipt(hash[0]);
