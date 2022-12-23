@@ -1,5 +1,5 @@
-import React, { Dispatch, useState } from 'react';
-import { Button } from 'react-bootstrap';
+import React, { Dispatch, useEffect, useState } from 'react';
+import { Alert, Button } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
@@ -18,8 +18,10 @@ import {
 } from 'wds-event';
 import { io } from 'socket.io-client';
 import { COMPILER_API_ENDPOINT, JUNO_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
-import { readFile, stringify } from '../../utils/helper';
+import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
+import { EditorClient } from '../../utils/editor';
+import AlertCloseButton from '../common/AlertCloseButton';
 
 interface InterfaceProps {
   fileName: string;
@@ -46,6 +48,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [compileError, setCompileError] = useState<Nullable<string>>('');
 
   const exists = async () => {
     try {
@@ -127,8 +130,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const compile = async (blob: Blob) => {
+    const editorClient = new EditorClient(client);
+    await editorClient.discardHighlight();
+    await editorClient.clearAnnotations();
     setLoading(true);
     setIconSpin('fa-spin');
+    setCompileError('');
 
     const address = account;
     const timestamp = Date.now().toString();
@@ -156,7 +163,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           if (data.compileId !== compileId(address, timestamp)) {
             return;
           }
-
+          await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
           setIconSpin('');
           setLoading(false);
           socket.disconnect();
@@ -172,7 +179,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
 
         // client?.terminal.log({ value: data.logMsg, type: 'info' }); // todo remix v0.28.0
-        client?.terminal.log(data.logMsg);
+        await client.terminal.log({ type: 'info', value: data.logMsg });
+
+        if (data.logMsg.includes('error')) {
+          const { file, annotation, highlightPosition, positionDetail } = getPositionDetails(
+            data.logMsg,
+          );
+
+          if (file) {
+            if (isRealError(annotation)) {
+              await editorClient.gotoLine(positionDetail.row, positionDetail.col);
+              await editorClient.addAnnotation(annotation);
+
+              await editorClient.highlight(
+                highlightPosition,
+                `${compileTarget}/${file}`,
+                '#ff7675',
+              );
+              setCompileError((prev) => `${prev}\n${data.logMsg}`);
+
+              setIconSpin('');
+              setLoading(false);
+              socket.disconnect();
+              return;
+            }
+          }
+        }
       });
 
       socket.on(
@@ -308,6 +340,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const handleAlertClose = () => {
+    setCompileError('');
+    client.call('editor', 'discardHighlight');
+    client.call('editor', 'clearAnnotations');
+  };
+
   return (
     <>
       <Button
@@ -319,6 +357,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <FaSyncAlt className={iconSpin} />
         <span> Compile</span>
       </Button>
+      {compileError !== '' && (
+        <Alert
+          variant="danger"
+          className="mt-3"
+          style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}
+        >
+          <AlertCloseButton onClick={handleAlertClose} />
+          {compileError}
+        </Alert>
+      )}
       {fileName ? (
         <div>
           <Button
