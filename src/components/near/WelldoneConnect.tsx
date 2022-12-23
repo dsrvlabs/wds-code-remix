@@ -11,8 +11,8 @@ import { log } from '../../utils/logger';
 
 interface InterfaceProps {
   active: boolean;
-  setAccountID: Dispatch<React.SetStateAction<string>>;
-  accountID: string;
+  account: { address: string; pubKey: string };
+  setAccount: Dispatch<React.SetStateAction<{ address: string; pubKey: string }>>;
   setWalletRpcProvider: Dispatch<React.SetStateAction<providers.WalletRpcProvider | undefined>>;
   client: Client<Api, Readonly<IRemixApi>>;
   setActive: Dispatch<React.SetStateAction<boolean>>;
@@ -23,8 +23,8 @@ interface InterfaceProps {
 export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   client,
   active,
-  accountID,
-  setAccountID,
+  account,
+  setAccount,
   setWalletRpcProvider,
   setActive,
   setNearConfig,
@@ -39,14 +39,15 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   useEffect(() => {
     if (active) {
       try {
-        const network = proxyProvider.getNetwork();
-
-        connect(getConfig(network) as any).then(async (near: Near) => {
+        proxyProvider.getAccount().then(async (account: any) => {
+          console.log('address >> ', account);
+          const network = await proxyProvider.getNetwork();
+          console.log('network >> ', network);
+          const near = await connect(getConfig(network) as any);
           setNearConfig(near);
-
+          console.log('near >> ', near);
           setProviderProxy(proxyProvider);
-
-          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider);
+          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider); // dapp:accounts
 
           setWalletRpcProvider(walletRpcProvider);
 
@@ -58,16 +59,15 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             window.location.reload();
           });
 
-          const account = proxyProvider.getAddress().address;
-
-          if (account) {
+          if (account.address) {
             gtag('event', 'login', {
               method: 'near',
             });
           }
 
-          proxyProvider.getBalance(account).then((balance: any) => {
-            setAccountID(account);
+          proxyProvider.getBalance(account.address).then((balance: any) => {
+            // setAccountID(account.address);
+            setAccount(account);
             const bal = utils.format.formatNearAmount(balance);
             setBalance(bal.substring(0, bal.indexOf('.') + 3));
           });
@@ -103,7 +103,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control
               type="text"
               placeholder="Account"
-              value={accountID ? accountID + ' (' + balance + ' near)' : ''}
+              value={account.address ? account.address + ' (' + balance + ' near)' : ''}
               size="sm"
               readOnly
             />

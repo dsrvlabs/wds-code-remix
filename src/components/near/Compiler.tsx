@@ -43,11 +43,11 @@ const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
 
 interface InterfaceProps {
   compileTarget: string;
-  accountID: string;
   walletRpcProvider: providers.WalletRpcProvider | undefined;
   providerProxy: Provider | undefined;
   nearConfig: Near | undefined;
   client: Client<Api, Readonly<IRemixApi>>;
+  account: { address: string; pubKey: string };
 }
 
 const COMPILE_OPTION_LIST = [
@@ -62,7 +62,7 @@ const COMPILE_OPTION_LIST = [
 export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   client,
   compileTarget,
-  accountID,
+  account,
   walletRpcProvider,
   providerProxy,
   nearConfig,
@@ -317,7 +317,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setCompileIconSpin('fa-spin');
     setLoading(true);
 
-    const address = accountID;
+    const address = account.address;
     const timestamp = Date.now().toString();
 
     try {
@@ -483,7 +483,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setLoading(true);
     const formData = new FormData();
 
-    const address = accountID;
+    const address = account.address;
     const timestamp = Date.now();
 
     formData.append('address', address || 'noaddress');
@@ -559,6 +559,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return (
           <SmartContracts
             client={client}
+            account={account}
             walletRpcProvider={walletRpcProvider}
             providerProxy={providerProxy}
             nearConfig={nearConfig}
@@ -573,6 +574,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return (
       <Contract
         client={client}
+        account={account}
         walletRpcProvider={walletRpcProvider}
         providerProxy={providerProxy}
         nearConfig={nearConfig}
@@ -636,7 +638,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="primary"
-          disabled={accountID === ''}
+          disabled={account.address === ''}
           onClick={() => {
             wrappedReadCode('compile');
           }}
@@ -660,6 +662,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <hr />
       {wasm ? (
         <Deploy
+          account={account}
           wasm={wasm}
           json={json}
           walletRpcProvider={walletRpcProvider}
@@ -693,7 +696,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             <Button
               variant="info"
               size="sm"
-              disabled={accountID === '' || isProgress}
+              disabled={account.address === '' || isProgress}
               onClick={getContractAtAddress}
             >
               <small>At Address</small>

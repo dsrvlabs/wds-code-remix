@@ -22,6 +22,7 @@ interface InterfaceDrawMethodProps {
   walletRpcProvider: providers.WalletRpcProvider | undefined;
   providerProxy: Provider | undefined;
   deployedContract: string;
+  account: { address: string; pubKey: string };
 }
 
 const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) => {
@@ -31,7 +32,8 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
   const [deposit, setDeposit] = React.useState<number>(0);
   const [units, setUnits] = React.useState<string>('NEAR');
   const [disable, setDisable] = React.useState<boolean>(false);
-  const { abi, client, nearConfig, walletRpcProvider, providerProxy, deployedContract } = props;
+  const { abi, client, nearConfig, walletRpcProvider, providerProxy, deployedContract, account } =
+    props;
 
   React.useEffect(() => {
     const temp: { [key: string]: null } = {};
@@ -102,7 +104,6 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
             });
 
             const rpcUrl = nearConfig.config.nodeUrl;
-            const account = providerProxy.getAddress();
 
             if (abi.stateMutability === 'view') {
               try {
@@ -159,7 +160,8 @@ const ContractCard: React.FunctionComponent<{
   nearConfig: Near | undefined;
   walletRpcProvider: providers.WalletRpcProvider | undefined;
   providerProxy: Provider | undefined;
-}> = ({ contract, client, nearConfig, walletRpcProvider, providerProxy }) => {
+  account: { address: string; pubKey: string };
+}> = ({ contract, client, nearConfig, walletRpcProvider, providerProxy, account }) => {
   // TODO: show multiple contracts cards
   function CustomToggle({ children, eventKey }: any) {
     const decoratedOnClick = useAccordionButton(eventKey, () => {});
@@ -184,6 +186,7 @@ const ContractCard: React.FunctionComponent<{
           <Accordion.Body>
             <Card.Body className="py-1 px-2">
               <DrawMethod
+                account={account}
                 abi={abi}
                 client={client}
                 nearConfig={nearConfig}
@@ -232,6 +235,7 @@ interface InterfaceSmartContractsProps {
   nearConfig: Near | undefined;
   walletRpcProvider: providers.WalletRpcProvider | undefined;
   providerProxy: Provider | undefined;
+  account: { address: string; pubKey: string };
 }
 
 const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
@@ -240,6 +244,7 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
   nearConfig,
   walletRpcProvider,
   providerProxy,
+  account,
 }) => {
   function DrawContracts(client: any) {
     return (
@@ -249,6 +254,7 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
         nearConfig={nearConfig}
         walletRpcProvider={walletRpcProvider}
         providerProxy={providerProxy}
+        account={account}
       />
     );
   }

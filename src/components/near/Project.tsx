@@ -15,11 +15,11 @@ import { Provider } from './WalletRpcProvider';
 import { log } from '../../utils/logger';
 
 interface InterfaceProps {
-  accountID: string;
   walletRpcProvider: providers.WalletRpcProvider | undefined;
   providerProxy: Provider | undefined;
   nearConfig: Near | undefined;
   client: Client<Api, Readonly<IRemixApi>>;
+  account: { address: string; pubKey: string };
 }
 
 const PROJECT_TEMPLATE_FILETYPE = [
@@ -30,7 +30,7 @@ const PROJECT_TEMPLATE_FILETYPE = [
 ];
 
 export const Project: React.FunctionComponent<InterfaceProps> = ({
-  accountID,
+  account,
   walletRpcProvider,
   providerProxy,
   nearConfig,
@@ -257,7 +257,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <hr />
       <Compiler
         compileTarget={compileTarget}
-        accountID={accountID}
+        account={account}
         walletRpcProvider={walletRpcProvider}
         providerProxy={providerProxy}
         nearConfig={nearConfig}
