@@ -133,10 +133,11 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
           log.debug(JSON.stringify(rawTx));
 
           const res = await (window as any).dapp.request('juno', {
-            method: 'dapp:signAndSendTransaction',
+            method: 'dapp:sendTransaction',
+            // method: 'dapp:signAndSendTransaction',
             params: [
-              // JSON.stringify(rawTx),
-              rawTx,
+              JSON.stringify(rawTx),
+              // rawTx,
             ],
           });
 
@@ -148,7 +149,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
           log.debug('code_id', code_id);
           setCodeID(code_id as any);
         } catch (error: any) {
-          log.error('signAndSendTransaction error', error);
+          log.error('sendTransaction error', error);
+          // log.error('signAndSendTransaction error', error);
           await client.terminal.log({ type: 'error', value: error?.message?.toString() });
         }
       });

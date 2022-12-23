@@ -15,7 +15,8 @@ export class Provider implements ProviderProxy {
 
   async request(args: RequestParams) {
     if (args.method === 'signAndSendTransaction') {
-      args.method = 'dapp:signAndSendTransaction';
+      args.method = 'dapp:sendTransaction';
+      // args.method = 'dapp:signAndSendTransaction';
     }
     return await window.dapp.request('near', args);
   }

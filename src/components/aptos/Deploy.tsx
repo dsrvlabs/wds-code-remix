@@ -70,7 +70,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         chainId,
       );
       const txnHash = await dapp.request('aptos', {
-        method: 'dapp:signAndSendTransaction',
+        method: 'dapp:sendTransaction',
+        // method: 'dapp:signAndSendTransaction',
         params: [rawTx_],
       });
       log.debug(`@@@ txnHash=${txnHash}`);

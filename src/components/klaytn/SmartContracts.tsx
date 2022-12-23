@@ -163,13 +163,19 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
                 }
 
                 const hashes: string[] = await dapp.request('klaytn', {
-                  method: 'dapp:signAndSendTransaction',
+                  method: 'dapp:sendTransaction',
+                  // method: 'dapp:signAndSendTransaction',
                   params: [
-                    {
+                    JSON.stringify({
                       from: account,
                       to: address,
                       data: newContract.methods[abi.name](...parms).encodeABI(),
-                    },
+                    }),
+                    // {
+                    //   from: account,
+                    //   to: address,
+                    //   data: newContract.methods[abi.name](...parms).encodeABI(),
+                    // },
                   ],
                 });
 

@@ -95,10 +95,11 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           log.debug(rawTx);
 
           const res = await (window as any).dapp.request('juno', {
-            method: 'dapp:signAndSendTransaction',
+            method: 'dapp:sendTransaction',
+            // method: 'dapp:signAndSendTransaction',
             params: [
-              // JSON.stringify(rawTx)
-              rawTx,
+              JSON.stringify(rawTx),
+              // rawTx,
             ],
           });
 
