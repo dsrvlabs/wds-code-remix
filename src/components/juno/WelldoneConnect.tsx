@@ -5,6 +5,7 @@ import { EncodeObject } from '@cosmjs/proto-signing';
 
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
+import { StargateClient } from '@cosmjs/stargate';
 
 interface MsgStoreCodeEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgStoreCode';
@@ -56,27 +57,25 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
           .request('juno', {
             method: 'dapp:accounts',
           })
-          .then((account: { [x: string]: { address: any } }) => {
+          .then(async (account: { [x: string]: { address: any } }) => {
             log.debug(account);
+            const address = account?.['juno'].address;
 
-            if (account.constructor === Object && Object.keys(account).length === 0) {
+            if (!address) {
               setAccount('');
               setBalance('');
               setActive(false);
+              return;
             }
 
-            dappProvider
-              .request('juno', {
-                method: 'dapp:getBalance',
-                params: [account['juno'].address],
-              })
-              .then((balance: any) => {
-                log.debug(balance);
-                setAccount(account['juno'].address);
+            setAccount(address);
 
-                setBalance(balance[0].amount + ' ' + balance[0].denom);
-                setDapp(dappProvider);
-              });
+            const client = await StargateClient.connect('https://rpc.uni.junonetwork.io/');
+            const balances = await client.getAllBalances(address);
+            const balance = balances.find((balance) => balance.denom === 'ujunox');
+            if (balance) {
+              setBalance(`${balance.amount} ${balance.denom}`);
+            }
           });
       } else {
         setAccount('');

@@ -34,14 +34,11 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   const [error, setError] = useState<String>('');
 
   const proxyProvider = new Provider();
-  console.log('@@@', window);
 
   // Establish a connection to the NEAR blockchain on component mount
   useEffect(() => {
     if (active) {
       try {
-        console.log(`@@@ window`, window);
-        console.log(`@@@ proxyProvider`, proxyProvider);
         const network = proxyProvider.getNetwork();
 
         connect(getConfig(network) as any).then(async (near: Near) => {
