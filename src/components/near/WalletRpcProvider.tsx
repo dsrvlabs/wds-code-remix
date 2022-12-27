@@ -3,7 +3,7 @@ import { RequestParams, ProviderProxy } from 'near-api-js/lib/providers/wallet-r
 export class Provider implements ProviderProxy {
   async getAccount() {
     const result = await window.dapp.request('near', { method: 'dapp:accounts' });
-    return result['near']?.address ?? '';
+    return result['near'] ? result['near'] : '';
   }
 
   async getBalance(accountId: string) {
@@ -24,11 +24,8 @@ export class Provider implements ProviderProxy {
     window.dapp.on(message, listener);
   }
 
-  getNetwork() {
-    return window.dapp.networks.near.chain;
-  }
-
-  getAddress(): { address: string; pubKey: string } {
-    return window.dapp.networks.near.account;
+  async getNetwork() {
+    const status = await window.dapp.request('near', { method: 'status', params: [] });
+    return status.chain_id;
   }
 }

@@ -20,8 +20,8 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   const [dapp, setDapp] = useState<any>();
   const [account, setAccount] = useState<string>('');
   const [balance, setBalance] = useState<string>('');
-  const [config, setConfig] = useState<any>();
   const [error, setError] = useState<string>('');
+  const [web3, setWeb3] = useState<Web3>();
 
   const dappProvider = window.dapp;
 
@@ -75,8 +75,11 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                 await client?.terminal.log('Please Unlock your WELLDONE Wallet OR Create Account');
                 setError('Unlock your WELLDONE Wallet OR Create Account');
               });
-
-            setConfig(getConfig(dapp?.networks?.celo.chain));
+            const chainId = await dappProvider.request('celo', {
+              method: 'eth_chainId',
+              params: [],
+            });
+            setWeb3(new Web3(getConfig(chainId).forno));
           } else {
             setAccount('');
             setBalance('');
@@ -97,7 +100,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      <Project dapp={dapp} account={account} balance={balance} client={client} config={config} />
+      <Project dapp={dapp} account={account} balance={balance} client={client} web3={web3} />
     </div>
   );
 };

@@ -4,13 +4,14 @@ import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import Compiler from './Compiler';
 import SmartContracts from './SmartContracts';
 import { InterfaceContract } from '../../utils/Types';
+import Web3 from 'web3';
 
 interface InterfaceProps {
   dapp: any;
   account: string;
   balance: string;
   client: any;
-  config: any;
+  web3: Web3 | undefined;
 }
 
 export const Project: React.FunctionComponent<InterfaceProps> = ({
@@ -18,10 +19,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   account,
   balance,
   client,
-  config,
+  web3,
 }) => {
+  console.log(web3);
   const [busy, setBusy] = React.useState<boolean>(false);
-  // const [celo] = React.useState<Celo>(new Celo(NETWORKS.Mainnet));
   const [atAddress, setAtAddress] = React.useState<string>('');
   const [contracts, setContracts] = React.useState<InterfaceContract[]>([]);
   const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
@@ -59,7 +60,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         setBusy={setBusy}
         addNewContract={addNewContract}
         setSelected={setSelected}
-        config={config}
+        web3={web3}
       />
       <p className="text-center mt-3">
         <small>OR</small>
@@ -106,7 +107,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         setBusy={setBusy}
         contracts={contracts}
         client={client}
-        config={config}
+        web3={web3}
       />
     </>
   );

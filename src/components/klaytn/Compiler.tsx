@@ -43,6 +43,7 @@ interface InterfaceProps {
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   setSelected: (select: InterfaceContract) => void; // for At Address
   client: any;
+  web3: Web3 | undefined;
 }
 
 const Compiler: React.FunctionComponent<InterfaceProps> = ({
@@ -53,6 +54,7 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
   addNewContract,
   setSelected,
   client,
+  web3,
 }) => {
   const [initialised, setInitialised] = React.useState<boolean>(false);
   const [fileName, setFileName] = React.useState<string>('');
@@ -69,15 +71,6 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [args, setArgs] = React.useState<{ [key: string]: string }>({});
   const [address, setAddress] = React.useState<string>('');
   const [error, setError] = React.useState<string>('');
-
-  let web3 = new Web3();
-
-  try {
-    web3 = new Web3(getConfig(dapp?.networks?.klaytn.chain).rpcUrl);
-  } catch (e) {
-    log.error(e);
-  }
-  // const web3 = new Web3('https://public-node-api.klaytnapi.com/v1/baobab');
 
   React.useEffect(() => {
     async function init() {
@@ -146,6 +139,9 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
   }
 
   async function waitGetTxReceipt(hash: string) {
+    if (!web3) {
+      throw new Error('Web3 object is undefined');
+    }
     let count = 0;
     return new Promise(function (resolve, reject) {
       const id = setInterval(async function () {
@@ -164,6 +160,9 @@ const Compiler: React.FunctionComponent<InterfaceProps> = ({
   }
 
   async function onDeploy() {
+    if (!web3) {
+      throw new Error('Web3 object is undefined');
+    }
     sendCustomEvent('deploy', {
       event_category: 'klaytn',
       method: 'deploy',

@@ -8,7 +8,7 @@ import { keyStores } from 'near-api-js';
  */
 export const getConfig = (environment: string): object => {
   switch (environment) {
-    case 'near':
+    case 'mainnet':
       return {
         networkId: 'mainnet',
         keyStore: new keyStores.BrowserLocalStorageKeyStore(),
