@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-bootstrap';
+import Web3 from 'web3';
 import { log } from '../../utils/logger';
 import AlertCloseButton from '../common/AlertCloseButton';
+import { getConfig } from './config';
 import { Project } from './Project';
 
 interface InterfaceProps {
@@ -19,6 +21,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   const [account, setAccount] = useState<string>('');
   const [balance, setBalance] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [web3, setWeb3] = useState<Web3>();
 
   const dappProvider = window.dapp;
   // Establish a connection to the NEAR blockchain on component mount
@@ -69,6 +72,11 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                 await client?.terminal.log('Please Unlock your WELLDONE Wallet OR Create Account');
                 setError('Unlock your WELLDONE Wallet OR Create Account');
               });
+            const chainId = await dappProvider.request('klaytn', {
+              method: 'eth_chainId',
+              params: [],
+            });
+            setWeb3(new Web3(getConfig(chainId).rpcUrl));
           } else {
             setAccount('');
             setBalance('');
@@ -89,7 +97,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      <Project dapp={dapp} account={account} balance={balance} client={client} />
+      <Project dapp={dapp} account={account} balance={balance} client={client} web3={web3} />
     </div>
   );
 };
