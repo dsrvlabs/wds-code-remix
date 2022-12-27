@@ -110,6 +110,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
       amount,
       gasLimit,
       client,
+      nearConfig,
     );
   };
 
