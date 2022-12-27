@@ -128,6 +128,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           wasm,
           receiverID,
           client,
+          nearConfig,
           initFunction,
           params,
           deposit,
@@ -140,6 +141,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           wasm,
           receiverID,
           client,
+          nearConfig,
         );
       }
       if (receipt) {

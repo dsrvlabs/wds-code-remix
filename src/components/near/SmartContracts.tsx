@@ -139,6 +139,7 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
                   amount,
                   gasLimit,
                   client,
+                  nearConfig,
                 );
               } catch (e: any) {
                 log.error(e);
