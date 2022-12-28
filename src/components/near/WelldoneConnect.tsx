@@ -41,12 +41,6 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
       if (active) {
         try {
           const account = await proxyProvider.getAccount();
-          if (account.constructor === Object && Object.keys(account).length === 0) {
-            setAccount({ address: '', pubKey: '' });
-            setBalance('');
-            setActive(false);
-            throw new Error('No account');
-          }
           if (account.address !== '') {
             gtag('event', 'login', {
               method: 'near',
