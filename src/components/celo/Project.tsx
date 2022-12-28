@@ -21,7 +21,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   client,
   web3,
 }) => {
-  console.log(web3);
   const [busy, setBusy] = React.useState<boolean>(false);
   const [atAddress, setAtAddress] = React.useState<string>('');
   const [contracts, setContracts] = React.useState<InterfaceContract[]>([]);

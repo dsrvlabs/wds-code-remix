@@ -72,7 +72,10 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                 setBalance('');
                 setActive(false);
                 await client?.terminal.log({ type: 'error', value: e?.message?.toString() });
-                await client?.terminal.log('Please Unlock your WELLDONE Wallet OR Create Account');
+                await client.terminal.log({
+                  type: 'error',
+                  value: 'Please Unlock your WELLDONE Wallet OR Create Account',
+                });
                 setError('Unlock your WELLDONE Wallet OR Create Account');
               });
             const chainId = await dappProvider.request('celo', {

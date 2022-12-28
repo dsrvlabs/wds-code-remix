@@ -37,18 +37,27 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 
   // Establish a connection to the NEAR blockchain on component mount
   useEffect(() => {
-    if (active) {
-      try {
-        proxyProvider.getAccount().then(async (account: any) => {
-          console.log('address >> ', account);
+    const welldoneConnect = async () => {
+      if (active) {
+        try {
+          const account = await proxyProvider.getAccount();
+          if (account.constructor === Object && Object.keys(account).length === 0) {
+            setAccount({ address: '', pubKey: '' });
+            setBalance('');
+            setActive(false);
+            throw new Error('No account');
+          }
+          if (account.address !== '') {
+            gtag('event', 'login', {
+              method: 'near',
+            });
+          }
           const network = await proxyProvider.getNetwork();
-          console.log('network >> ', network);
           const near = await connect(getConfig(network) as any);
           setNearConfig(near);
-          console.log('near >> ', near);
-          setProviderProxy(proxyProvider);
-          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider); // dapp:accounts
 
+          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider); // dapp:accounts
+          setProviderProxy(proxyProvider);
           setWalletRpcProvider(walletRpcProvider);
 
           walletRpcProvider.on('dapp:chainChanged', (provider: any) => {
@@ -59,33 +68,26 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             window.location.reload();
           });
 
-          if (account.address) {
-            gtag('event', 'login', {
-              method: 'near',
+          const balance = await proxyProvider.getBalance(account.address);
+          const bal = utils.format.formatNearAmount(balance);
+          setAccount(account);
+          setBalance(bal.substring(0, bal.indexOf('.') + 3));
+        } catch (e: any) {
+          const error = async () => {
+            await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+            await client.terminal.log({
+              type: 'error',
+              value: 'Please Unlock your WELLDONE Wallet OR Create Account',
             });
-          }
-
-          proxyProvider.getBalance(account.address).then((balance: any) => {
-            // setAccountID(account.address);
-            setAccount(account);
-            const bal = utils.format.formatNearAmount(balance);
-            setBalance(bal.substring(0, bal.indexOf('.') + 3));
-          });
-        });
-      } catch (e: any) {
-        const error = async () => {
-          await client.terminal.log({ type: 'error', value: e?.message?.toString() });
-          await client.terminal.log({
-            type: 'error',
-            value: 'Please Unlock your WELLDONE Wallet OR Create Account',
-          });
-          setError('Unlock your WELLDONE Wallet OR Create Account');
-          setActive(false);
-        };
-        log.error(e);
-        error();
+            setError('Unlock your WELLDONE Wallet OR Create Account');
+            setActive(false);
+          };
+          log.error(e);
+          error();
+        }
       }
-    }
+    };
+    welldoneConnect();
   }, [active]);
 
   return (
@@ -103,7 +105,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control
               type="text"
               placeholder="Account"
-              value={account.address ? account.address + ' (' + balance + ' near)' : ''}
+              value={account.address !== '' ? account.address + ' (' + balance + ' near)' : ''}
               size="sm"
               readOnly
             />
