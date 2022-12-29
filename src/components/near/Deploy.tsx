@@ -55,9 +55,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       nearConfig?.config.networkId === 'mainnet' ? 'near' : nearConfig?.config.networkId;
 
     if (receiverID.trim().split('.')[receiverID.split('.').length - 1] !== network) {
-      await client.terminal.log({ type: 'error', value: 'Invalidate Account ID' });
+      await client.terminal.log({ type: 'error', value: `Invalidate Account ID: ${receiverID}` });
       setInProgress(false);
-      throw new Error('Invalidate Account ID');
+      throw new Error(`Invalidate Account ID: ${receiverID}`);
     }
 
     const state = await walletRpcProvider.query<AccountView>({
@@ -91,9 +91,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       let receipt: providers.FinalExecutionOutcome | undefined;
 
       if (initFunction) {
-        if (rowsData.length === 0) {
-          throw new Error('Must add initialization arguments');
-        }
+        // if (rowsData.length === 0) {
+        //   throw new Error('Must add initialization arguments');
+        // }
         const params = {} as any;
         rowsData.forEach((row: RowData) => {
           switch (row.type) {
