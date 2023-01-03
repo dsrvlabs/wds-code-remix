@@ -12,8 +12,13 @@ interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
 }
 
+interface Account {
+  address: string;
+  pubKey: string;
+}
+
 export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => {
-  const [accountID, setAccountID] = useState('');
+  const [account, setAccount] = useState<Account>({ address: '', pubKey: '' });
   const [walletRpcProvider, setWalletRpcProvider] = useState<providers.WalletRpcProvider>();
   const [providerProxy, setProviderProxy] = useState<Provider>();
   const [nearConfig, setNearConfig] = useState<Near>();
@@ -26,8 +31,8 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
       <div>
         <WelldoneConnect
           active={active}
-          accountID={accountID}
-          setAccountID={setAccountID}
+          account={account}
+          setAccount={setAccount}
           setWalletRpcProvider={setWalletRpcProvider}
           client={client}
           setActive={setActive}
@@ -35,7 +40,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
           setProviderProxy={setProviderProxy}
         />
         <Project
-          accountID={accountID}
+          account={account}
           walletRpcProvider={walletRpcProvider}
           providerProxy={providerProxy}
           nearConfig={nearConfig}

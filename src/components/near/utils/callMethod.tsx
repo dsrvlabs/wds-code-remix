@@ -1,10 +1,12 @@
-import { utils, providers, transactions } from 'near-api-js';
+import { utils, providers, transactions, Near } from 'near-api-js';
 import { RenderTransactions } from '../RenderTransactions';
 import { renderToString } from 'react-dom/server';
 import BN from 'bn.js';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
+import { waitForTransaction } from './waitForTransaction';
+import { log } from '../../../utils/logger';
 
 export const fetchData = async (rpcUrl: string, accountId: string, pubKey: string) => {
   const fetchResult = await fetch(rpcUrl, {
@@ -40,8 +42,12 @@ export const callMethod = async (
   deposit: string | number,
   gasLimit: number,
   client: Client<Api, Readonly<IRemixApi>>,
+  nearConfig: Near | undefined,
 ) => {
   try {
+    if (!nearConfig) {
+      throw new Error('near connection undefined');
+    }
     const { nonce, recentBlockHash } = await fetchData(rpcUrl, account.address, account.pubKey);
     const actions = [
       transactions.functionCall(methodName, params, new BN(gasLimit), new BN(deposit)),
@@ -54,7 +60,15 @@ export const callMethod = async (
       actions,
       recentBlockHash,
     );
-    const receipt = await walletRpcProvider.signAndSendTransaction(transaction);
+    // TODO: modify to using walletRpcProvider after wallet update
+    const txHash = await (window as any).dapp.request('near', {
+      method: 'dapp:signAndSendTransaction',
+      params: [Buffer.from(transaction.encode()).toString('base64')],
+    });
+    log.debug('near txHash:', txHash);
+    const receipt = await waitForTransaction(txHash[0], account.address, nearConfig);
+    // const receipt = await walletRpcProvider.signAndSendTransaction(transaction);
+
     if ((receipt.status as providers.FinalExecutionStatus).Failure) {
       await client.terminal.log({
         type: 'error',

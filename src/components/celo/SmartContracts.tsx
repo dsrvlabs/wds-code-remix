@@ -31,7 +31,7 @@ interface InterfaceDrawMethodProps {
   abi: AbiItem;
   address: string;
   client: any;
-  config: any;
+  web3: Web3 | undefined;
 }
 
 const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) => {
@@ -40,14 +40,7 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
   const [value, setValue] = React.useState<string>('');
   const [args, setArgs] = React.useState<{ [key: string]: string }>({});
   const [result, setResult] = React.useState<{ [key: string]: string }>({});
-  const { dapp, account, busy, /* setBusy, */ abi, address, client, config } = props;
-
-  let web3 = new Web3();
-  try {
-    web3 = new Web3(getConfig(dapp?.networks?.celo.chain).forno);
-  } catch (e) {
-    log.error(e);
-  }
+  const { dapp, account, busy, /* setBusy, */ abi, address, client, web3 } = props;
 
   React.useEffect(() => {
     const temp: { [key: string]: string } = {};
@@ -58,6 +51,9 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
   }, [abi.inputs]);
 
   async function waitGetTxReceipt(hash: string) {
+    if (!web3) {
+      throw new Error('Web3 object is undefined');
+    }
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const receipt = await web3.eth.getTransactionReceipt(hash);
@@ -106,6 +102,9 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
           size="sm"
           disabled={busy || !dapp}
           onClick={async (event) => {
+            if (!web3) {
+              throw new Error('Web3 object is undefined');
+            }
             // setBusy(true)
             setResult({});
             const parms: string[] = [];
@@ -157,11 +156,6 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
                   ? await dapp.request('celo', {
                       method: 'dapp:signAndSendTransaction',
                       params: [
-                        // JSON.stringify({
-                        //   from: account,
-                        //   to: address,
-                        //   data: newContract.methods[abi.name](...parms).encodeABI(),
-                        // }),
                         {
                           from: account,
                           to: address,
@@ -217,6 +211,9 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
           size="sm"
           className="mt-0 pt-0 float-right"
           onClick={async () => {
+            if (!web3) {
+              throw new Error('Web3 object is undefined');
+            }
             if (abi.name) {
               try {
                 const parms: string[] = [];
@@ -260,8 +257,8 @@ const ContractCard: React.FunctionComponent<{
   index: number;
   remove: () => void;
   client: any;
-  config: any;
-}> = ({ dapp, account, busy, setBusy, contract, index, remove, client, config }) => {
+  web3: Web3 | undefined;
+}> = ({ dapp, account, busy, setBusy, contract, index, remove, client, web3 }) => {
   const [enable, setEnable] = React.useState<boolean>(true);
 
   function CustomToggle({ children, eventKey }: any) {
@@ -294,7 +291,7 @@ const ContractCard: React.FunctionComponent<{
                 abi={abi}
                 address={contract.address}
                 client={client}
-                config={config}
+                web3={web3}
               />
             </Card.Body>
           </Accordion.Body>
@@ -318,8 +315,12 @@ const ContractCard: React.FunctionComponent<{
             className="float-right align-middle"
             size="sm"
             variant="link"
-            onClick={() => {
-              const network = getConfig(window.dapp.networks.celo.chain);
+            onClick={async () => {
+              const chainId = await dapp.request('celo', {
+                method: 'eth_chainId',
+                params: [],
+              });
+              const network = getConfig(chainId);
               window.open(`${network.explorerUrl}/address/${contract.address}`);
             }}
           >
@@ -349,7 +350,7 @@ interface InterfaceSmartContractsProps {
   setBusy: (state: boolean) => void;
   contracts: InterfaceContract[];
   client: any;
-  config: any;
+  web3: Web3 | undefined;
 }
 
 const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
@@ -359,7 +360,7 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
   setBusy,
   contracts,
   client,
-  config,
+  web3,
 }) => {
   const [error, setError] = React.useState<string>('');
   const [count, setCount] = React.useState<number>(0);
@@ -384,7 +385,7 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
         }}
         client={client}
         key={`Contract_${index.toString()}`}
-        config={config}
+        web3={web3}
       />
     ));
     return <>{items}</>;

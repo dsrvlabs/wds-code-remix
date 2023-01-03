@@ -11,8 +11,8 @@ import { log } from '../../utils/logger';
 
 interface InterfaceProps {
   active: boolean;
-  setAccountID: Dispatch<React.SetStateAction<string>>;
-  accountID: string;
+  account: { address: string; pubKey: string };
+  setAccount: Dispatch<React.SetStateAction<{ address: string; pubKey: string }>>;
   setWalletRpcProvider: Dispatch<React.SetStateAction<providers.WalletRpcProvider | undefined>>;
   client: Client<Api, Readonly<IRemixApi>>;
   setActive: Dispatch<React.SetStateAction<boolean>>;
@@ -23,8 +23,8 @@ interface InterfaceProps {
 export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   client,
   active,
-  accountID,
-  setAccountID,
+  account,
+  setAccount,
   setWalletRpcProvider,
   setActive,
   setNearConfig,
@@ -37,17 +37,21 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 
   // Establish a connection to the NEAR blockchain on component mount
   useEffect(() => {
-    if (active) {
-      try {
-        const network = proxyProvider.getNetwork();
-
-        connect(getConfig(network) as any).then(async (near: Near) => {
+    const welldoneConnect = async () => {
+      if (active) {
+        try {
+          const account = await proxyProvider.getAccount();
+          if (account.address !== '') {
+            gtag('event', 'login', {
+              method: 'near',
+            });
+          }
+          const network = await proxyProvider.getNetwork();
+          const near = await connect(getConfig(network) as any);
           setNearConfig(near);
 
+          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider); // dapp:accounts
           setProviderProxy(proxyProvider);
-
-          const walletRpcProvider = new providers.WalletRpcProvider(proxyProvider);
-
           setWalletRpcProvider(walletRpcProvider);
 
           walletRpcProvider.on('dapp:chainChanged', (provider: any) => {
@@ -58,34 +62,26 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             window.location.reload();
           });
 
-          const account = proxyProvider.getAddress().address;
-
-          if (account) {
-            gtag('event', 'login', {
-              method: 'near',
+          const balance = await proxyProvider.getBalance(account.address);
+          const bal = utils.format.formatNearAmount(balance);
+          setAccount(account);
+          setBalance(bal.substring(0, bal.indexOf('.') + 3));
+        } catch (e: any) {
+          const error = async () => {
+            await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+            await client.terminal.log({
+              type: 'error',
+              value: 'Please Unlock your WELLDONE Wallet OR Create Account',
             });
-          }
-
-          proxyProvider.getBalance(account).then((balance: any) => {
-            setAccountID(account);
-            const bal = utils.format.formatNearAmount(balance);
-            setBalance(bal.substring(0, bal.indexOf('.') + 3));
-          });
-        });
-      } catch (e: any) {
-        const error = async () => {
-          await client.terminal.log({ type: 'error', value: e?.message?.toString() });
-          await client.terminal.log({
-            type: 'error',
-            value: 'Please Unlock your WELLDONE Wallet OR Create Account',
-          });
-          setError('Unlock your WELLDONE Wallet OR Create Account');
-          setActive(false);
-        };
-        log.error(e);
-        error();
+            setError('Unlock your WELLDONE Wallet OR Create Account');
+            setActive(false);
+          };
+          log.error(e);
+          error();
+        }
       }
-    }
+    };
+    welldoneConnect();
   }, [active]);
 
   return (
@@ -103,7 +99,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control
               type="text"
               placeholder="Account"
-              value={accountID ? accountID + ' (' + balance + ' near)' : ''}
+              value={account.address !== '' ? account.address + ' (' + balance + ' near)' : ''}
               size="sm"
               readOnly
             />

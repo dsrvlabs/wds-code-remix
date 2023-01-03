@@ -18,6 +18,7 @@ interface InterfaceProps {
   deployedContract: string;
   methods: Array<string>;
   client: Client<Api, Readonly<IRemixApi>>;
+  account: { address: string; pubKey: string };
 }
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({
@@ -27,6 +28,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   nearConfig,
   deployedContract,
   methods,
+  account,
 }) => {
   const [method, setMethods] = useState<string>(methods[0]);
   const [units, setUnits] = useState<string>('NEAR');
@@ -98,7 +100,6 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const rpcUrl = nearConfig.config.nodeUrl;
-    const account = providerProxy.getAddress();
     await callMethod(
       rpcUrl,
       account,
@@ -109,6 +110,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
       amount,
       gasLimit,
       client,
+      nearConfig,
     );
   };
 

@@ -21,6 +21,7 @@ interface InterfaceProps {
   parser: Function;
   client: Client<Api, Readonly<IRemixApi>>;
   json?: string;
+  account: { address: string; pubKey: string };
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -31,6 +32,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   nearConfig,
   parser,
   json,
+  account,
 }) => {
   const [receiverID, setReceiverID] = useState<string>('');
   const [inProgress, setInProgress] = useState<boolean>(false);
@@ -48,12 +50,14 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     if (!providerProxy) {
       throw new Error('Wallet Connect failed. Please click reload button');
     }
-    const network = providerProxy.getNetwork();
+
+    const network =
+      nearConfig?.config.networkId === 'mainnet' ? 'near' : nearConfig?.config.networkId;
 
     if (receiverID.trim().split('.')[receiverID.split('.').length - 1] !== network) {
-      await client.terminal.log({ type: 'error', value: 'Invalidate Account ID' });
+      await client.terminal.log({ type: 'error', value: `Invalidate Account ID: ${receiverID}` });
       setInProgress(false);
-      throw new Error('Invalidate Account ID');
+      throw new Error(`Invalidate Account ID: ${receiverID}`);
     }
 
     const state = await walletRpcProvider.query<AccountView>({
@@ -84,13 +88,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       }
       setDeployIconSpin('fa-spin');
       const rpcUrl = nearConfig.config.nodeUrl;
-      const account = providerProxy.getAddress();
       let receipt: providers.FinalExecutionOutcome | undefined;
 
       if (initFunction) {
-        if (rowsData.length === 0) {
-          throw new Error('Must add initialization arguments');
-        }
+        // if (rowsData.length === 0) {
+        //   throw new Error('Must add initialization arguments');
+        // }
         const params = {} as any;
         rowsData.forEach((row: RowData) => {
           switch (row.type) {
@@ -125,6 +128,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           wasm,
           receiverID,
           client,
+          nearConfig,
           initFunction,
           params,
           deposit,
@@ -137,6 +141,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           wasm,
           receiverID,
           client,
+          nearConfig,
         );
       }
       if (receipt) {

@@ -88,10 +88,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
 
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
-            params: [
-              // JSON.stringify(rawTx)
-              rawTx,
-            ],
+            params: [rawTx],
           });
 
           log.debug(res);
