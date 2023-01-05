@@ -28,4 +28,9 @@ export class FileUtil {
 
     return path.slice(lastIndex + 1);
   }
+
+  static extractFilenameWithoutExtension(path: string): string {
+    const filename = FileUtil.extractFilename(path);
+    return filename.slice(0, filename.lastIndexOf('.'));
+  }
 }

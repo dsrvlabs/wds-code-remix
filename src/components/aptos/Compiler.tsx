@@ -7,7 +7,7 @@ import { Deploy } from './Deploy';
 import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
-
+import * as _ from 'lodash';
 import {
   compileId,
   COMPILER_APTOS_COMPILE_COMPLETED_V1,
@@ -28,6 +28,13 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import { genRawTx } from './aptos-helper';
+
+interface ModuleWrapper {
+  path: string;
+  module: string;
+  moduleNameHex: string;
+  order: number;
+}
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
@@ -65,32 +72,50 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const artifactPaths = Object.keys(artifacts || {});
       log.debug(artifactPaths);
-      let moduleBase64s: string[] = [];
       let metaData64 = '';
+      let metaDataHex = '';
       let filenames: string[] = [];
+      let moduleWrappers: ModuleWrapper[] = [];
+
       await Promise.all(
         artifactPaths.map(async (path) => {
-          if (getExtensionOfFilename(path) === '.mv') {
-            let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
-            log.debug(`mvFile=${moduleBase64}`);
-            if (moduleBase64) {
-              moduleBase64s.push(moduleBase64);
-            }
-            filenames.push(path);
-          }
-
           if (path.includes('package-metadata.bcs')) {
             metaData64 = await client?.fileManager.readFile('browser/' + path);
-            log.debug(`metaData64=${metaData64}`);
+            metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
           }
         }),
       );
 
+      await Promise.all(
+        artifactPaths.map(async (path) => {
+          if (getExtensionOfFilename(path) === '.mv') {
+            let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
+            if (moduleBase64) {
+              const moduleNameHex = Buffer.from(
+                FileUtil.extractFilenameWithoutExtension(path),
+              ).toString('hex');
+              const order = metaDataHex.indexOf(moduleNameHex);
+
+              moduleWrappers.push({
+                path: path,
+                module: moduleBase64,
+                moduleNameHex: moduleNameHex,
+                order: order,
+              });
+            }
+            filenames.push(path);
+          }
+        }),
+      );
+
+      moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+      log.debug('@@@ moduleWrappers', moduleWrappers);
+
       setFileNames([...filenames]);
-      setModuleBase64s([...moduleBase64s]);
+      setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
       setMetaDataBase64(metaData64);
 
-      if (metaData64 && moduleBase64s.length > 0) {
+      if (metaData64 && moduleWrappers.length > 0) {
         const _tx = await genRawTx(metaData64, moduleBase64s, accountID, dapp.networks.aptos.chain);
         setRawTx(_tx);
         return true;
@@ -239,13 +264,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           const zip = await new JSZip().loadAsync(res.data);
           await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
 
-          let moduleBase64s: string[] = [];
           let metaData64 = '';
+          let metaDataHex = '';
           let filenames: string[] = [];
+          let moduleWrappers: ModuleWrapper[] = [];
+          await Promise.all(
+            Object.keys(zip.files).map(async (key) => {
+              if (key.includes('package-metadata.bcs')) {
+                let content = await zip.file(key)?.async('blob');
+                content = content?.slice(0, content.size) ?? new Blob();
+                metaData64 = await readFile(new File([content], key));
+                metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
+                log.debug(`metadataFile_Base64=${metaData64}`);
+                await client?.fileManager.writeFile(
+                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                  metaData64,
+                );
+              }
+            }),
+          );
 
           await Promise.all(
             Object.keys(zip.files).map(async (key) => {
-              log.debug(key);
               if (key.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
                 const moduleDataBuf = await zip.file(key)?.async('nodebuffer');
                 log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
@@ -254,36 +294,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 const moduleBase64 = await readFile(new File([content], key));
                 log.debug(`moduleBase64=${moduleBase64}`);
 
-                moduleBase64s.push(moduleBase64);
+                const moduleNameHex = Buffer.from(
+                  FileUtil.extractFilenameWithoutExtension(key),
+                ).toString('hex');
+                const order = metaDataHex.indexOf(moduleNameHex);
+
+                moduleWrappers.push({
+                  path: key,
+                  module: moduleBase64,
+                  moduleNameHex: moduleNameHex,
+                  order: order,
+                });
                 await client?.fileManager.writeFile(
                   'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
                   moduleBase64,
                 );
                 filenames.push(key);
               }
-
-              if (key.includes('package-metadata.bcs')) {
-                let content = await zip.file(key)?.async('blob');
-                content = content?.slice(0, content.size) ?? new Blob();
-                metaData64 = await readFile(new File([content], key));
-                log.debug(`metadataFile_Base64=${metaData64}`);
-                await client?.fileManager.writeFile(
-                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  metaData64,
-                );
-
-                const packageMetadataBuf = await zip.file(key)?.async('nodebuffer');
-                log.debug(`packageMetadata=${packageMetadataBuf?.toString('hex')}`);
-                log.debug(packageMetadataBuf);
-              }
             }),
           );
+          moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+          log.info('@@@ moduleWrappers', moduleWrappers);
 
-          setModuleBase64s([...moduleBase64s]);
+          setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
 
-          if (metaData64 && moduleBase64s.length > 0) {
+          if (metaData64 && moduleWrappers.length > 0) {
             const _tx = await genRawTx(
               metaData64,
               moduleBase64s,
