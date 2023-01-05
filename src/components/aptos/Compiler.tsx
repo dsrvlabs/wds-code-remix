@@ -21,13 +21,13 @@ import {
 } from 'wds-event';
 
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
-import { AptosClient, BCS, HexString, TxnBuilderTypes } from 'aptos';
 import { FileUtil } from '../../utils/FileUtil';
 import { readFile, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
+import { genRawTx } from './aptos-helper';
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
@@ -45,19 +45,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   accountID,
   dapp,
 }) => {
-  const [fileName, setFileName] = useState<string>('');
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const [compileIconSpin, setCompileIconSpin] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
   const [rawTx, setRawTx] = useState('');
 
-  const [moduleBase64, setModuleBase64] = useState<string>('');
+  const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
   const [metaData64, setMetaDataBase64] = useState<string>('');
 
   const exists = async () => {
     try {
       const artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
-      log.debug(artifacts);
       await client.terminal.log({
         type: 'error',
         value:
@@ -66,31 +65,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const artifactPaths = Object.keys(artifacts || {});
       log.debug(artifactPaths);
-      let moduleBase64 = '';
+      let moduleBase64s: string[] = [];
       let metaData64 = '';
+      let filenames: string[] = [];
       await Promise.all(
         artifactPaths.map(async (path) => {
           if (getExtensionOfFilename(path) === '.mv') {
-            moduleBase64 = await client?.fileManager.readFile('browser/' + path);
+            let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
             log.debug(`mvFile=${moduleBase64}`);
-            setModuleBase64(moduleBase64 || '');
-            setFileName(path);
+            if (moduleBase64) {
+              moduleBase64s.push(moduleBase64);
+            }
+            filenames.push(path);
           }
 
           if (path.includes('package-metadata.bcs')) {
             metaData64 = await client?.fileManager.readFile('browser/' + path);
             log.debug(`metaData64=${metaData64}`);
-            setMetaDataBase64(metaData64 || '');
           }
         }),
       );
 
-      if (metaData64 && moduleBase64) {
-        const _tx = await genRawTx(
-          Buffer.from(metaData64, 'base64'),
-          Buffer.from(moduleBase64, 'base64'),
-          accountID,
-        );
+      setFileNames([...filenames]);
+      setModuleBase64s([...moduleBase64s]);
+      setMetaDataBase64(metaData64);
+
+      if (metaData64 && moduleBase64s.length > 0) {
+        const _tx = await genRawTx(metaData64, moduleBase64s, accountID, dapp.networks.aptos.chain);
         setRawTx(_tx);
         return true;
       } else {
@@ -112,8 +113,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     if (!(await exists())) {
-      setModuleBase64('');
-      setFileName('');
+      setModuleBase64s([]);
+      setFileNames([]);
       const toml = compileTarget + '/Move.toml';
       log.debug(`toml=${toml}`);
 
@@ -144,15 +145,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return new File([blob], name, { type: 'text/plain' });
   };
 
-  const generateZip = (fileList: Array<any>) => {
+  const generateZip = (fileList: Array<File>) => {
     const zip = new JSZip();
-    fileList.map((file) => {
-      log.debug(`@@@ file=${file}`);
-
+    fileList.map((file: File) => {
       if (file.name === 'Move.toml') {
-        zip.file(file.name, file as any);
+        zip.file(file.name, file);
       } else {
-        zip.folder('sources')?.file(file.name, file as any);
+        zip.folder('sources')?.file(file.name, file);
       }
     });
 
@@ -240,48 +239,57 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           const zip = await new JSZip().loadAsync(res.data);
           await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
 
-          let packageMetadataBuf: Buffer | undefined;
-          let moduleDataBuf: Buffer | undefined;
+          let moduleBase64s: string[] = [];
+          let metaData64 = '';
+          let filenames: string[] = [];
 
           await Promise.all(
             Object.keys(zip.files).map(async (key) => {
               log.debug(key);
               if (key.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
-                moduleDataBuf = await zip.file(key)?.async('nodebuffer');
+                const moduleDataBuf = await zip.file(key)?.async('nodebuffer');
                 log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
                 let content = await zip.file(key)?.async('blob');
                 content = content?.slice(0, content.size) ?? new Blob();
                 const moduleBase64 = await readFile(new File([content], key));
                 log.debug(`moduleBase64=${moduleBase64}`);
 
-                setModuleBase64(moduleBase64);
+                moduleBase64s.push(moduleBase64);
                 await client?.fileManager.writeFile(
                   'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
                   moduleBase64,
                 );
-                setFileName(key);
+                filenames.push(key);
               }
 
               if (key.includes('package-metadata.bcs')) {
                 let content = await zip.file(key)?.async('blob');
                 content = content?.slice(0, content.size) ?? new Blob();
-                const metadataFile = await readFile(new File([content], key));
-                setMetaDataBase64(metadataFile);
-                log.debug(`metadataFile_Base64=${metadataFile}`);
+                metaData64 = await readFile(new File([content], key));
+                log.debug(`metadataFile_Base64=${metaData64}`);
                 await client?.fileManager.writeFile(
                   'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  metadataFile,
+                  metaData64,
                 );
 
-                packageMetadataBuf = await zip.file(key)?.async('nodebuffer');
+                const packageMetadataBuf = await zip.file(key)?.async('nodebuffer');
                 log.debug(`packageMetadata=${packageMetadataBuf?.toString('hex')}`);
                 log.debug(packageMetadataBuf);
               }
             }),
           );
 
-          if (packageMetadataBuf && moduleDataBuf) {
-            const _tx = await genRawTx(packageMetadataBuf, moduleDataBuf, accountID);
+          setModuleBase64s([...moduleBase64s]);
+          setFileNames([...filenames]);
+          setMetaDataBase64(metaData64);
+
+          if (metaData64 && moduleBase64s.length > 0) {
+            const _tx = await genRawTx(
+              metaData64,
+              moduleBase64s,
+              accountID,
+              dapp.networks.aptos.chain,
+            );
             setRawTx(_tx);
           }
 
@@ -354,7 +362,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <FaSyncAlt className={compileIconSpin} />
           <span> Compile</span>
         </Button>
-        <small>{fileName}</small>
+        {fileNames.map((filename, i) => (
+          <small key={`aptos-module-file-${i}`}>
+            {filename}
+            {i < filename.length - 1 ? <br /> : false}
+          </small>
+        ))}
         {compileError && (
           <Alert
             variant="danger"
@@ -371,39 +384,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         accountID={accountID}
         rawTx={rawTx}
         metaData64={metaData64}
-        moduleBase64={moduleBase64}
+        moduleBase64s={moduleBase64s}
         dapp={dapp}
         client={client}
       />
     </>
   );
 };
-
-async function genRawTx(packageMetadataBuf: Buffer, moduleDataBuf: Buffer, accountID: string) {
-  const aptosClient = new AptosClient('https://fullnode.devnet.aptoslabs.com');
-
-  const packageMetadata = new HexString(packageMetadataBuf.toString('hex')).toUint8Array();
-  const modules = [
-    new TxnBuilderTypes.Module(new HexString(moduleDataBuf.toString('hex')).toUint8Array()),
-  ];
-
-  const codeSerializer = new BCS.Serializer();
-  BCS.serializeVector(modules, codeSerializer);
-
-  const payload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
-    TxnBuilderTypes.EntryFunction.natural(
-      '0x1::code',
-      'publish_package_txn',
-      [],
-      [BCS.bcsSerializeBytes(packageMetadata), codeSerializer.getBytes()],
-    ),
-  );
-
-  const rawTransaction = await aptosClient.generateRawTransaction(
-    new HexString(accountID),
-    payload,
-  );
-
-  const rawTx = BCS.bcsToBytes(rawTransaction);
-  return Buffer.from(rawTx).toString('hex');
-}
