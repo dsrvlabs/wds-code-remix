@@ -29,7 +29,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   const dappProvider = window.dapp;
   // const proxyProvider = new Provider();
 
-  // Establish a connection to the NEAR blockchain on component mount
+  // Establish a connection to the Aptos blockchain on component mount
   useEffect(() => {
     const connect = async () => {
       if (active) {
