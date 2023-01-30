@@ -24,7 +24,7 @@
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.2.0",
     "@testing-library/user-event": "^13.5.0",
-    "aptos": "^1.3.16",
+    "aptos": "^1.6.0",
     "assemblyscript": "^0.19.23",
     "axios": "^0.27.2",
     "base-58": "^0.0.1",
