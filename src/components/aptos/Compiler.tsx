@@ -468,9 +468,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const entry = async () => {
 
     // remove signer param 
-    log.debug(parameters[0])
+    log.debug("@@@ parameters[0]", parameters[0])
     let param = parameters
-    if (param.length >= 2 && param[0] === undefined) {
+    if (param.length >= 1 && param[0] === undefined) {
       param.shift()
     }
 
@@ -719,7 +719,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                 <small>Parameters</small>
                                 {
                                   func.params.map((param: any, idx: number) => {
-                                    if (func.is_entry && idx === 0 && param === "&signer") {
+                                    if (func.is_entry && idx === 0) {
                                       return <></>
                                     }
 
