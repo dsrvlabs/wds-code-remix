@@ -42,7 +42,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
           ) : (
             <></>
           )}
-          {enableJuno() ? (
+          {/* {enableJuno() ? (
             <ListGroup.Item
               as="li"
               action
@@ -58,7 +58,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
             </ListGroup.Item>
           ) : (
             <></>
-          )}
+          )} */}
           <ListGroup.Item
             as="li"
             action

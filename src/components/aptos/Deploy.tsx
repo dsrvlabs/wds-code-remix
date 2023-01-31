@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Button, Card, InputGroup } from 'react-bootstrap';
+import { Button, Card, InputGroup, Form as ReactForm } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx, waitForTransactionWithResult } from './aptos-helper';
+import { genRawTx, waitForTransactionWithResult, build } from './aptos-helper';
+
+import { AptosClient } from 'aptos';
+import copy from 'copy-to-clipboard';
 
 interface InterfaceProps {
   wallet: string;
@@ -16,6 +19,8 @@ interface InterfaceProps {
   rawTx: string;
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
+  setDeployedContract: Function;
+  getAccountModulesFromAccount: Function;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -26,9 +31,15 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   rawTx,
   wallet,
   dapp,
+  setDeployedContract,
+  getAccountModulesFromAccount
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
+  const [abi, setABI] = useState<any>({});
+  const [param, setParam] = useState<string>('');
+  const [resource, setResource] = useState<string>('');
+
   const checkExistContract = async () => {
     if (!dapp) {
       throw new Error('Wallet is not installed');
@@ -55,6 +66,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       event_category: 'aptos',
       method: 'deploy',
     });
+
     if (!dapp) {
       return;
     }
@@ -68,8 +80,41 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         params: [rawTx_],
       });
       log.debug(`@@@ txnHash=${txnHash}`);
-      const result = await waitForTransactionWithResult(txnHash, chainId);
+
+      /**
+       * Config for creating raw transactions.
+       */
+      // interface ABIBuilderConfig {
+      //   sender: MaybeHexString | AccountAddress;
+      //   sequenceNumber: Uint64 | string;
+      //   gasUnitPrice: Uint64 | string;
+      //   maxGasAmount?: Uint64 | string;
+      //   expSecFromNow?: number | string;
+      //   chainId: Uint8 | string;
+      // }
+
+      const result = (await waitForTransactionWithResult(txnHash, chainId)) as any;
       log.debug(result);
+      if (result.success) {
+        await client.terminal.log({
+          type: 'info', value: {
+            version: result.version,
+            hash: result.hash,
+            gas_unit_price: result.gas_unit_price,
+            gas_used: result.gas_used,
+            sender: result.sender,
+            sequence_number: result.sequence_number,
+            timestamp: result.timestamp,
+            vm_status: result.vm_status
+          }
+        });
+        setDeployedContract(accountID)
+        getAccountModulesFromAccount(accountID, dapp.networks.aptos.chain)
+      } else {
+        log.error((result as any).vm_status);
+        await client.terminal.log({ type: 'error', value: (result as any).vm_status });
+      }
+
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
@@ -79,32 +124,48 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     setInProgress(false);
   };
 
+  // aptosClient.getAccountResources(accountID).then((res) => {
+  //   console.log('getAccountResources', res)
+  //   res.map(async (accountResource: any)=>{
+  //     if(accountResource.type === accountID+"::"+abi.name+"::"+resource){
+  //       console.log(accountResource.data)
+  //       await client.terminal.log({
+  //         type: 'info',
+  //         value: accountResource.data
+  //       });
+  //     }
+  //   })
+  // })
+
   return (
     <>
-      <Card>
-        <Card.Header className="p-2">
-          Deploy <FaSyncAlt className={deployIconSpin} />
-        </Card.Header>
-        <Card.Body className="py-1 px-2">
-          <InputGroup className="mb-3">
-            <Button
-              variant="warning"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await checkExistContract();
-                } catch (e) {
-                  log.error(e);
-                  setInProgress(false);
-                }
-              }}
-              disabled={inProgress || !rawTx}
-            >
-              <small>Deploy</small>
-            </Button>
-          </InputGroup>
-        </Card.Body>
-      </Card>
+      <div className="d-grid gap-2">
+        <Button
+          variant="warning"
+          disabled={inProgress || !rawTx}
+          onClick={async () => {
+            try {
+              await checkExistContract();
+            } catch (e) {
+              log.error(e);
+              setInProgress(false);
+            }
+          }}
+          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+        >
+          <span> Deploy</span>
+        </Button>
+        {
+          Object.keys(abi).length ?
+            <div style={{ "textAlign": "right", "marginBottom": "3px" }}>{"ABI   "}
+              <i className="far fa-copy" onClick={() => {
+                copy(JSON.stringify(abi, null, 4))
+              }} />
+            </div>
+            : false
+        }
+      </div>
+      <hr />
     </>
   );
 };

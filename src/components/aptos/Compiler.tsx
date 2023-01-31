@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Alert, Button } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
@@ -21,13 +21,15 @@ import {
 } from 'wds-event';
 
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import AlertCloseButton from '../common/AlertCloseButton';
 import { FileUtil } from '../../utils/FileUtil';
 import { readFile, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx } from './aptos-helper';
+import { genRawTx, getAccountModules, build, viewFunction } from './aptos-helper';
+
 
 interface ModuleWrapper {
   path: string;
@@ -57,9 +59,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
   const [rawTx, setRawTx] = useState('');
+  const [atAddress, setAtAddress] = useState<string>('');
+  const [isProgress, setIsProgress] = useState<boolean>(false);
+  const [deployedContract, setDeployedContract] = useState<string>('');
 
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
   const [metaData64, setMetaDataBase64] = useState<string>('');
+
+  const [modules, setModules] = useState<any[]>([]);
+  const [targetModule, setTargetModule] = useState<string>('');
+
+  const [targetFunction, setTargetFunction] = useState<string>('');
+
+  const [parameters, setParameters] = useState<any[]>([]);
 
   const exists = async () => {
     try {
@@ -129,6 +141,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
       return false;
     }
+  };
+
+  const handleAlertClose = () => {
+    setCompileError('');
+    client.call('editor', 'discardHighlight');
+    client.call('editor', 'clearAnnotations');
   };
 
   const readCode = async () => {
@@ -268,6 +286,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           let metaDataHex = '';
           let filenames: string[] = [];
           let moduleWrappers: ModuleWrapper[] = [];
+
+          log.debug(zip.files)
+
+          // ABI
+          // await Promise.all(
+          //   Object.keys(zip.files).map(async (key) => {
+          //     if (key.includes('.abi')) {
+          //       let content = await zip.file(key)?.async('arraybuffer');
+          //       log.debug(content)
+          //       log.debug((new TextDecoder().decode(content)))
+
+          //       await client?.fileManager.writeFile(
+          //         'browser/' + compileTarget + '/out/abi/' + FileUtil.extractFilename(key),
+          //         (new TextDecoder().decode(content))
+          //       );
+          //     }
+          //   }),
+          // );
+
           await Promise.all(
             Object.keys(zip.files).map(async (key) => {
               if (key.includes('package-metadata.bcs')) {
@@ -384,6 +421,98 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return filename.substring(_lastDot, _fileLen).toLowerCase();
   };
 
+  const getAccountModulesFromAccount = async (account: string, chainId: string) => {
+    try {
+      const accountModules = await getAccountModules(account, chainId);
+      setModules(accountModules);
+      setTargetModule((accountModules[0] as any).abi.name);
+      setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
+      setParameters([])
+    } catch (e) {
+      log.error(e);
+      client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
+    }
+  }
+
+  const getContractAtAddress = () => {
+    sendCustomEvent('at_address', {
+      event_category: 'aptos',
+      method: 'at_address',
+    });
+    setDeployedContract(atAddress);
+    getAccountModulesFromAccount(atAddress, dapp.networks.aptos.chain)
+  };
+
+  const setModuleAndABI = (e: any) => {
+    setTargetModule(e.target.value);
+    if (modules.length) {
+      modules.map((mod, idx) => {
+        if (mod.abi.name === e.target.value) {
+          setTargetFunction(mod.abi.exposed_functions[0].name)
+          setParameters([]);
+        }
+      })
+    }
+  }
+
+  const handleFunction = (e: any) => {
+    setTargetFunction(e.target.value);
+    setParameters([]);
+  }
+
+  const entry = async () => {
+
+    // remove signer param 
+    log.debug(parameters[0])
+    let param = parameters
+    if (param.length >= 2 && param[0] === undefined) {
+      param.shift()
+    }
+
+    console.log(param)
+    const chainId = dapp.networks.aptos.chain;
+    const abiBuilderConfig = {
+      sender: accountID,
+    }
+
+    const setMsg = await build(
+      // "0x9b67139040a4a92f09412f64157fe2c05c55a320f293f2c5369e42cd2e18c6dd::message::set_message",
+      accountID + "::" + targetModule + "::" + targetFunction,
+      [],
+      param, // Array
+      chainId,
+      abiBuilderConfig
+    )
+
+    const txHash = await dapp.request('aptos', {
+      method: 'dapp:signAndSendTransaction',
+      params: [setMsg],
+    });
+    log.debug(`@@@ txHash=${txHash}`);
+  }
+
+  const updateParam = (e: any, idx: any) => {
+    setParameters(existingParams => {
+      existingParams[idx] = e.target.value;
+      return existingParams;
+    })
+  }
+
+  const view = async () => {
+    console.log(parameters)
+
+    const result = await viewFunction(
+      accountID,
+      targetModule,
+      targetFunction,
+      dapp.networks.aptos.chain,
+      [], // typeArgs
+      parameters
+    )
+
+    log.debug(result)
+  }
+
   return (
     <>
       <div className="d-grid gap-2">
@@ -394,7 +523,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             wrappedReadCode();
           }}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-          // onClick={setSchemaObj}
+        // onClick={setSchemaObj}
         >
           <FaSyncAlt className={compileIconSpin} />
           <span> Compile</span>
@@ -411,20 +540,194 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             className="mt-3"
             style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}
           >
+            <AlertCloseButton onClick={handleAlertClose} />
             {compileError}
           </Alert>
         )}
       </div>
       <hr />
-      <Deploy
-        wallet={'Dsrv'}
-        accountID={accountID}
-        rawTx={rawTx}
-        metaData64={metaData64}
-        moduleBase64s={moduleBase64s}
-        dapp={dapp}
-        client={client}
-      />
+      {rawTx ?
+        <Deploy
+          wallet={'Dsrv'}
+          accountID={accountID}
+          rawTx={rawTx}
+          metaData64={metaData64}
+          moduleBase64s={moduleBase64s}
+          dapp={dapp}
+          client={client}
+          setDeployedContract={setDeployedContract}
+          getAccountModulesFromAccount={getAccountModulesFromAccount}
+        /> :
+        <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+          <small>NO COMPILED CONTRACT</small>
+        </p>
+      }
+      <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
+        <small>OR</small>
+      </p>
+      <Form.Group>
+        <InputGroup>
+          <Form.Control
+            type="text"
+            placeholder="account"
+            size="sm"
+            onChange={(e) => {
+              setAtAddress(e.target.value.trim());
+            }}
+          />
+          <OverlayTrigger
+            placement="left"
+            overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract account</Tooltip>}
+          >
+            <Button
+              variant="info"
+              size="sm"
+              disabled={accountID === '' || isProgress}
+              onClick={getContractAtAddress}
+            >
+              <small>At Address</small>
+            </Button>
+
+          </OverlayTrigger>
+        </InputGroup>
+      </Form.Group>
+      <hr />
+
+      {modules.length ?
+        <Form.Group>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>Modules</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              className="custom-select"
+              as="select"
+              value={targetModule}
+              onChange={setModuleAndABI}
+            >
+              {modules?.map((mod, idx) => {
+                return (
+                  <option value={mod.abi.name} key={idx + 1}>
+                    {mod.abi.name}
+                  </option>
+                )
+
+              })}
+            </Form.Control>
+          </InputGroup></Form.Group> : false
+      }
+      <hr />
+
+      {/* Resources */}
+      {/* <Form.Control
+              style={{ "marginBottom": "10px" }}
+              className="custom-select"
+              as="select"
+              value={''}
+              onChange={() => { }}
+            >
+              {
+                modules.map((mod, idx) => {
+                  log.debug(mod.abi.name === targetModule)
+
+                  if (mod.abi.name === targetModule) {
+                    return mod.abi.structs.map((resource: any, idx: any) => {
+                      log.debug(resource)
+
+                      return (
+                        <option value={resource.name} key={idx}>
+                          {resource.name}
+                        </option>
+                      );
+                    })
+                  } else {
+                    return false
+                  }
+                })
+              }
+            </Form.Control> */}
+      {
+        modules.length && targetModule ?
+          <>
+            <Form.Group>
+              <Form.Text className="text-muted" style={mb4}>
+                <small>Functions</small>
+              </Form.Text>
+              <Form.Control
+                style={{ "marginBottom": "10px" }}
+                className="custom-select"
+                as="select"
+                value={targetFunction}
+                onChange={handleFunction}
+              >
+                {
+                  modules.map((mod, idx) => {
+                    if (mod.abi.name === targetModule) {
+                      return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                        return (
+                          <option value={func.name} key={idx}>
+                            {func.name}
+                          </option>
+                        );
+                      })
+                    }
+                  })
+                }
+              </Form.Control>
+            </Form.Group>
+            <hr />
+          </> : false
+      }
+      {
+        targetModule && targetFunction ?
+          modules.map((mod) => {
+            if (mod.abi.name === targetModule) {
+              return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                if (func.name === targetFunction) {
+                  return (
+                    <>
+                      <Form style={{ "marginTop": "30px" }} key={idx}>
+                        <Form.Group>
+                          <InputGroup>
+                            {
+                              func.params.map((param: any, idx: any) => {
+                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
+                                  onChange={(e) => { updateParam(e, idx) }} key={idx} />
+                              })
+                            }
+                            {
+                              func.is_entry ?
+                                <Button
+                                  style={{ "marginTop": "10px", "minWidth": "70px" }}
+                                  variant="primary" size="sm"
+                                  onClick={entry} >
+                                  <small>{func.name}</small>
+                                </Button> :
+                                <Button
+                                  style={{ "marginTop": "10px", "minWidth": "70px" }}
+                                  variant="warning" size="sm"
+                                  onClick={view} >
+                                  <small>{func.name}</small>
+                                </Button>
+                            }
+
+                          </InputGroup>
+                          <hr />
+                        </Form.Group>
+                      </Form>
+                      <hr />
+                    </>
+                  )
+
+                }
+              })
+            }
+          }) : false
+      }
     </>
   );
+};
+
+const mb4 = {
+  marginBottom: '4px',
 };

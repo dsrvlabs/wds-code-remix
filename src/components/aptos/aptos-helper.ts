@@ -1,4 +1,4 @@
-import { AptosClient, BCS, HexString, TxnBuilderTypes } from 'aptos';
+import { AptosClient, BCS, HexString, TxnBuilderTypes, TransactionBuilderRemoteABI } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 
@@ -44,6 +44,38 @@ export async function genRawTx(
 export async function waitForTransactionWithResult(txnHash: string, chainId: string) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
   return aptosClient.waitForTransactionWithResult(txnHash);
+}
+
+export async function build(func: string, ty_tags: string[], args: string[], chainId: string, abiBuilderConfig: any) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+  const transactionBuilderRomoteABI = new TransactionBuilderRemoteABI(aptosClient, abiBuilderConfig);
+  const rawTransaction = await transactionBuilderRomoteABI.build(func, ty_tags, args);
+
+  const rawTx = BCS.bcsToBytes(rawTransaction);
+  const _transaction = Buffer.from(rawTx).toString('hex');
+  log.debug('_transaction', _transaction);
+  const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
+  return '0x' + header.toString('hex') + _transaction;
+}
+
+export async function getAccountModules(account: string, chainId: string) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+  const modules = await aptosClient.getAccountModules(account)
+  return modules;
+}
+
+export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: [], param: any) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+
+  const payload = {
+    function: account + "::" + moduleName + "::" + functionName,
+    type_arguments: typeArg,
+    arguments: param,
+  };
+
+  log.debug(payload)
+
+  return await aptosClient.view(payload);
 }
 
 export function aptosNodeUrl(chainId: string) {
