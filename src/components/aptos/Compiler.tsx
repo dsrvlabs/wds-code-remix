@@ -428,6 +428,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     try {
       const accountModules = await getAccountModules(account, chainId);
       setModules(accountModules);
+      log.debug("@@@", accountModules);
       setTargetModule((accountModules[0] as any).abi.name);
       setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
       setParameters([])
@@ -702,14 +703,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                           <InputGroup>
                             { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
                             {
-                              func.generic_type_params.map((param: any, idx: any) => {
+                              func.generic_type_params.map((param: any, idx: number) => {
                                 return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={"type argument"} size="sm"
                                                       onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
                               })
                             }
                             <small>Parameters</small>
                             {
-                              func.params.map((param: any, idx: any) => {
+                              func.params.map((param: any, idx: number) => {
+                                if (func.is_entry && idx === 0 && param === "&signer") {
+                                  return <></>
+                                }
+
                                 return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
                                   onChange={(e) => { updateParam(e, idx) }} key={idx} />
                               })
