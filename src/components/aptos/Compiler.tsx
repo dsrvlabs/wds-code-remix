@@ -701,49 +701,57 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                       <Form style={{ "marginTop": "30px" }} key={idx}>
                         <Form.Group>
                           <InputGroup>
-                            { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
-                            {
-                              func.generic_type_params.map((param: any, idx: number) => {
-                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={"type argument"} size="sm"
-                                                      onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
-                              })
-                            }
-                            <small>Parameters</small>
-                            {
-                              func.params.map((param: any, idx: number) => {
-                                if (func.is_entry && idx === 0 && param === "&signer") {
-                                  return <></>
-                                }
-
-                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
-                                  onChange={(e) => { updateParam(e, idx) }} key={idx} />
-                              })
-                            }
-                            {
-                              func.is_entry ?
-                                <Button
-                                  style={{ "marginTop": "10px", "minWidth": "70px" }}
-                                  variant="primary" size="sm"
-                                  onClick={entry} >
-                                  <small>{func.name}</small>
-                                </Button> :
+                            <div style={{width: "100%"}}>
+                              <div>
                                 <div>
-                                  <Button
-                                    style={{ "marginTop": "10px", "minWidth": "70px" }}
-                                    variant="warning" size="sm"
-                                    onClick={view} >
-                                    <small>{func.name}</small>
-                                  </Button>
-                                  {
-                                    viewResult ?
-                                    (
-                                      <div>
-                                        <small>{viewResult}</small>
-                                      </div>
-                                    ) : <></>
-                                  }
+                                  { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
                                 </div>
-                            }
+                                {
+                                  func.generic_type_params.map((param: any, idx: number) => {
+                                    return < Form.Control style={{ "width": "100%", "marginBottom": "5px" }} type="text" placeholder={`Type Arg ${idx + 1}`} size="sm"
+                                                          onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
+                                  })
+                                }
+                              </div>
+                              <div>
+                                <small>Parameters</small>
+                                {
+                                  func.params.map((param: any, idx: number) => {
+                                    if (func.is_entry && idx === 0 && param === "&signer") {
+                                      return <></>
+                                    }
+
+                                    return < Form.Control style={{ "width": "100%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
+                                                          onChange={(e) => { updateParam(e, idx) }} key={idx} />
+                                  })
+                                }
+                                {
+                                  func.is_entry ?
+                                    <Button
+                                      style={{ "marginTop": "10px", "minWidth": "70px" }}
+                                      variant="primary" size="sm"
+                                      onClick={entry} >
+                                      <small>{func.name}</small>
+                                    </Button> :
+                                    <div>
+                                      <Button
+                                        style={{ "marginTop": "10px", "minWidth": "70px" }}
+                                        variant="warning" size="sm"
+                                        onClick={view} >
+                                        <small>{func.name}</small>
+                                      </Button>
+                                      {
+                                        viewResult ?
+                                          (
+                                            <div>
+                                              <small>{viewResult}</small>
+                                            </div>
+                                          ) : <></>
+                                      }
+                                    </div>
+                                }
+                              </div>
+                            </div>
                           </InputGroup>
                           <hr />
                         </Form.Group>
