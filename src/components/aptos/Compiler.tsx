@@ -736,11 +736,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                   </Button>
                                   {
                                     viewResult ?
-                                    (
-                                      <div>
-                                        <small>{viewResult}</small>
-                                      </div>
-                                    ) : <></>
+                                      (
+                                        <div>
+                                          <small>{viewResult}</small>
+                                        </div>
+                                      ) : <></>
                                   }
                                 </div>
                             }
