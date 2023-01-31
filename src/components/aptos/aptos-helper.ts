@@ -72,6 +72,12 @@ export async function getAccountModules(account: string, chainId: string) {
   return modules;
 }
 
+export async function getAccountResources(account: string, chainId: string) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+  const resource = await aptosClient.getAccountResources(account);
+  return resource;
+}
+
 export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: string[], param: any) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
