@@ -700,11 +700,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                       <Form style={{ "marginTop": "30px" }} key={idx}>
                         <Form.Group>
                           <InputGroup>
-                            { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
+                            {func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></>}
                             {
                               func.generic_type_params.map((param: any, idx: any) => {
-                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={"type argument"} size="sm"
-                                                      onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
+                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={JSON.stringify(param)} size="sm"
+                                  onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
                               })
                             }
                             <small>Parameters</small>
@@ -731,11 +731,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                   </Button>
                                   {
                                     viewResult ?
-                                    (
-                                      <div>
-                                        <small>{viewResult}</small>
-                                      </div>
-                                    ) : <></>
+                                      (
+                                        <div>
+                                          <small>{viewResult}</small>
+                                        </div>
+                                      ) : <></>
                                   }
                                 </div>
                             }
