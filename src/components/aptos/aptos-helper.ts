@@ -48,6 +48,13 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: str
 }
 
 export async function build(func: string, ty_tags: string[], args: string[], chainId: string, abiBuilderConfig: any) {
+  log.debug("@@@ setMsg build", {
+    func,
+    ty_tags,
+    args,
+    chainId,
+    abiBuilderConfig,
+  })
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
   const transactionBuilderRomoteABI = new TransactionBuilderRemoteABI(aptosClient, abiBuilderConfig);
   const rawTransaction = await transactionBuilderRomoteABI.build(func, ty_tags, args);

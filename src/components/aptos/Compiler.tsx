@@ -462,6 +462,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const handleFunction = (e: any) => {
     setTargetFunction(e.target.value);
     setParameters([]);
+    setGenericParameters([]);
   }
 
   const entry = async () => {
@@ -481,12 +482,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const setMsg = await build(
       // "0x9b67139040a4a92f09412f64157fe2c05c55a320f293f2c5369e42cd2e18c6dd::message::set_message",
-      accountID + "::" + targetModule + "::" + targetFunction,
-      [],
+      deployedContract + "::" + targetModule + "::" + targetFunction,
+      genericParameters,
       param, // Array
       chainId,
       abiBuilderConfig
     )
+
 
     const txHash = await dapp.request('aptos', {
       method: 'dapp:signAndSendTransaction',
