@@ -74,6 +74,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [genericParameters, setGenericParameters] = useState<any[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
+  const [viewResult, setViewResult] = useState<any>()
+
   const exists = async () => {
     try {
       const artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
@@ -519,6 +521,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     )
 
     log.debug(result)
+    setViewResult(result)
   }
 
   return (
@@ -719,18 +722,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                   onClick={entry} >
                                   <small>{func.name}</small>
                                 </Button> :
-                                <Button
-                                  style={{ "marginTop": "10px", "minWidth": "70px" }}
-                                  variant="warning" size="sm"
-                                  onClick={view} >
-                                  <small>{func.name}</small>
-                                </Button>
+                                <div>
+                                  <Button
+                                    style={{ "marginTop": "10px", "minWidth": "70px" }}
+                                    variant="warning" size="sm"
+                                    onClick={view} >
+                                    <small>{func.name}</small>
+                                  </Button>
+                                  {
+                                    viewResult ?
+                                    (
+                                      <div>
+                                        <small>{viewResult}</small>
+                                      </div>
+                                    ) : <></>
+                                  }
+                                </div>
                             }
-
                           </InputGroup>
                           <hr />
                         </Form.Group>
                       </Form>
+
                       <hr />
                     </>
                   )
