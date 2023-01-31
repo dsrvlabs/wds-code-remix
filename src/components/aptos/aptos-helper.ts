@@ -13,6 +13,7 @@ export async function genRawTx(
   const packageMetadata = new HexString(
     Buffer.from(base64EncodedMetadata, 'base64').toString('hex'),
   ).toUint8Array();
+
   const modules = base64EncodedModules
     .map((module) => Buffer.from(module, 'base64'))
     .map((buf) => new TxnBuilderTypes.Module(new HexString(buf.toString('hex')).toUint8Array()));
@@ -79,11 +80,17 @@ export async function viewFunction(account: string, moduleName: string, function
 }
 
 export function aptosNodeUrl(chainId: string) {
+  if (chainId === 'mainnet') {
+    return 'https://fullnode.mainnet.aptoslabs.com';
+  }
+
   if (chainId === 'testnet') {
     return 'https://fullnode.testnet.aptoslabs.com';
-  } else if (chainId === 'devnet') {
-    return 'https://fullnode.devnet.aptoslabs.com';
-  } else {
-    throw new Error(`Invalid chainId=${chainId}`);
   }
+
+  if (chainId === 'devnet') {
+    return 'https://fullnode.devnet.aptoslabs.com';
+  }
+
+  throw new Error(`Invalid chainId=${chainId}`);
 }
