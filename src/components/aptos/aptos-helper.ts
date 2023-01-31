@@ -65,7 +65,7 @@ export async function getAccountModules(account: string, chainId: string) {
   return modules;
 }
 
-export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: [], param: any) {
+export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: string[], param: any) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
   const payload = {

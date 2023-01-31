@@ -71,6 +71,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [targetFunction, setTargetFunction] = useState<string>('');
 
+  const [genericParameters, setGenericParameters] = useState<any[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
   const exists = async () => {
@@ -491,6 +492,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.debug(`@@@ txHash=${txHash}`);
   }
 
+  const updateGenericParam = (e: any, idx: any) => {
+    setGenericParameters(existingGenericParams => {
+      existingGenericParams[idx] = e.target.value;
+      return existingGenericParams;
+    })
+  }
+
   const updateParam = (e: any, idx: any) => {
     setParameters(existingParams => {
       existingParams[idx] = e.target.value;
@@ -502,11 +510,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     console.log(parameters)
 
     const result = await viewFunction(
-      accountID,
+      deployedContract,
       targetModule,
       targetFunction,
       dapp.networks.aptos.chain,
-      [], // typeArgs
+      genericParameters, // typeArgs
       parameters
     )
 
@@ -689,6 +697,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                       <Form style={{ "marginTop": "30px" }} key={idx}>
                         <Form.Group>
                           <InputGroup>
+                            <small>Type Parameters</small>
+                            {
+                              func.generic_type_params.map((param: any, idx: any) => {
+                                return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={"type argument"} size="sm"
+                                                      onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
+                              })
+                            }
+                            <small>Parameters</small>
                             {
                               func.params.map((param: any, idx: any) => {
                                 return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
