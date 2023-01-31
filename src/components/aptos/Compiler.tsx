@@ -700,7 +700,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                       <Form style={{ "marginTop": "30px" }} key={idx}>
                         <Form.Group>
                           <InputGroup>
-                            <small>Type Parameters</small>
+                            { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
                             {
                               func.generic_type_params.map((param: any, idx: any) => {
                                 return < Form.Control style={{ "width": "80%", "marginBottom": "5px" }} type="text" placeholder={"type argument"} size="sm"
