@@ -29,6 +29,8 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import { genRawTx, getAccountModules, build, viewFunction } from './aptos-helper';
+import {PROD, STAGE} from "../../const/stage";
+import {Socket} from "socket.io-client/build/esm/socket";
 
 
 interface ModuleWrapper {
@@ -219,7 +221,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const timestamp = Date.now().toString();
     try {
       // socket connect
-      const socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT);
+      let socket: Socket;
+      if (STAGE === PROD) {
+         socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT);
+      } else {
+        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT, {
+          transports: ["websocket"]
+        });
+      }
 
       socket.on('connect_error', function (err) {
         // handle server error here
