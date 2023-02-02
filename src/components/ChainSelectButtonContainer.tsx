@@ -25,23 +25,19 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
           <RefreshButton />
         </Form.Text>
         <ListGroup>
-          {enableAptos() ? (
-            <ListGroup.Item
-              as="li"
-              action
-              onClick={() => {
-                setChain('Aptos');
-              }}
-            >
-              <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
-              <b>APTOS (MoveVM)</b>
-              <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-                Beta
-              </Badge>
-            </ListGroup.Item>
-          ) : (
-            <></>
-          )}
+          <ListGroup.Item
+            as="li"
+            action
+            onClick={() => {
+              setChain('Aptos');
+            }}
+          >
+            <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
+            <b>APTOS (MoveVM)</b>
+            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+              Beta
+            </Badge>
+          </ListGroup.Item>
           {/* {enableJuno() ? (
             <ListGroup.Item
               as="li"

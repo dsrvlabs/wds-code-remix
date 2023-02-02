@@ -1,34 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import React, {useState} from 'react';
+import {Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip} from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
-import { FaSyncAlt } from 'react-icons/fa';
-import { Deploy } from './Deploy';
-import { io } from 'socket.io-client';
+import {FaSyncAlt} from 'react-icons/fa';
+import {Deploy} from './Deploy';
+import {io} from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
-import { sendCustomEvent } from '../../utils/sendCustomEvent';
+import {sendCustomEvent} from '../../utils/sendCustomEvent';
 import * as _ from 'lodash';
 import {
   compileId,
   COMPILER_APTOS_COMPILE_COMPLETED_V1,
   COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V1,
   COMPILER_APTOS_COMPILE_LOGGED_V1,
+  COMPILER_APTOS_PROVE_COMPLETED_V1,
+  COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1,
+  COMPILER_APTOS_PROVE_LOGGED_V1,
   CompilerAptosCompileCompletedV1,
   CompilerAptosCompileErrorOccurredV1,
   CompilerAptosCompileLoggedV1,
+  CompilerAptosProveCompletedV1,
+  CompilerAptosProveErrorOccurredV1,
+  CompilerAptosProveLoggedV1,
   REMIX_APTOS_COMPILE_REQUESTED_V1,
+  REMIX_APTOS_PROVE_REQUESTED_V1,
   RemixAptosCompileRequestedV1,
+  RemixAptosProveRequestedV1,
+  reqId,
 } from 'wds-event';
 
-import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import {APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT} from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
-import { FileUtil } from '../../utils/FileUtil';
-import { readFile, stringify } from '../../utils/helper';
-import { Client } from '@remixproject/plugin';
-import { Api } from '@remixproject/plugin-utils';
-import { IRemixApi } from '@remixproject/plugin-api';
-import { log } from '../../utils/logger';
-import { genRawTx, getAccountModules, build, viewFunction } from './aptos-helper';
+import {FileUtil} from '../../utils/FileUtil';
+import {enableAptosProve, readFile, stringify} from '../../utils/helper';
+import {Client} from '@remixproject/plugin';
+import {Api} from '@remixproject/plugin-utils';
+import {IRemixApi} from '@remixproject/plugin-api';
+import {log} from '../../utils/logger';
+import {build, genRawTx, getAccountModules, viewFunction} from './aptos-helper';
 import {PROD, STAGE} from "../../const/stage";
 import {Socket} from "socket.io-client/build/esm/socket";
 
@@ -58,6 +67,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [compileIconSpin, setCompileIconSpin] = useState<string>('');
+  const [proveIconSpin, setProveIconSpin] = useState<string>('');
+  const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
   const [rawTx, setRawTx] = useState('');
@@ -186,7 +197,36 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const readCodeForProve = async () => {
+    if (proveLoading) {
+      client.terminal.log({ value: 'Server is working...', type: 'log' });
+      return;
+    }
+
+    const toml = compileTarget + '/Move.toml';
+    log.debug(`toml=${toml}`);
+
+    const sourceFiles = await client?.fileManager.readdir(
+      'browser/' + compileTarget + '/sources',
+    );
+    const sourceFilesNames = Object.keys(sourceFiles || {});
+    log.debug(`sourceFilesNames=${sourceFilesNames}`);
+    const filesNames = sourceFilesNames.concat(toml);
+    log.debug(`filesNames=${filesNames}`);
+
+    let code;
+    const fileList = await Promise.all(
+      filesNames.map(async (f) => {
+        code = await client?.fileManager.getFile(f);
+        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
+      }),
+    );
+
+    generateZipForProve(fileList);
+  };
+
   const wrappedReadCode = () => wrapPromise(readCode(), client);
+  const wrappedReadCodeForProve = () => wrapPromise(readCodeForProve(), client);
 
   const createFile = (code: string, name: string) => {
     const blob = new Blob([code], { type: 'text/plain' });
@@ -205,6 +245,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     zip.generateAsync({ type: 'blob' }).then((blob) => {
       wrappedCompile(blob);
+    });
+  };
+
+  const generateZipForProve = (fileList: Array<File>) => {
+    const zip = new JSZip();
+    fileList.forEach((file: File) => {
+      if (file.name === 'Move.toml') {
+        zip.file(file.name, file);
+      } else {
+        zip.folder('sources')?.file(file.name, file);
+      }
+    });
+    zip.generateAsync({ type: 'blob' }).then((blob) => {
+      wrappedProve(blob);
     });
   };
 
@@ -425,7 +479,121 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const prove = async (blob: Blob) => {
+
+    setProveIconSpin('fa-spin');
+    setProveLoading(true);
+
+    const address = accountID;
+    const timestamp = Date.now().toString();
+    try {
+      // socket connect
+      let socket: Socket;
+      if (STAGE === PROD) {
+        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT);
+      } else {
+        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT, {
+          transports: ["websocket"]
+        });
+      }
+
+      socket.on('connect_error', function (err) {
+        // handle server error here
+        log.debug('Error connecting to server');
+        setProveIconSpin('');
+        setProveLoading(false);
+        socket.disconnect();
+      });
+
+      socket.on(
+        COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1,
+        async (data: CompilerAptosProveErrorOccurredV1) => {
+          log.debug(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1} data=${stringify(
+              data,
+            )}`,
+          );
+          if (data.id !== reqId(address, timestamp)) {
+            return;
+          }
+
+          setProveIconSpin('');
+          setProveLoading(false);
+          socket.disconnect();
+        },
+      );
+
+      socket.on(COMPILER_APTOS_PROVE_LOGGED_V1, async (data: CompilerAptosProveLoggedV1) => {
+        log.debug(
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_LOGGED_V1} data=${stringify(data)}`,
+        );
+        if (data.id !== reqId(address, timestamp)) {
+          return;
+        }
+
+        await client.terminal.log({ value: data.logMsg, type: 'info' });
+      });
+
+      socket.on(
+        COMPILER_APTOS_PROVE_COMPLETED_V1,
+        async (data: CompilerAptosProveCompletedV1) => {
+          log.debug(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_COMPLETED_V1} data=${stringify(
+              data,
+            )}`,
+          );
+          if (data.id !== reqId(address, timestamp)) {
+            return;
+          }
+          socket.disconnect();
+          setProveIconSpin('');
+          setProveLoading(false);
+        },
+      );
+
+      const formData = new FormData();
+      formData.append('address', address || 'noaddress');
+      formData.append('timestamp', timestamp.toString() || '0');
+      formData.append('fileType', 'move');
+      formData.append('zipFile', blob || '');
+
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.status !== 201) {
+        log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
+        socket.disconnect();
+        setCompileIconSpin('');
+        setLoading(false);
+        return;
+      }
+
+      const remixAptosProveRequestedV1: RemixAptosProveRequestedV1 = {
+        id: compileId(address, timestamp),
+        address: address || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        fileType: 'move',
+      };
+      socket.emit(REMIX_APTOS_PROVE_REQUESTED_V1, remixAptosProveRequestedV1);
+      log.debug(
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_PROVE_REQUESTED_V1} data=${stringify(
+          remixAptosProveRequestedV1,
+        )}`,
+      );
+    } catch (e) {
+      setProveIconSpin('');
+      setProveLoading(false);
+      log.error(e);
+    }
+  };
+
+
   const wrappedCompile = (blob: Blob) => wrapPromise(compile(blob), client);
+  const wrappedProve = (blob: Blob) => wrapPromise(prove(blob), client);
 
   const getExtensionOfFilename = (filename: string) => {
     const _fileLen = filename.length;
@@ -551,6 +719,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <FaSyncAlt className={compileIconSpin} />
           <span> Compile</span>
         </Button>
+
+        {
+          enableAptosProve() ? (
+            <Button
+              variant="primary"
+              disabled={accountID === '' || proveLoading}
+              onClick={() => {
+                wrappedReadCodeForProve();
+              }}
+              className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            >
+              <FaSyncAlt className={proveIconSpin} />
+              <span> Prove</span>
+            </Button>
+          ): <></>
+        }
         {fileNames.map((filename, i) => (
           <small key={`aptos-module-file-${i}`}>
             {filename}
