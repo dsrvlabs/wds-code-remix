@@ -28,7 +28,7 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx, getAccountModules, build, viewFunction, getAccountResources } from './aptos-helper';
+import { getAccountModules, build, viewFunction, getAccountResources } from './aptos-helper';
 
 
 interface ModuleWrapper {
@@ -58,7 +58,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [compileIconSpin, setCompileIconSpin] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
-  const [rawTx, setRawTx] = useState('');
   const [atAddress, setAtAddress] = useState<string>('');
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
@@ -79,6 +78,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetResource, setTargetResource] = useState<string>('')
 
   const exists = async () => {
+    setMetaDataBase64('');
     try {
       const artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
       await client.terminal.log({
@@ -133,8 +133,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setMetaDataBase64(metaData64);
 
       if (metaData64 && moduleWrappers.length > 0) {
-        const _tx = await genRawTx(metaData64, moduleBase64s, accountID, dapp.networks.aptos.chain);
-        setRawTx(_tx);
         return true;
       } else {
         return false;
@@ -210,6 +208,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const compile = async (blob: Blob) => {
     setCompileError(null);
+    setMetaDataBase64('');
     sendCustomEvent('compile', {
       event_category: 'aptos',
       method: 'compile',
@@ -362,16 +361,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
 
-          if (metaData64 && moduleWrappers.length > 0) {
-            const _tx = await genRawTx(
-              metaData64,
-              moduleBase64s,
-              accountID,
-              dapp.networks.aptos.chain,
-            );
-            setRawTx(_tx);
-          }
-
           socket.disconnect();
           setCompileIconSpin('');
           setLoading(false);
@@ -489,7 +478,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const setMsg = await build(
-      // "0x9b67139040a4a92f09412f64157fe2c05c55a320f293f2c5369e42cd2e18c6dd::message::set_message",
       deployedContract + "::" + targetModule + "::" + targetFunction,
       genericParameters,
       param, // Array
@@ -582,11 +570,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {rawTx ?
+      {metaData64 ?
         <Deploy
           wallet={'Dsrv'}
           accountID={accountID}
-          rawTx={rawTx}
           metaData64={metaData64}
           moduleBase64s={moduleBase64s}
           dapp={dapp}

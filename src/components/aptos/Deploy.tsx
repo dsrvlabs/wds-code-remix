@@ -6,9 +6,8 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx, waitForTransactionWithResult, build } from './aptos-helper';
+import { genRawTx, waitForTransactionWithResult } from './aptos-helper';
 
-import { AptosClient } from 'aptos';
 import copy from 'copy-to-clipboard';
 
 interface InterfaceProps {
@@ -16,7 +15,6 @@ interface InterfaceProps {
   accountID: string;
   metaData64: string;
   moduleBase64s: string[];
-  rawTx: string;
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
   setDeployedContract: Function;
@@ -28,7 +26,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   accountID,
   metaData64,
   moduleBase64s,
-  rawTx,
   wallet,
   dapp,
   setDeployedContract,
@@ -74,7 +71,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     try {
       setDeployIconSpin('fa-spin');
       const chainId = dapp.networks.aptos.chain;
-      const rawTx_ = await genRawTx(metaData64, moduleBase64s, accountID, chainId);
+      const rawTx_ = await genRawTx(metaData64, moduleBase64s, accountID, chainId, 20000, 100);
       const txnHash = await dapp.request('aptos', {
         method: 'dapp:signAndSendTransaction',
         params: [rawTx_],
@@ -142,7 +139,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="warning"
-          disabled={inProgress || !rawTx}
+          disabled={inProgress || !metaData64}
           onClick={async () => {
             try {
               await checkExistContract();
