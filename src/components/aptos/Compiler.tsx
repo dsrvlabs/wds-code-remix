@@ -31,7 +31,7 @@ import {
 
 import {APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT} from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
-import {FileUtil} from '../../utils/FileUtil';
+import {FileInfo, FileUtil} from '../../utils/FileUtil';
 import {enableAptosProve, readFile, stringify} from '../../utils/helper';
 import {Client} from '@remixproject/plugin';
 import {Api} from '@remixproject/plugin-utils';
@@ -202,27 +202,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
-
-    const toml = compileTarget + '/Move.toml';
-    log.debug(`toml=${toml}`);
-
-    const sourceFiles = await client?.fileManager.readdir(
-      'browser/' + compileTarget + '/sources',
-    );
-    const sourceFilesNames = Object.keys(sourceFiles || {});
-    log.debug(`sourceFilesNames=${sourceFilesNames}`);
-    const filesNames = sourceFilesNames.concat(toml);
-    log.debug(`filesNames=${filesNames}`);
-
-    let code;
-    const fileList = await Promise.all(
-      filesNames.map(async (f) => {
-        code = await client?.fileManager.getFile(f);
-        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
-      }),
+    const sourceFiles = await FileUtil.allFilesForBrowser(
+      client,
+      compileTarget
     );
 
-    generateZipForProve(fileList);
+    await generateZipForProve(sourceFiles);
   };
 
   const wrappedReadCode = () => wrapPromise(readCode(), client);
@@ -248,15 +233,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
-  const generateZipForProve = (fileList: Array<File>) => {
+  const generateZipForProve = async (fileInfos: Array<FileInfo>) => {
     const zip = new JSZip();
-    fileList.forEach((file: File) => {
-      if (file.name === 'Move.toml') {
-        zip.file(file.name, file);
-      } else {
-        zip.folder('sources')?.file(file.name, file);
+
+    await Promise.all(fileInfos.map(async (fileinfo: FileInfo) => {
+      if (!fileinfo.isDirectory) {
+        const content =  await client?.fileManager.readFile(fileinfo.path);
+        const f  = createFile(content || '', fileinfo.path.substring(fileinfo.path.lastIndexOf('/') + 1));
+        const chainFolderExcluded = fileinfo.path.substring(fileinfo.path.indexOf('/') + 1);
+        const projFolderExcluded = chainFolderExcluded.substring(chainFolderExcluded.indexOf('/') + 1);
+        zip.file(projFolderExcluded, f);
       }
-    });
+    }));
+
     zip.generateAsync({ type: 'blob' }).then((blob) => {
       wrappedProve(blob);
     });
@@ -513,9 +502,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
+
           if (data.id !== reqId(address, timestamp)) {
             return;
           }
+          await client.terminal.log({ value: data.errMsg, type: 'error' });
 
           setProveIconSpin('');
           setProveLoading(false);

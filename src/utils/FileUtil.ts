@@ -1,4 +1,10 @@
 import { readdirSync } from 'fs';
+import { log } from './logger';
+
+export interface FileInfo {
+  path: string,
+  isDirectory: boolean,
+}
 
 export class FileUtil {
   static findOneByExtension(path: string, extension: string) {
@@ -18,6 +24,37 @@ export class FileUtil {
     }
 
     return files;
+  }
+
+  static async allFilesForBrowser(client: any, dirName: string) : Promise<FileInfo[]> {
+    let files: FileInfo[] = [];
+    let items_;
+    try {
+      items_ = await client?.fileManager.readdir(
+        'browser/' + dirName
+      );
+    } catch (e) {
+      log.error(e)
+      return []
+    }
+
+    for (const [key, value] of Object.entries(items_)) {
+      files.push({
+        path: key,
+        isDirectory: (value as any).isDirectory,
+      })
+    }
+
+    let result: FileInfo[]= [];
+    for (const file of files) {
+      if (file.isDirectory) {
+        const subDirFiles = await FileUtil.allFilesForBrowser(client, file.path) || []
+        result = [...files, ...subDirFiles];
+      } else {
+        result.push(file);
+      }
+    }
+    return result;
   }
 
   static extractFilename(path: string): string {
