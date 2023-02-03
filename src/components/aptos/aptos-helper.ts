@@ -1,4 +1,5 @@
-import { AptosClient, BCS, HexString, TxnBuilderTypes, TransactionBuilderRemoteABI } from 'aptos';
+import { Uint64 } from '@cosmjs/math';
+import { AptosClient, BCS, HexString, TxnBuilderTypes, TransactionBuilderRemoteABI, TransactionBuilderEd25519 } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 
@@ -7,6 +8,8 @@ export async function genRawTx(
   base64EncodedModules: string[],
   accountID: string,
   chainId: string,
+  maxGasAmount: number,
+  gasUnitPrice: number
 ) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
@@ -33,7 +36,13 @@ export async function genRawTx(
   const rawTransaction = await aptosClient.generateRawTransaction(
     new HexString(accountID),
     payload,
+    {
+      maxGasAmount: BigInt(maxGasAmount),
+      gasUnitPrice: BigInt(gasUnitPrice)
+    }
   );
+
+  console.log(rawTransaction)
 
   const rawTx = BCS.bcsToBytes(rawTransaction);
   const _transaction = Buffer.from(rawTx).toString('hex');
@@ -72,6 +81,12 @@ export async function getAccountModules(account: string, chainId: string) {
   return modules;
 }
 
+export async function getAccountResources(account: string, chainId: string) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+  const resource = await aptosClient.getAccountResources(account);
+  return resource;
+}
+
 export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: string[], param: any) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
@@ -85,6 +100,29 @@ export async function viewFunction(account: string, moduleName: string, function
 
   return await aptosClient.view(payload);
 }
+
+// export const estimateGas = async (url: string, account: Account, rawTransaction: TxnBuilderTypes.RawTransaction): Promise<string> => {
+//   // eslint-disable-next-line no-unused-vars
+//   const txnBuilder = new TransactionBuilderEd25519((_signingMessage: TxnBuilderTypes.SigningMessage) => {
+//     // @ts-ignore
+//     const invalidSigBytes = new Uint8Array(64);
+//     return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
+//   }, Buffer.from(account.pubKey.replace('0x', ''), 'hex'));
+//   const signedTxn = txnBuilder.sign(rawTransaction);
+
+//   const response = await fetch(`${url}/transactions/simulate`, {
+//     method: 'POST',
+//     headers: {
+//       // https://github.com/aptos-labs/aptos-core/blob/e7d5f952afe3afcf5d1415b67e167df6d49019bf/ecosystem/typescript/sdk/src/aptos_client.ts#L336
+//       'Content-Type': 'application/x.aptos.signed_transaction+bcs',
+//     },
+//     body: signedTxn,
+//   });
+
+//   const result = await response.json();
+//   return result[0].max_gas_amount;
+// };
+
 
 export function aptosNodeUrl(chainId: string) {
   if (chainId === 'mainnet') {

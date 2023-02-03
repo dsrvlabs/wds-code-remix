@@ -50,12 +50,18 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client, activ
             onClick={async () => {
               console.log(window)
               if (!((window as any).aptos)) {
+                // await client.terminal.log({
+                //   value:
+                //     'Please Install Petra Wallet https://petra.app/ . If you have installed it, please press the refresh button.',
+                //   type: 'error',
+                // });
+                // setError('Install Petra Wallet');
                 await client.terminal.log({
                   value:
-                    'Please Install Petra Wallet https://petra.app/ . If you have installed it, please press the refresh button.',
+                    'Petra wallet will be supported soon.',
                   type: 'error',
                 });
-                setError('Install Petra Wallet');
+                setError('Petra wallet will be supported soon.');
               } else {
                 setActive(true);
                 setWallet('petra')

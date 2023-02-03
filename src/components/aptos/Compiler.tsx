@@ -2,11 +2,11 @@ import React, {useState} from 'react';
 import {Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip} from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
-import {FaSyncAlt} from 'react-icons/fa';
-import {Deploy} from './Deploy';
-import {io} from 'socket.io-client';
+import { FaSyncAlt } from 'react-icons/fa';
+import { Deploy } from './Deploy';
+import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
-import {sendCustomEvent} from '../../utils/sendCustomEvent';
+import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import * as _ from 'lodash';
 import {
   compileId,
@@ -29,7 +29,7 @@ import {
   reqId,
 } from 'wds-event';
 
-import {APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT} from '../../const/endpoint';
+import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import {FileInfo, FileUtil} from '../../utils/FileUtil';
 import {enableAptosProve, readFile, stringify} from '../../utils/helper';
@@ -37,7 +37,8 @@ import {Client} from '@remixproject/plugin';
 import {Api} from '@remixproject/plugin-utils';
 import {IRemixApi} from '@remixproject/plugin-api';
 import {log} from '../../utils/logger';
-import {build, genRawTx, getAccountModules, viewFunction} from './aptos-helper';
+import {build, genRawTx, getAccountModules, viewFunction, getAccountResources} from './aptos-helper';
+
 import {PROD, STAGE} from "../../const/stage";
 import {Socket} from "socket.io-client/build/esm/socket";
 
@@ -71,7 +72,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
-  const [rawTx, setRawTx] = useState('');
   const [atAddress, setAtAddress] = useState<string>('');
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
@@ -89,7 +89,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [viewResult, setViewResult] = useState<any>()
 
+  const [targetResource, setTargetResource] = useState<string>('')
+
   const exists = async () => {
+    setMetaDataBase64('');
     try {
       const artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
       await client.terminal.log({
@@ -144,8 +147,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setMetaDataBase64(metaData64);
 
       if (metaData64 && moduleWrappers.length > 0) {
-        const _tx = await genRawTx(metaData64, moduleBase64s, accountID, dapp.networks.aptos.chain);
-        setRawTx(_tx);
         return true;
       } else {
         return false;
@@ -253,6 +254,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const compile = async (blob: Blob) => {
     setCompileError(null);
+    setMetaDataBase64('');
     sendCustomEvent('compile', {
       event_category: 'aptos',
       method: 'compile',
@@ -411,16 +413,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
-
-          if (metaData64 && moduleWrappers.length > 0) {
-            const _tx = await genRawTx(
-              metaData64,
-              moduleBase64s,
-              accountID,
-              dapp.networks.aptos.chain,
-            );
-            setRawTx(_tx);
-          }
 
           socket.disconnect();
           setCompileIconSpin('');
@@ -598,6 +590,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setModules(accountModules);
       log.debug("@@@", accountModules);
       setTargetModule((accountModules[0] as any).abi.name);
+      setTargetResource((accountModules[0] as any).abi.structs[0].name);
       setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
       setParameters([])
     } catch (e) {
@@ -620,6 +613,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (modules.length) {
       modules.map((mod, idx) => {
         if (mod.abi.name === e.target.value) {
+          setTargetResource(mod.abi.structs[0].name)
           setTargetFunction(mod.abi.exposed_functions[0].name)
           setParameters([]);
         }
@@ -631,6 +625,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTargetFunction(e.target.value);
     setParameters([]);
     setGenericParameters([]);
+  }
+
+  const setResource = (e: any) => {
+    setTargetResource(e.target.value)
   }
 
   const entry = async () => {
@@ -649,14 +647,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const setMsg = await build(
-      // "0x9b67139040a4a92f09412f64157fe2c05c55a320f293f2c5369e42cd2e18c6dd::message::set_message",
       deployedContract + "::" + targetModule + "::" + targetFunction,
       genericParameters,
       param, // Array
       chainId,
       abiBuilderConfig
     )
-
 
     const txHash = await dapp.request('aptos', {
       method: 'dapp:signAndSendTransaction',
@@ -693,6 +689,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     log.debug(result)
     setViewResult(result)
+  }
+
+  const getResources = async () => {
+    log.debug(accountID, targetModule, targetResource);
+    const resource = await getAccountResources(accountID, dapp.networks.aptos.chain);
+    log.debug(resource)
+    resource.map(async (accountResource: any) => {
+      if (accountResource.type === accountID + "::" + targetModule + "::" + targetResource) {
+
+        await client.terminal.log({
+          type: 'info',
+          value: accountResource.data
+        });
+      }
+    })
   }
 
   return (
@@ -744,11 +755,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {rawTx ?
+      {metaData64 ?
         <Deploy
           wallet={'Dsrv'}
           accountID={accountID}
-          rawTx={rawTx}
           metaData64={metaData64}
           moduleBase64s={moduleBase64s}
           dapp={dapp}
@@ -814,24 +824,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             </Form.Control>
           </InputGroup></Form.Group> : false
       }
-      <hr />
-
-      {/* Resources */}
-      {/* <Form.Control
-              style={{ "marginBottom": "10px" }}
+      {targetModule ?
+        <Form.Group>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>Resources</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              style={{ "width": "80%", "marginBottom": "10px" }}
               className="custom-select"
               as="select"
-              value={''}
-              onChange={() => { }}
+              value={targetResource}
+              onChange={setResource}
             >
               {
                 modules.map((mod, idx) => {
-                  log.debug(mod.abi.name === targetModule)
-
                   if (mod.abi.name === targetModule) {
                     return mod.abi.structs.map((resource: any, idx: any) => {
-                      log.debug(resource)
-
                       return (
                         <option value={resource.name} key={idx}>
                           {resource.name}
@@ -843,7 +852,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   }
                 })
               }
-            </Form.Control> */}
+            </Form.Control>
+            <Button
+              style={{ "marginTop": "10px", "minWidth": "70px" }}
+              variant="success" size="sm"
+              onClick={getResources} >
+              <small>{'Get Resource'}</small>
+            </Button>
+          </InputGroup>
+        </Form.Group>
+        : false
+      }
+      <hr />
       {
         modules.length && targetModule ?
           <>
@@ -873,7 +893,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 }
               </Form.Control>
             </Form.Group>
-            <hr />
           </> : false
       }
       {
@@ -887,15 +906,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                       <Form style={{ "marginTop": "30px" }} key={idx}>
                         <Form.Group>
                           <InputGroup>
-                            <div style={{width: "100%"}}>
+                            <div style={{ width: "100%" }}>
                               <div>
                                 <div>
-                                  { func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></> }
+                                  {func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></>}
                                 </div>
                                 {
                                   func.generic_type_params.map((param: any, idx: number) => {
                                     return < Form.Control style={{ "width": "100%", "marginBottom": "5px" }} type="text" placeholder={`Type Arg ${idx + 1}`} size="sm"
-                                                          onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
+                                      onChange={(e) => { updateGenericParam(e, idx) }} key={idx} />
                                   })
                                 }
                               </div>
@@ -908,7 +927,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                     }
 
                                     return < Form.Control style={{ "width": "100%", "marginBottom": "5px" }} type="text" placeholder={param} size="sm"
-                                                          onChange={(e) => { updateParam(e, idx) }} key={idx} />
+                                      onChange={(e) => { updateParam(e, idx) }} key={idx} />
                                   })
                                 }
                                 {
