@@ -37,7 +37,13 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { build, getAccountModules, getAccountResources, viewFunction } from './aptos-helper';
+import {
+  build,
+  getAccountModules,
+  getAccountResources,
+  viewFunction,
+  ViewResult,
+} from './aptos-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
@@ -85,7 +91,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [genericParameters, setGenericParameters] = useState<any[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
-  const [viewResult, setViewResult] = useState<any>();
+  const [viewResult, setViewResult] = useState<ViewResult>();
 
   const [targetResource, setTargetResource] = useState<string>('');
 
@@ -963,13 +969,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                     >
                                       <small>{func.name}</small>
                                     </Button>
-                                    {viewResult ? (
-                                      <div>
-                                        <small>{viewResult}</small>
-                                      </div>
-                                    ) : (
-                                      <></>
-                                    )}
+                                    <div>
+                                      {viewResult?.result ? (
+                                        <small>{viewResult.result}</small>
+                                      ) : (
+                                        <small style={{color: 'red'}}>{viewResult?.error}</small>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>

@@ -1,7 +1,19 @@
 import { Uint64 } from '@cosmjs/math';
-import { AptosClient, BCS, HexString, TxnBuilderTypes, TransactionBuilderRemoteABI, TransactionBuilderEd25519 } from 'aptos';
+import {
+  AptosClient,
+  BCS,
+  HexString,
+  TxnBuilderTypes,
+  TransactionBuilderRemoteABI,
+  TransactionBuilderEd25519,
+} from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
+
+export interface ViewResult {
+  result: any;
+  error: string;
+}
 
 export async function genRawTx(
   base64EncodedMetadata: string,
@@ -9,7 +21,7 @@ export async function genRawTx(
   accountID: string,
   chainId: string,
   maxGasAmount: number,
-  gasUnitPrice: number
+  gasUnitPrice: number,
 ) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
@@ -38,11 +50,11 @@ export async function genRawTx(
     payload,
     {
       maxGasAmount: BigInt(maxGasAmount),
-      gasUnitPrice: BigInt(gasUnitPrice)
-    }
+      gasUnitPrice: BigInt(gasUnitPrice),
+    },
   );
 
-  console.log(rawTransaction)
+  console.log(rawTransaction);
 
   const rawTx = BCS.bcsToBytes(rawTransaction);
   const _transaction = Buffer.from(rawTx).toString('hex');
@@ -56,16 +68,25 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: str
   return aptosClient.waitForTransactionWithResult(txnHash);
 }
 
-export async function build(func: string, ty_tags: string[], args: string[], chainId: string, abiBuilderConfig: any) {
-  log.debug("@@@ setMsg build", {
+export async function build(
+  func: string,
+  ty_tags: string[],
+  args: string[],
+  chainId: string,
+  abiBuilderConfig: any,
+) {
+  log.debug('@@@ setMsg build', {
     func,
     ty_tags,
     args,
     chainId,
     abiBuilderConfig,
-  })
+  });
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const transactionBuilderRomoteABI = new TransactionBuilderRemoteABI(aptosClient, abiBuilderConfig);
+  const transactionBuilderRomoteABI = new TransactionBuilderRemoteABI(
+    aptosClient,
+    abiBuilderConfig,
+  );
   const rawTransaction = await transactionBuilderRomoteABI.build(func, ty_tags, args);
 
   const rawTx = BCS.bcsToBytes(rawTransaction);
@@ -77,7 +98,7 @@ export async function build(func: string, ty_tags: string[], args: string[], cha
 
 export async function getAccountModules(account: string, chainId: string) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const modules = await aptosClient.getAccountModules(account)
+  const modules = await aptosClient.getAccountModules(account);
   return modules;
 }
 
@@ -87,18 +108,36 @@ export async function getAccountResources(account: string, chainId: string) {
   return resource;
 }
 
-export async function viewFunction(account: string, moduleName: string, functionName: string, chainId: string, typeArg: string[], param: any) {
+export async function viewFunction(
+  account: string,
+  moduleName: string,
+  functionName: string,
+  chainId: string,
+  typeArg: string[],
+  param: any,
+): Promise<ViewResult> {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
   const payload = {
-    function: account + "::" + moduleName + "::" + functionName,
+    function: account + '::' + moduleName + '::' + functionName,
     type_arguments: typeArg,
     arguments: param,
   };
 
-  log.debug(payload)
+  log.debug(payload);
 
-  return await aptosClient.view(payload);
+  try {
+    const res = await aptosClient.view(payload);
+    return {
+      result: res,
+      error: '',
+    };
+  } catch (e: any) {
+    return {
+      result: undefined,
+      error: e.toString(),
+    };
+  }
 }
 
 // export const estimateGas = async (url: string, account: Account, rawTransaction: TxnBuilderTypes.RawTransaction): Promise<string> => {
@@ -122,7 +161,6 @@ export async function viewFunction(account: string, moduleName: string, function
 //   const result = await response.json();
 //   return result[0].max_gas_amount;
 // };
-
 
 export function aptosNodeUrl(chainId: string) {
   if (chainId === 'mainnet') {
