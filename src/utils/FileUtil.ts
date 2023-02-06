@@ -2,8 +2,8 @@ import { readdirSync } from 'fs';
 import { log } from './logger';
 
 export interface FileInfo {
-  path: string,
-  isDirectory: boolean,
+  path: string;
+  isDirectory: boolean;
 }
 
 export class FileUtil {
@@ -26,35 +26,28 @@ export class FileUtil {
     return files;
   }
 
-  static async allFilesForBrowser(client: any, dirName: string) : Promise<FileInfo[]> {
-    let files: FileInfo[] = [];
-    let items_;
+  static async allFilesForBrowser(client: any, dirName: string): Promise<FileInfo[]> {
     try {
-      items_ = await client?.fileManager.readdir(
-        'browser/' + dirName
-      );
-    } catch (e) {
-      log.error(e)
-      return []
-    }
+      let result: FileInfo[] = [];
+      const files = await client?.fileManager.readdir('browser/' + dirName);
+      for (const [key, val] of Object.entries(files)) {
+        const file_ = {
+          path: key,
+          isDirectory: (val as any).isDirectory,
+        };
+        if (file_.isDirectory) {
+          const subDirFiles = (await FileUtil.allFilesForBrowser(client, file_.path)) || [];
 
-    for (const [key, value] of Object.entries(items_)) {
-      files.push({
-        path: key,
-        isDirectory: (value as any).isDirectory,
-      })
-    }
-
-    let result: FileInfo[]= [];
-    for (const file of files) {
-      if (file.isDirectory) {
-        const subDirFiles = await FileUtil.allFilesForBrowser(client, file.path) || []
-        result = [...files, ...subDirFiles];
-      } else {
-        result.push(file);
+          result = [...result, file_, ...subDirFiles];
+        } else {
+          result.push(file_);
+        }
       }
+      return result;
+    } catch (e) {
+      log.error(e);
+      return [];
     }
-    return result;
   }
 
   static extractFilename(path: string): string {
