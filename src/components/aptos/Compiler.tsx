@@ -41,6 +41,7 @@ import { build, getAccountModules, getAccountResources, viewFunction } from './a
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
+import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 
 interface ModuleWrapper {
   path: string;
@@ -66,8 +67,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   dapp,
 }) => {
   const [fileNames, setFileNames] = useState<string[]>([]);
-  const [compileIconSpin, setCompileIconSpin] = useState<string>('');
-  const [proveIconSpin, setProveIconSpin] = useState<string>('');
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
@@ -90,73 +89,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [targetResource, setTargetResource] = useState<string>('');
 
-  const exists = async () => {
-    setMetaDataBase64('');
+  const findArtifacts = async () => {
+    let artifacts = {};
     try {
-      const artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
-      await client.terminal.log({
-        type: 'error',
-        value:
-          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
-      });
-
-      const artifactPaths = Object.keys(artifacts || {});
-      log.debug(artifactPaths);
-      let metaData64 = '';
-      let metaDataHex = '';
-      let filenames: string[] = [];
-      let moduleWrappers: ModuleWrapper[] = [];
-
-      await Promise.all(
-        artifactPaths.map(async (path) => {
-          if (path.includes('package-metadata.bcs')) {
-            metaData64 = await client?.fileManager.readFile('browser/' + path);
-            metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
-          }
-        }),
-      );
-
-      await Promise.all(
-        artifactPaths.map(async (path) => {
-          if (getExtensionOfFilename(path) === '.mv') {
-            let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
-            if (moduleBase64) {
-              const moduleNameHex = Buffer.from(
-                FileUtil.extractFilenameWithoutExtension(path),
-              ).toString('hex');
-              const order = metaDataHex.indexOf(moduleNameHex);
-
-              moduleWrappers.push({
-                path: path,
-                module: moduleBase64,
-                moduleNameHex: moduleNameHex,
-                order: order,
-              });
-            }
-            filenames.push(path);
-          }
-        }),
-      );
-
-      moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-      log.debug('@@@ moduleWrappers', moduleWrappers);
-
-      setFileNames([...filenames]);
-      setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
-      setMetaDataBase64(metaData64);
-
-      if (metaData64 && moduleWrappers.length > 0) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (e: any) {
-      await client.terminal.log({
-        type: 'error',
-        value: e.toString(),
-      });
-      return false;
+      artifacts = await client?.fileManager.readdir('browser/' + compileTarget + '/out');
+    } catch (e) {
+      log.info(`no out folder`);
     }
+    log.debug(`@@@ artifacts`, artifacts);
+    return Object.keys(artifacts || {});
   };
 
   const handleAlertClose = () => {
@@ -165,72 +106,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     client.call('editor', 'clearAnnotations');
   };
 
-  const readCode = async () => {
-    if (loading) {
+  const requestProve = async () => {
+    if (proveLoading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
-
-    if (!(await exists())) {
-      setModuleBase64s([]);
-      setFileNames([]);
-      const toml = compileTarget + '/Move.toml';
-      log.debug(`toml=${toml}`);
-
-      const sourceFiles = await client?.fileManager.readdir(
-        'browser/' + compileTarget + '/sources',
-      );
-      const sourceFilesNames = Object.keys(sourceFiles || {});
-      log.debug(`sourceFilesNames=${sourceFilesNames}`);
-      const filesNames = sourceFilesNames.concat(toml);
-      log.debug(`filesNames=${filesNames}`);
-
-      let code;
-      const fileList = await Promise.all(
-        filesNames.map(async (f) => {
-          code = await client?.fileManager.getFile(f);
-          return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
-        }),
-      );
-
-      generateZip(fileList);
-    }
-  };
-
-  const readCodeForProve = async () => {
-    if (proveLoading) {
-      client.terminal.log({ value: 'Server is working...', type: 'log' });
+    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+    log.debug(`@@@ prove projFiles`, projFiles);
+    const buildFileExcluded = projFiles.filter((f) => !f.path.startsWith(`${compileTarget}/out`));
+    log.debug(`@@@ prove buildFileExcluded`, buildFileExcluded);
+    if (isEmptyList(buildFileExcluded)) {
       return;
     }
-    const sourceFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
 
-    await generateZipForProve(sourceFiles);
+    const blob = await generateZip(buildFileExcluded);
+
+    await wrappedProve(blob);
   };
 
-  const wrappedReadCode = () => wrapPromise(readCode(), client);
-  const wrappedReadCodeForProve = () => wrapPromise(readCodeForProve(), client);
+  const wrappedRequestCompile = () => wrapPromise(requestCompile(), client);
+  const wrappedRequestProve = () => wrapPromise(requestProve(), client);
 
   const createFile = (code: string, name: string) => {
     const blob = new Blob([code], { type: 'text/plain' });
     return new File([blob], name, { type: 'text/plain' });
   };
 
-  const generateZip = (fileList: Array<File>) => {
-    const zip = new JSZip();
-    fileList.map((file: File) => {
-      if (file.name === 'Move.toml') {
-        zip.file(file.name, file);
-      } else {
-        zip.folder('sources')?.file(file.name, file);
-      }
-    });
-
-    zip.generateAsync({ type: 'blob' }).then((blob) => {
-      wrappedCompile(blob);
-    });
-  };
-
-  const generateZipForProve = async (fileInfos: Array<FileInfo>) => {
+  const generateZip = async (fileInfos: Array<FileInfo>) => {
     const zip = new JSZip();
 
     await Promise.all(
@@ -250,19 +152,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }),
     );
 
-    zip.generateAsync({ type: 'blob' }).then((blob) => {
-      wrappedProve(blob);
-    });
+    return zip.generateAsync({ type: 'blob' });
   };
 
-  const compile = async (blob: Blob) => {
+  const sendCompileReq = async (blob: Blob) => {
     setCompileError(null);
-    setMetaDataBase64('');
     sendCustomEvent('compile', {
       event_category: 'aptos',
       method: 'compile',
     });
-    setCompileIconSpin('fa-spin');
     setLoading(true);
 
     const address = accountID;
@@ -281,7 +179,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on('connect_error', function (err) {
         // handle server error here
         log.debug('Error connecting to server');
-        setCompileIconSpin('');
         setLoading(false);
         socket.disconnect();
       });
@@ -298,7 +195,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
-          setCompileIconSpin('');
           setLoading(false);
           socket.disconnect();
         },
@@ -340,7 +236,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           // let content: any;
 
           const zip = await new JSZip().loadAsync(res.data);
-          await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
+          try {
+            await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
+          } catch (e) {
+            log.error(e);
+            setLoading(false);
+            return;
+          }
 
           let metaData64 = '';
           let metaDataHex = '';
@@ -373,40 +275,51 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 metaData64 = await readFile(new File([content], key));
                 metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
                 log.debug(`metadataFile_Base64=${metaData64}`);
-                await client?.fileManager.writeFile(
-                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  metaData64,
-                );
+                try {
+                  await client?.fileManager.writeFile(
+                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                    metaData64,
+                  );
+                } catch (e) {
+                  log.error(e);
+                  setLoading(false);
+                }
               }
             }),
           );
 
           await Promise.all(
-            Object.keys(zip.files).map(async (key) => {
-              if (key.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
-                const moduleDataBuf = await zip.file(key)?.async('nodebuffer');
+            Object.keys(zip.files).map(async (filepath) => {
+              if (filepath.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
+                const moduleDataBuf = await zip.file(filepath)?.async('nodebuffer');
                 log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
-                let content = await zip.file(key)?.async('blob');
+                let content = await zip.file(filepath)?.async('blob');
                 content = content?.slice(0, content.size) ?? new Blob();
-                const moduleBase64 = await readFile(new File([content], key));
+                const moduleBase64 = await readFile(new File([content], filepath));
                 log.debug(`moduleBase64=${moduleBase64}`);
 
                 const moduleNameHex = Buffer.from(
-                  FileUtil.extractFilenameWithoutExtension(key),
+                  FileUtil.extractFilenameWithoutExtension(filepath),
                 ).toString('hex');
                 const order = metaDataHex.indexOf(moduleNameHex);
 
                 moduleWrappers.push({
-                  path: key,
+                  path: filepath,
                   module: moduleBase64,
                   moduleNameHex: moduleNameHex,
                   order: order,
                 });
-                await client?.fileManager.writeFile(
-                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  moduleBase64,
-                );
-                filenames.push(key);
+
+                try {
+                  await client?.fileManager.writeFile(
+                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(filepath),
+                    moduleBase64,
+                  );
+                  filenames.push(compileTarget + '/out/' + FileUtil.extractFilename(filepath));
+                } catch (e) {
+                  log.error(e);
+                  setLoading(false);
+                }
               }
             }),
           );
@@ -418,7 +331,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setMetaDataBase64(metaData64);
 
           socket.disconnect();
-          setCompileIconSpin('');
           setLoading(false);
         },
       );
@@ -439,7 +351,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       if (res.status !== 201) {
         log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
         socket.disconnect();
-        setCompileIconSpin('');
         setLoading(false);
         return;
       }
@@ -459,12 +370,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     } catch (e) {
       setLoading(false);
       log.error(e);
-      setCompileIconSpin('');
     }
   };
 
-  const prove = async (blob: Blob) => {
-    setProveIconSpin('fa-spin');
+  const sendProveReq = async (blob: Blob) => {
     setProveLoading(true);
 
     const address = accountID;
@@ -483,7 +392,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on('connect_error', function (err) {
         // handle server error here
         log.debug('Error connecting to server');
-        setProveIconSpin('');
         setProveLoading(false);
         socket.disconnect();
       });
@@ -502,7 +410,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           }
           await client.terminal.log({ value: data.errMsg, type: 'error' });
 
-          setProveIconSpin('');
           setProveLoading(false);
           socket.disconnect();
         },
@@ -527,7 +434,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
         socket.disconnect();
-        setProveIconSpin('');
         setProveLoading(false);
       });
 
@@ -547,7 +453,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       if (res.status !== 201) {
         log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
         socket.disconnect();
-        setCompileIconSpin('');
         setLoading(false);
         return;
       }
@@ -565,14 +470,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}`,
       );
     } catch (e) {
-      setProveIconSpin('');
       setProveLoading(false);
       log.error(e);
     }
   };
 
-  const wrappedCompile = (blob: Blob) => wrapPromise(compile(blob), client);
-  const wrappedProve = (blob: Blob) => wrapPromise(prove(blob), client);
+  const wrappedCompile = (blob: Blob) => wrapPromise(sendCompileReq(blob), client);
+  const wrappedProve = (blob: Blob) => wrapPromise(sendProveReq(blob), client);
 
   const getExtensionOfFilename = (filename: string) => {
     const _fileLen = filename.length;
@@ -700,32 +604,129 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
+  const prepareModules = async () => {
+    const artifactPaths = await findArtifacts();
+
+    setMetaDataBase64('');
+    setModuleBase64s([]);
+    setFileNames([]);
+
+    if (isEmptyList(artifactPaths)) {
+      return [];
+    }
+
+    let metaData64 = '';
+    let metaDataHex = '';
+    let filenames: string[] = [];
+    let moduleWrappers: ModuleWrapper[] = [];
+
+    await Promise.all(
+      artifactPaths.map(async (path) => {
+        if (path.includes('package-metadata.bcs')) {
+          metaData64 = await client?.fileManager.readFile('browser/' + path);
+          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
+        }
+      }),
+    );
+
+    await Promise.all(
+      artifactPaths.map(async (path) => {
+        if (getExtensionOfFilename(path) === '.mv') {
+          let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
+          if (moduleBase64) {
+            const moduleNameHex = Buffer.from(
+              FileUtil.extractFilenameWithoutExtension(path),
+            ).toString('hex');
+            const order = metaDataHex.indexOf(moduleNameHex);
+
+            moduleWrappers.push({
+              path: path,
+              module: moduleBase64,
+              moduleNameHex: moduleNameHex,
+              order: order,
+            });
+          }
+          filenames.push(path);
+        }
+      }),
+    );
+
+    moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+    log.debug('@@@ moduleWrappers', moduleWrappers);
+
+    setFileNames([...filenames]);
+    setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
+    setMetaDataBase64(metaData64);
+
+    return filenames;
+  };
+
+  const requestCompile = async () => {
+    if (loading) {
+      await client.terminal.log({ value: 'Server is working...', type: 'log' });
+      return;
+    }
+
+    const moduleFiles = await prepareModules();
+    if (isNotEmptyList(moduleFiles)) {
+      await client.terminal.log({
+        type: 'error',
+        value:
+          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
+      });
+      return;
+    }
+
+    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+    log.info(`@@@ compile projFiles`, projFiles);
+    if (isEmptyList(projFiles)) {
+      return;
+    }
+
+    const existsOutFolder = projFiles.find((f) => f.path.startsWith(`${compileTarget}/out`));
+    if (existsOutFolder) {
+      await client.terminal.log({
+        type: 'error',
+        value:
+          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
+      });
+      return;
+    }
+
+    const blob = await generateZip(projFiles);
+    if (!blob) {
+      return;
+    }
+
+    await wrappedCompile(blob);
+  };
+
   return (
     <>
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === ''}
-          onClick={() => {
-            wrappedReadCode();
+          disabled={accountID === '' || proveLoading || loading}
+          onClick={async () => {
+            await wrappedRequestCompile();
           }}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
           // onClick={setSchemaObj}
         >
-          <FaSyncAlt className={compileIconSpin} />
+          <FaSyncAlt className={loading ? 'fa-spin' : ''} />
           <span> Compile</span>
         </Button>
 
         {enableAptosProve() ? (
           <Button
             variant="primary"
-            disabled={accountID === '' || proveLoading}
-            onClick={() => {
-              wrappedReadCodeForProve();
+            disabled={accountID === '' || proveLoading || loading}
+            onClick={async () => {
+              await wrappedRequestProve();
             }}
             className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
           >
-            <FaSyncAlt className={proveIconSpin} />
+            <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
             <span> Prove</span>
           </Button>
         ) : (
