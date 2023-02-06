@@ -717,27 +717,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <span> Compile</span>
         </Button>
 
-        {enableAptosProve() ? (
-          <Button
-            variant="primary"
-            disabled={accountID === '' || proveLoading || loading}
-            onClick={async () => {
-              await wrappedRequestProve();
-            }}
-            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-          >
-            <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
-            <span> Prove</span>
-          </Button>
-        ) : (
-          <></>
-        )}
+        <Button
+          variant="primary"
+          disabled={accountID === '' || proveLoading || loading}
+          onClick={async () => {
+            await wrappedRequestProve();
+          }}
+          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+        >
+          <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
+          <span> Prove</span>
+        </Button>
+
         {fileNames.map((filename, i) => (
           <small key={`aptos-module-file-${i}`}>
             {filename}
             {i < filename.length - 1 ? <br /> : false}
           </small>
         ))}
+
         {compileError && (
           <Alert
             variant="danger"

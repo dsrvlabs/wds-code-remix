@@ -1,12 +1,10 @@
-import { Form, ListGroup, Badge } from 'react-bootstrap';
+import { Badge, Form, ListGroup } from 'react-bootstrap';
 
 import Aptos from '../assets/Aptos-Big.png';
 import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
-import Juno from '../assets/Juno-Big.png';
 import RefreshButton from './common/RefreshButton';
-import { enableAptos, enableJuno } from '../utils/helper';
 import { FunctionComponent } from 'react';
 
 interface InterfaceProps {
