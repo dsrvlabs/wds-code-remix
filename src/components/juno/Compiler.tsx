@@ -58,7 +58,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({
         type: 'error',
         value:
-          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
+          "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
       });
       const filesName = Object.keys(artifacts || {});
       await Promise.all(
