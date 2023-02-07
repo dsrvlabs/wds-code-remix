@@ -116,7 +116,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           },
         });
         setDeployedContract(accountID);
-        setAtAddress(accountID);
+        setAtAddress('');
         const moveResources = await getAccountResources(accountID, dapp.networks.aptos.chain);
         log.info(`@@@ moveResources`, moveResources);
         setAccountResources([...moveResources]);

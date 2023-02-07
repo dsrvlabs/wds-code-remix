@@ -831,7 +831,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </Form.Group>
       <hr />
 
-      {atAddress ? (
+      {atAddress || deployedContract ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
             <small>Resources</small>
