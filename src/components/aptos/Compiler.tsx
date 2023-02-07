@@ -48,6 +48,7 @@ import {
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
+import { HexString, Types } from 'aptos';
 
 interface ModuleWrapper {
   path: string;
@@ -494,7 +495,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     try {
       const accountModules = await getAccountModules(account, chainId);
       setModules(accountModules);
-      log.debug('@@@', accountModules);
+      log.info('accountModules', accountModules);
       setTargetModule((accountModules[0] as any).abi.name);
       setTargetResource((accountModules[0] as any).abi.structs[0].name);
       setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
@@ -596,17 +597,37 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setViewResult(result);
   };
 
+  function resourceType(accountID: string, targetModule: string, targetResource: string) {
+    return new HexString(accountID).toShortString() + '::' + targetModule + '::' + targetResource;
+  }
+
   const getResources = async () => {
-    log.debug(accountID, targetModule, targetResource);
-    const resource = await getAccountResources(accountID, dapp.networks.aptos.chain);
-    log.debug(resource);
-    resource.map(async (accountResource: any) => {
-      if (accountResource.type === accountID + '::' + targetModule + '::' + targetResource) {
-        await client.terminal.log({
-          type: 'info',
-          value: accountResource.data,
-        });
-      }
+    const accountResources = await getAccountResources(accountID, dapp.networks.aptos.chain);
+    log.info('accountResources', accountResources);
+    const selectedResource = accountResources.find(
+      (accountResource: Types.MoveResource) =>
+        accountResource.type === resourceType(accountID, targetModule, targetResource),
+    );
+
+    if (!selectedResource) {
+      await client.terminal.log({
+        type: 'error',
+        value: `Resource Not Found For Type ${resourceType(
+          accountID,
+          targetModule,
+          targetResource,
+        )}`,
+      });
+      return;
+    }
+
+    await client.terminal.log({
+      type: 'info',
+      value: `${resourceType(accountID, targetModule, targetResource)}\n${JSON.stringify(
+        selectedResource.data,
+        null,
+        2,
+      )}`,
     });
   };
 
@@ -973,7 +994,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                       {viewResult?.result ? (
                                         <small>{viewResult.result}</small>
                                       ) : (
-                                        <small style={{color: 'red'}}>{viewResult?.error}</small>
+                                        <small style={{ color: 'red' }}>{viewResult?.error}</small>
                                       )}
                                     </div>
                                   </div>

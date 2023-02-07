@@ -1,12 +1,4 @@
-import { Uint64 } from '@cosmjs/math';
-import {
-  AptosClient,
-  BCS,
-  HexString,
-  TxnBuilderTypes,
-  TransactionBuilderRemoteABI,
-  TransactionBuilderEd25519,
-} from 'aptos';
+import { AptosClient, BCS, HexString, TransactionBuilderRemoteABI, TxnBuilderTypes } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 
@@ -104,8 +96,7 @@ export async function getAccountModules(account: string, chainId: string) {
 
 export async function getAccountResources(account: string, chainId: string) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const resource = await aptosClient.getAccountResources(account);
-  return resource;
+  return await aptosClient.getAccountResources(account);
 }
 
 export async function viewFunction(
