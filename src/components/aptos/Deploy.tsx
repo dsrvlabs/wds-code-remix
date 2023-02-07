@@ -6,9 +6,10 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx, waitForTransactionWithResult } from './aptos-helper';
+import { genRawTx, getAccountResources, waitForTransactionWithResult } from './aptos-helper';
 
 import copy from 'copy-to-clipboard';
+import { isNotEmptyList } from '../../utils/ListUtil';
 
 interface InterfaceProps {
   wallet: string;
@@ -18,6 +19,10 @@ interface InterfaceProps {
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
   setDeployedContract: Function;
+  setAtAddress: Function;
+  setAccountResources: Function;
+  setTargetResource: Function;
+  setParameters: Function;
   getAccountModulesFromAccount: Function;
 }
 
@@ -29,7 +34,11 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   wallet,
   dapp,
   setDeployedContract,
-  getAccountModulesFromAccount
+  setAtAddress,
+  setAccountResources,
+  setTargetResource,
+  setParameters,
+  getAccountModulesFromAccount,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -94,7 +103,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       log.debug(result);
       if (result.success) {
         await client.terminal.log({
-          type: 'info', value: {
+          type: 'info',
+          value: {
             version: result.version,
             hash: result.hash,
             gas_unit_price: result.gas_unit_price,
@@ -102,16 +112,26 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             sender: result.sender,
             sequence_number: result.sequence_number,
             timestamp: result.timestamp,
-            vm_status: result.vm_status
-          }
+            vm_status: result.vm_status,
+          },
         });
-        setDeployedContract(accountID)
-        getAccountModulesFromAccount(accountID, dapp.networks.aptos.chain)
+        setDeployedContract(accountID);
+        setAtAddress(accountID);
+        const moveResources = await getAccountResources(accountID, dapp.networks.aptos.chain);
+        log.info(`@@@ moveResources`, moveResources);
+        setAccountResources([...moveResources]);
+        if (isNotEmptyList(moveResources)) {
+          setTargetResource(moveResources[0].type);
+        } else {
+          setTargetResource('');
+        }
+        setParameters([]);
+
+        getAccountModulesFromAccount(accountID, dapp.networks.aptos.chain);
       } else {
         log.error((result as any).vm_status);
         await client.terminal.log({ type: 'error', value: (result as any).vm_status });
       }
-
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
@@ -152,15 +172,19 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         >
           <span> Deploy</span>
         </Button>
-        {
-          Object.keys(abi).length ?
-            <div style={{ "textAlign": "right", "marginBottom": "3px" }}>{"ABI   "}
-              <i className="far fa-copy" onClick={() => {
-                copy(JSON.stringify(abi, null, 4))
-              }} />
-            </div>
-            : false
-        }
+        {Object.keys(abi).length ? (
+          <div style={{ textAlign: 'right', marginBottom: '3px' }}>
+            {'ABI   '}
+            <i
+              className="far fa-copy"
+              onClick={() => {
+                copy(JSON.stringify(abi, null, 4));
+              }}
+            />
+          </div>
+        ) : (
+          false
+        )}
       </div>
       <hr />
     </>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -32,18 +32,12 @@ import {
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { enableAptosProve, readFile, stringify } from '../../utils/helper';
+import { readFile, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import {
-  build,
-  getAccountModules,
-  getAccountResources,
-  viewFunction,
-  ViewResult,
-} from './aptos-helper';
+import { build, getAccountModules, getAccountResources, viewFunction } from './aptos-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
@@ -92,8 +86,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [genericParameters, setGenericParameters] = useState<any[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
-  const [viewResult, setViewResult] = useState<ViewResult>();
-
+  const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
   const [targetResource, setTargetResource] = useState<string>('');
 
   const findArtifacts = async () => {
@@ -495,24 +488,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     try {
       const accountModules = await getAccountModules(account, chainId);
       setModules(accountModules);
-      log.info('accountModules', accountModules);
+      log.info('@@@ accountModules', accountModules);
       setTargetModule((accountModules[0] as any).abi.name);
-      setTargetResource((accountModules[0] as any).abi.structs[0].name);
       setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
-      setParameters([]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
     }
   };
 
-  const getContractAtAddress = () => {
+  const getContractAtAddress = async () => {
     sendCustomEvent('at_address', {
       event_category: 'aptos',
       method: 'at_address',
     });
     setDeployedContract(atAddress);
     getAccountModulesFromAccount(atAddress, dapp.networks.aptos.chain);
+
+    const moveResources = await getAccountResources(atAddress, dapp.networks.aptos.chain);
+    log.info(`@@@ moveResources`, moveResources);
+    setAccountResources([...moveResources]);
+    if (isNotEmptyList(moveResources)) {
+      setTargetResource(moveResources[0].type);
+    } else {
+      setTargetResource('');
+    }
+    setParameters([]);
   };
 
   const setModuleAndABI = (e: any) => {
@@ -520,7 +521,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (modules.length) {
       modules.map((mod, idx) => {
         if (mod.abi.name === e.target.value) {
-          setTargetResource(mod.abi.structs[0].name);
           setTargetFunction(mod.abi.exposed_functions[0].name);
           setParameters([]);
         }
@@ -534,13 +534,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setGenericParameters([]);
   };
 
-  const setResource = (e: any) => {
-    setTargetResource(e.target.value);
+  const onChangeResource = (e: any) => {
+    const resourceType = e.target.value;
+    log.info('###', resourceType);
+    setTargetResource(resourceType);
+  };
+
+  const queryResource = () => {
+    log.info(`targetResource`, targetResource);
+    log.info(`accountResources`, accountResources);
+    const selectedResource = accountResources.find((r) => r.type === targetResource);
+    if (!selectedResource) {
+      client.terminal.log({
+        type: 'error',
+        value: `Resource Not Found For Type ${targetResource}`,
+      });
+      return;
+    }
+
+    client.terminal.log({
+      type: 'info',
+      value: `\n${targetResource}\n${JSON.stringify(selectedResource.data, null, 2)}\n`,
+    });
   };
 
   const entry = async () => {
     // remove signer param
-    log.debug('@@@ parameters[0]', parameters[0]);
     let param = parameters;
     if (param.length >= 1 && param[0] === undefined) {
       param.shift();
@@ -576,6 +595,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const updateParam = (e: any, idx: any) => {
     setParameters((existingParams) => {
+      log.debug(e.target.value);
       existingParams[idx] = e.target.value;
       return existingParams;
     });
@@ -584,7 +604,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const view = async () => {
     console.log(parameters);
 
-    const result = await viewFunction(
+    const view = await viewFunction(
       deployedContract,
       targetModule,
       targetFunction,
@@ -593,41 +613,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       parameters,
     );
 
-    log.debug(result);
-    setViewResult(result);
-  };
-
-  function resourceType(accountID: string, targetModule: string, targetResource: string) {
-    return new HexString(accountID).toShortString() + '::' + targetModule + '::' + targetResource;
-  }
-
-  const getResources = async () => {
-    const accountResources = await getAccountResources(accountID, dapp.networks.aptos.chain);
-    log.info('accountResources', accountResources);
-    const selectedResource = accountResources.find(
-      (accountResource: Types.MoveResource) =>
-        accountResource.type === resourceType(accountID, targetModule, targetResource),
-    );
-
-    if (!selectedResource) {
+    log.debug(view);
+    if (view.error) {
       await client.terminal.log({
         type: 'error',
-        value: `Resource Not Found For Type ${resourceType(
-          accountID,
-          targetModule,
-          targetResource,
-        )}`,
+        value: view.error.split('\\"').join(''),
+      });
+      return;
+    }
+
+    if (Array.isArray(view.result) && view.result.length === 1) {
+      await client.terminal.log({
+        type: 'info',
+        value: `${JSON.stringify(view.result[0], null, 2)}`,
       });
       return;
     }
 
     await client.terminal.log({
       type: 'info',
-      value: `${resourceType(accountID, targetModule, targetResource)}\n${JSON.stringify(
-        selectedResource.data,
-        null,
-        2,
-      )}`,
+      value: `${JSON.stringify(view.result, null, 2)}`,
     });
   };
 
@@ -784,6 +789,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           dapp={dapp}
           client={client}
           setDeployedContract={setDeployedContract}
+          setAtAddress={setAtAddress}
+          setAccountResources={setAccountResources}
+          setTargetResource={setTargetResource}
+          setParameters={setParameters}
           getAccountModulesFromAccount={getAccountModulesFromAccount}
         />
       ) : (
@@ -803,6 +812,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             onChange={(e) => {
               setAtAddress(e.target.value.trim());
             }}
+            value={atAddress}
           />
           <OverlayTrigger
             placement="left"
@@ -820,6 +830,41 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </InputGroup>
       </Form.Group>
       <hr />
+
+      {atAddress ? (
+        <Form.Group>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>Resources</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              style={{ width: '80%', marginBottom: '10px' }}
+              className="custom-select"
+              as="select"
+              value={targetResource}
+              onChange={onChangeResource}
+            >
+              {accountResources.map((accountResource, idx) => {
+                return (
+                  <option value={accountResource.type} key={`accountResources-${idx}`}>
+                    {accountResource.type}
+                  </option>
+                );
+              })}
+            </Form.Control>
+          </InputGroup>
+          <Button
+            style={{ marginTop: '10px', minWidth: '70px' }}
+            variant="warning"
+            size="sm"
+            onClick={queryResource}
+          >
+            <small>Query Resource</small>
+          </Button>
+        </Form.Group>
+      ) : (
+        false
+      )}
 
       {modules.length ? (
         <Form.Group>
@@ -846,74 +891,31 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       ) : (
         false
       )}
-      {targetModule ? (
+      {modules.length && targetModule ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
-            <small>Resources</small>
+            <small>Functions</small>
           </Form.Text>
-          <InputGroup>
-            <Form.Control
-              style={{ width: '80%', marginBottom: '10px' }}
-              className="custom-select"
-              as="select"
-              value={targetResource}
-              onChange={setResource}
-            >
-              {modules.map((mod, idx) => {
-                if (mod.abi.name === targetModule) {
-                  return mod.abi.structs.map((resource: any, idx: any) => {
-                    return (
-                      <option value={resource.name} key={idx}>
-                        {resource.name}
-                      </option>
-                    );
-                  });
-                } else {
-                  return false;
-                }
-              })}
-            </Form.Control>
-            <Button
-              style={{ marginTop: '10px', minWidth: '70px' }}
-              variant="success"
-              size="sm"
-              onClick={getResources}
-            >
-              <small>{'Get Resource'}</small>
-            </Button>
-          </InputGroup>
+          <Form.Control
+            style={{ marginBottom: '10px' }}
+            className="custom-select"
+            as="select"
+            value={targetFunction}
+            onChange={handleFunction}
+          >
+            {modules.map((mod, idx) => {
+              if (mod.abi.name === targetModule) {
+                return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                  return (
+                    <option value={func.name} key={idx}>
+                      {func.name}
+                    </option>
+                  );
+                });
+              }
+            })}
+          </Form.Control>
         </Form.Group>
-      ) : (
-        false
-      )}
-      <hr />
-      {modules.length && targetModule ? (
-        <>
-          <Form.Group>
-            <Form.Text className="text-muted" style={mb4}>
-              <small>Functions</small>
-            </Form.Text>
-            <Form.Control
-              style={{ marginBottom: '10px' }}
-              className="custom-select"
-              as="select"
-              value={targetFunction}
-              onChange={handleFunction}
-            >
-              {modules.map((mod, idx) => {
-                if (mod.abi.name === targetModule) {
-                  return mod.abi.exposed_functions.map((func: any, idx: any) => {
-                    return (
-                      <option value={func.name} key={idx}>
-                        {func.name}
-                      </option>
-                    );
-                  });
-                }
-              })}
-            </Form.Control>
-          </Form.Group>
-        </>
       ) : (
         false
       )}
@@ -923,91 +925,76 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               return mod.abi.exposed_functions.map((func: any, idx: any) => {
                 if (func.name === targetFunction) {
                   return (
-                    <>
-                      <Form style={{ marginTop: '30px' }} key={idx}>
-                        <Form.Group>
-                          <InputGroup>
-                            <div style={{ width: '100%' }}>
-                              <div>
-                                <div>
-                                  {func.generic_type_params.length > 0 ? (
-                                    <small>Type Parameters</small>
-                                  ) : (
-                                    <></>
-                                  )}
-                                </div>
-                                {func.generic_type_params.map((param: any, idx: number) => {
-                                  return (
-                                    <Form.Control
-                                      style={{ width: '100%', marginBottom: '5px' }}
-                                      type="text"
-                                      placeholder={`Type Arg ${idx + 1}`}
-                                      size="sm"
-                                      onChange={(e) => {
-                                        updateGenericParam(e, idx);
-                                      }}
-                                      key={idx}
-                                    />
-                                  );
-                                })}
-                              </div>
-                              <div>
-                                <small>Parameters</small>
-                                {func.params.map((param: any, idx: number) => {
-                                  if (func.is_entry && idx === 0) {
-                                    return <></>;
-                                  }
-
-                                  return (
-                                    <Form.Control
-                                      style={{ width: '100%', marginBottom: '5px' }}
-                                      type="text"
-                                      placeholder={param}
-                                      size="sm"
-                                      onChange={(e) => {
-                                        updateParam(e, idx);
-                                      }}
-                                      key={idx}
-                                    />
-                                  );
-                                })}
-                                {func.is_entry ? (
-                                  <Button
-                                    style={{ marginTop: '10px', minWidth: '70px' }}
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={entry}
-                                  >
-                                    <small>{func.name}</small>
-                                  </Button>
-                                ) : (
-                                  <div>
-                                    <Button
-                                      style={{ marginTop: '10px', minWidth: '70px' }}
-                                      variant="warning"
-                                      size="sm"
-                                      onClick={view}
-                                    >
-                                      <small>{func.name}</small>
-                                    </Button>
-                                    <div>
-                                      {viewResult?.result ? (
-                                        <small>{viewResult.result}</small>
-                                      ) : (
-                                        <small style={{ color: 'red' }}>{viewResult?.error}</small>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                    <Form.Group key={`parameters-${idx}`}>
+                      <InputGroup>
+                        <div style={{ width: '100%' }}>
+                          <div>
+                            <div>
+                              {func.generic_type_params.length > 0 ? (
+                                <small>Type Parameters</small>
+                              ) : (
+                                <></>
+                              )}
                             </div>
-                          </InputGroup>
-                          <hr />
-                        </Form.Group>
-                      </Form>
-
+                            {func.generic_type_params.map((param: any, idx: number) => {
+                              return (
+                                <Form.Control
+                                  style={{ width: '100%', marginBottom: '5px' }}
+                                  type="text"
+                                  placeholder={`Type Arg ${idx + 1}`}
+                                  size="sm"
+                                  onChange={(e) => {
+                                    updateGenericParam(e, idx);
+                                  }}
+                                  key={idx}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div>
+                            <small>Parameters</small>
+                            {func.params.map((param: any, idx: number) => {
+                              if (func.is_entry && idx === 0) {
+                                return <></>;
+                              }
+                              return (
+                                <Form.Control
+                                  style={{ width: '100%', marginBottom: '5px' }}
+                                  type="text"
+                                  placeholder={param}
+                                  size="sm"
+                                  onChange={(e) => {
+                                    updateParam(e, idx);
+                                  }}
+                                />
+                              );
+                            })}
+                            {func.is_entry ? (
+                              <Button
+                                style={{ marginTop: '10px', minWidth: '70px' }}
+                                variant="primary"
+                                size="sm"
+                                onClick={entry}
+                              >
+                                <small>{func.name}</small>
+                              </Button>
+                            ) : (
+                              <div>
+                                <Button
+                                  style={{ marginTop: '10px', minWidth: '70px' }}
+                                  variant="warning"
+                                  size="sm"
+                                  onClick={view}
+                                >
+                                  <small>{func.name}</small>
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </InputGroup>
                       <hr />
-                    </>
+                    </Form.Group>
                   );
                 }
               });

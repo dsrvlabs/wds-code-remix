@@ -1,9 +1,16 @@
-import { AptosClient, BCS, HexString, TransactionBuilderRemoteABI, TxnBuilderTypes } from 'aptos';
+import {
+  AptosClient,
+  BCS,
+  HexString,
+  TransactionBuilderRemoteABI,
+  TxnBuilderTypes,
+  Types,
+} from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 
 export interface ViewResult {
-  result: any;
+  result?: Types.MoveValue;
   error: string;
 }
 
@@ -119,6 +126,7 @@ export async function viewFunction(
 
   try {
     const res = await aptosClient.view(payload);
+    log.info(res);
     return {
       result: res,
       error: '',
