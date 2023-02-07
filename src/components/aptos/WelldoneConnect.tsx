@@ -29,7 +29,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   const dappProvider = window.dapp;
   // const proxyProvider = new Provider();
 
-  // Establish a connection to the NEAR blockchain on component mount
+  // Establish a connection to the Aptos blockchain on component mount
   useEffect(() => {
     const connect = async () => {
       if (active) {
@@ -69,17 +69,29 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                     log.debug('bal: ', balance);
                     setBalance(balance ?? '');
                     setDapp(dappProvider);
-                  });
+                  })
+                  .catch(async (e: any) => {
+                    setAccount('');
+                    setBalance('');
+                    await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+                    await client.terminal.log({
+                      type: 'error',
+                      value: 'Please create account on chain',
+                    });
+                    setError('Create account on chain');
+                    setActive(false);
+                  })
               })
               .catch(async (e: any) => {
                 setAccount('');
                 setBalance('');
-                setActive(false);
                 await client.terminal.log({ type: 'error', value: e?.message?.toString() });
                 await client.terminal.log({
                   type: 'error',
                   value: 'Please Unlock your WELLDONE Wallet OR Create Account',
                 });
+                setError('Unlock your WELLDONE Wallet OR Create Account');
+                setActive(false);
               });
           } else {
             setAccount('');

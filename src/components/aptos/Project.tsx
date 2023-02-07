@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Form, InputGroup, Button } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Button, Form, InputGroup } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 import { Compiler } from './Compiler';
@@ -31,7 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello_blockchain');
-  const templateList = ['hello_blockchain'];
+  const templateList = ['hello_blockchain', 'marketplace', 'ticket'];
 
   useEffect(() => {
     getList();

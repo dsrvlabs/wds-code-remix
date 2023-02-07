@@ -24,4 +24,11 @@ describe('FileUtil', () => {
 
     expect(result).toBe('b.txt');
   });
+
+  it('extractFilenameWithoutExtension', () => {
+    const result = FileUtil.extractFilenameWithoutExtension(
+      'MarketPlace/sources/marketplace_listing_utils.move',
+    );
+    expect(result).toBe('marketplace_listing_utils');
+  });
 });

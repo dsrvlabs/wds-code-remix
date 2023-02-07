@@ -1,12 +1,10 @@
-import { Form, ListGroup } from 'react-bootstrap';
+import { Badge, Form, ListGroup } from 'react-bootstrap';
 
 import Aptos from '../assets/Aptos-Big.png';
 import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
-import Juno from '../assets/Juno-Big.png';
 import RefreshButton from './common/RefreshButton';
-import { enableAptos, enableJuno } from '../utils/helper';
 import { FunctionComponent } from 'react';
 
 interface InterfaceProps {
@@ -25,6 +23,36 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
           <RefreshButton />
         </Form.Text>
         <ListGroup>
+          <ListGroup.Item
+            as="li"
+            action
+            onClick={() => {
+              setChain('Aptos');
+            }}
+          >
+            <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
+            <b>APTOS (MoveVM)</b>
+            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+              Beta
+            </Badge>
+          </ListGroup.Item>
+          {/* {enableJuno() ? (
+            <ListGroup.Item
+              as="li"
+              action
+              onClick={() => {
+                setChain('Juno');
+              }}
+            >
+              <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
+              <b>JUNO (CosmWasm)</b>
+              <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+                Beta
+              </Badge>
+            </ListGroup.Item>
+          ) : (
+            <></>
+          )} */}
           <ListGroup.Item
             as="li"
             action
@@ -55,34 +83,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
             <img src={Klaytn} style={{ width: '35px', marginRight: '20px' }} alt="Klaytn logo" />
             <b>KLAYTN (EVM)</b>
           </ListGroup.Item>
-          {enableAptos() ? (
-            <ListGroup.Item
-              as="li"
-              action
-              onClick={() => {
-                setChain('Aptos');
-              }}
-            >
-              <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
-              <b>APTOS</b>
-            </ListGroup.Item>
-          ) : (
-            <></>
-          )}
-          {enableJuno() ? (
-            <ListGroup.Item
-              as="li"
-              action
-              onClick={() => {
-                setChain('Juno');
-              }}
-            >
-              <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
-              <b>JUNO</b>
-            </ListGroup.Item>
-          ) : (
-            <></>
-          )}
         </ListGroup>
       </Form.Group>
     </div>

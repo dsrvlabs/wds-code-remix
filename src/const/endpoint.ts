@@ -24,6 +24,7 @@ export const JUNO_COMPILER_CONSUMER_ENDPOINT = JUNO_COMPILER_CONSUMER_ENDPOINT_P
 const APTOS_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',
   dev: 'wss://dev.compiler.welldonestudio.io',
-  prod: 'wss://prod.aptos.compiler.welldonestudio.io',
+  // prod: 'wss://prod.aptos.compiler.welldonestudio.io',
+  prod: 'wss://prod.near.compiler.welldonestudio.io',
 };
 export const APTOS_COMPILER_CONSUMER_ENDPOINT = APTOS_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];

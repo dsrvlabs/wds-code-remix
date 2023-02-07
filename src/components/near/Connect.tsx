@@ -23,10 +23,11 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
   const [providerProxy, setProviderProxy] = useState<Provider>();
   const [nearConfig, setNearConfig] = useState<Near>();
   const [active, setActive] = useState<boolean>(false);
+  const [wallet, setWallet] = useState('');
 
   return (
     <div>
-      <CommonConnect client={client} active={active} setActive={setActive} />
+      <CommonConnect client={client} active={active} setActive={setActive} chain={'near'} setWallet={setWallet} wallet={wallet} />
       <hr />
       <div>
         <WelldoneConnect

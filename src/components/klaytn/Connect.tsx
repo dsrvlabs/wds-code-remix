@@ -11,10 +11,10 @@ interface InterfaceProps {
 
 export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => {
   const [active, setActive] = useState<boolean>(false);
-
+  const [wallet, setWallet] = useState('');
   return (
     <div>
-      <CommonConnect client={client} active={active} setActive={setActive} />
+      <CommonConnect client={client} active={active} setActive={setActive} chain={'klaytn'} setWallet={setWallet} wallet={wallet} />
       <hr />
       <div>
         <WelldoneConnect active={active} client={client} setActive={setActive} />

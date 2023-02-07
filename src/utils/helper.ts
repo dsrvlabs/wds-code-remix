@@ -74,5 +74,5 @@ export const stringify = (data: any) => {
   return JSON.stringify(data, null, 2);
 };
 
-export const enableAptos = () => STAGE !== PROD;
+export const enableAptosProve = () => STAGE !== PROD;
 export const enableJuno = () => STAGE !== PROD;
