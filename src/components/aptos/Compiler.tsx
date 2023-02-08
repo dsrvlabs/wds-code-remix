@@ -7,6 +7,8 @@ import { Deploy } from './Deploy';
 import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
+import stripAnsi from 'strip-ansi';
+
 import * as _ from 'lodash';
 import {
   compileId,
@@ -408,7 +410,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           if (data.id !== reqId(address, timestamp)) {
             return;
           }
-          await client.terminal.log({ value: data.errMsg, type: 'error' });
+          await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
 
           setProveLoading(false);
           socket.disconnect();
