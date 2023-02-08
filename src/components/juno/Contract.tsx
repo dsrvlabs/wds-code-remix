@@ -37,7 +37,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+          const rpcUrl = 'https://uni-rpc.reece.sh/';
 
           const client = await StargateClient.connect(rpcUrl);
           log.debug(client);
@@ -100,7 +100,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
 
   // query
   const query = async () => {
-    const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+    const rpcUrl = 'https://uni-rpc.reece.sh/';
     const client = await SigningCosmWasmClient.connect(rpcUrl);
 
     let queryMsgObj = {};

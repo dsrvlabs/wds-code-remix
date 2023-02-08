@@ -38,7 +38,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
   const [codeID, setCodeID] = useState<string>('');
 
   const waitGetCodeID = async (hash: string) => {
-    const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+    const rpcUrl = 'https://uni-rpc.reece.sh/';
     const stargateClient = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
@@ -79,7 +79,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+          const rpcUrl = 'https://uni-rpc.reece.sh/';
 
           const stargateClient = await StargateClient.connect(rpcUrl);
           log.debug(stargateClient);

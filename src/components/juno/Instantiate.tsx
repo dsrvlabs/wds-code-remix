@@ -43,7 +43,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+          const rpcUrl = 'https://uni-rpc.reece.sh/';
 
           const client = await StargateClient.connect(rpcUrl);
           log.debug(client);
@@ -111,7 +111,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
   };
 
   const waitGetContract = async (hash: string) => {
-    const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+    const rpcUrl = 'https://uni-rpc.reece.sh/';
     const client = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
