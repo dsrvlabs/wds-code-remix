@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -42,7 +42,7 @@ import { build, getAccountModules, getAccountResources, viewFunction } from './a
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { HexString, Types } from 'aptos';
+import { Types } from 'aptos';
 
 interface ModuleWrapper {
   path: string;
@@ -487,10 +487,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const getAccountModulesFromAccount = async (account: string, chainId: string) => {
     try {
       const accountModules = await getAccountModules(account, chainId);
-      setModules(accountModules);
       log.info('@@@ accountModules', accountModules);
-      setTargetModule((accountModules[0] as any).abi.name);
-      setTargetFunction((accountModules[0] as any).abi.exposed_functions[0].name);
+      if (isEmptyList(accountModules)) {
+        setModules([]);
+        setTargetModule('');
+        setTargetFunction('');
+        return;
+      }
+      setModules(accountModules);
+      const firstAccountModule = accountModules[0];
+      setTargetModule(firstAccountModule.abi!.name);
+      setTargetFunction(firstAccountModule.abi!.exposed_functions[0].name);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });

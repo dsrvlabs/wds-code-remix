@@ -97,8 +97,7 @@ export async function build(
 
 export async function getAccountModules(account: string, chainId: string) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const modules = await aptosClient.getAccountModules(account);
-  return modules;
+  return await aptosClient.getAccountModules(account);
 }
 
 export async function getAccountResources(account: string, chainId: string) {
