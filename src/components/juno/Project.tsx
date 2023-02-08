@@ -27,7 +27,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('counter');
-  const templateList = ['counter'];
+  const templateList = ['counter', 'to-do-list', 'name-service'];
   const [contractAddress, setContractAddress] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
 
