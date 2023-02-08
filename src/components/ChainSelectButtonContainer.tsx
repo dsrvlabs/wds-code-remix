@@ -3,6 +3,7 @@ import { Badge, Form, ListGroup } from 'react-bootstrap';
 import Aptos from '../assets/Aptos-Big.png';
 import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
+import Juno from '../assets/Juno-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
 import RefreshButton from './common/RefreshButton';
 import { FunctionComponent } from 'react';
@@ -36,7 +37,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
               Beta
             </Badge>
           </ListGroup.Item>
-          {/* {enableJuno() ? (
+          {/* {enableJuno() ? ( */}
             <ListGroup.Item
               as="li"
               action
@@ -50,7 +51,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({ 
                 Beta
               </Badge>
             </ListGroup.Item>
-          ) : (
+          {/* ) : (
             <></>
           )} */}
           <ListGroup.Item
