@@ -10,6 +10,7 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { FunctionComponent } from 'react';
 import { log } from '../utils/logger';
+import { EditorClient } from '../utils/editor';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -35,19 +36,29 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
 }) => {
   log.debug(chain);
 
+  const handleLeftBtn = async () => {
+    setChain('');
+    const editorClient = new EditorClient(client);
+    await editorClient.discardHighlight();
+    await editorClient.clearAnnotations();
+  };
+
+  const handleRefresh = async () => {
+    const editorClient = new EditorClient(client);
+    await editorClient.discardHighlight();
+    await editorClient.clearAnnotations();
+    window.location.reload();
+  };
+
   const Header = () => {
     return (
       <div style={STYLE}>
         <div>
           <br />
-          <FaChevronLeft
-            onClick={() => {
-              setChain('');
-            }}
-          />
+          <FaChevronLeft onClick={handleLeftBtn} />
           <span style={{ marginLeft: '5px' }}>{chain}</span>
         </div>
-        <RefreshButton />
+        <RefreshButton handleRefresh={handleRefresh} />
       </div>
     );
   };

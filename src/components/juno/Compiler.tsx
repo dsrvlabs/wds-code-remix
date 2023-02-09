@@ -188,14 +188,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
           if (file) {
             if (isRealError(annotation)) {
+              // await editorClient.switchFile(`${compileTarget}/${file}`)
               await editorClient.gotoLine(positionDetail.row, positionDetail.col);
+              // await editorClient.highlight(
+              //   highlightPosition,
+              //   `${compileTarget}/${file}`,
+              //   '#ff7675',
+              // );
               await editorClient.addAnnotation(annotation);
 
-              await editorClient.highlight(
-                highlightPosition,
-                `${compileTarget}/${file}`,
-                '#ff7675',
-              );
               setCompileError((prev) => `${prev}\n${data.logMsg}`);
 
               setIconSpin('');
