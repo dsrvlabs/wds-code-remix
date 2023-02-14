@@ -143,7 +143,6 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
-            params: [rawTx],
             params: [JSON.stringify(rawTx)],
           });
 
