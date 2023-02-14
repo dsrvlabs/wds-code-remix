@@ -1,5 +1,5 @@
 import React, { Dispatch, useState } from 'react';
-import { Button, Form, InputGroup } from 'react-bootstrap';
+import { Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Contract } from './Contract';
 import { StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
@@ -25,6 +25,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
   const [txHash, setTxHash] = useState<string>('');
 
   const instantiate = async () => {
+    setContractAddress('');
     const dapp = (window as any).dapp;
 
     if (!dapp) {
@@ -96,7 +97,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
 
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
-            params: [rawTx],
+            params: [JSON.stringify(rawTx)],
           });
 
           log.debug(res);
@@ -168,30 +169,46 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
             margin: '0.3em 0.3em',
           }}
         >
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Code ID</div>
-          <Form.Control
-            type="number"
-            placeholder="code_id"
-            size="sm"
-            value={codeID}
-            onChange={changeCodeID}
-          />
+          <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
+            Code ID
+          </div>
+          <OverlayTrigger
+            placement="bottom"
+            overlay={
+              <Tooltip id="overlay-ataddresss">
+                Click the Store Code button to get the code id
+              </Tooltip>
+            }
+          >
+            <Form.Control
+              type="number"
+              placeholder="code_id"
+              size="sm"
+              value={codeID}
+              onChange={changeCodeID}
+              readOnly
+            />
+          </OverlayTrigger>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
-          <Button onClick={format} size="sm">
-            Format
-          </Button>
-        </div>
-        <div style={{ padding: '0.2em' }}>
-          <Form.Control
-            as="textarea"
-            rows={(initMsg.slice().match(/\n/g) || []).length + 1}
-            value={initMsg}
-            onChange={(e) => setInitMsg(e.target.value)}
-          />
-          <span style={{ color: 'red' }}>{initMsgErr}</span>
-        </div>
+        {codeID && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
+              <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
+              <Button onClick={format} size="sm">
+                Format
+              </Button>
+            </div>
+            <div style={{ padding: '0.2em' }}>
+              <Form.Control
+                as="textarea"
+                rows={(initMsg.slice().match(/\n/g) || []).length + 1}
+                value={initMsg}
+                onChange={(e) => setInitMsg(e.target.value)}
+              />
+              <span style={{ color: 'red' }}>{initMsgErr}</span>
+            </div>
+          </>
+        )}
         {/*<div*/}
         {/*  style={{*/}
         {/*    display: 'flex',*/}
@@ -207,15 +224,21 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         {/*</div>*/}
       </Form.Group>
       <Form.Group>
-        <Button
-          variant="warning"
-          onClick={instantiate}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-          disabled={!!!codeID}
-        >
-          <span>Instantiate</span>
-        </Button>
-        <Form.Label>{contractAddress}</Form.Label>
+        {codeID && (
+          <Button
+            variant="warning"
+            onClick={instantiate}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            disabled={!!!codeID}
+          >
+            <span>Instantiate</span>
+          </Button>
+        )}
+        {contractAddress && (
+          <Form.Label style={{ wordBreak: 'break-all' }}>
+            Contract Address : {contractAddress}
+          </Form.Label>
+        )}
       </Form.Group>
       {contractAddress ? <Contract contractAddress={contractAddress || ''} /> : <></>}
     </div>

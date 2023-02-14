@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, InputGroup, Button } from 'react-bootstrap';
+import { Form, InputGroup, Button, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 import { Compiler } from './Compiler';
@@ -29,6 +29,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [template, setTemplate] = useState<string>('counter');
   const templateList = ['counter', 'to-do-list', 'name-service'];
   const [contractAddress, setContractAddress] = useState<string>('');
+  const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
 
   useEffect(() => {
@@ -131,6 +132,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const getContractAtAddress = () => {
+    setContractAddress(contractAddressInputDraft);
+  };
   return (
     <div>
       <Form>
@@ -154,7 +158,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
           </InputGroup>
         </Form.Group>
         <Form.Group style={mt8}>
-          <Form.Text className="text-muted">
+          <Form.Text className="text-muted mb-1">
             <small>PROJECT</small>
           </Form.Text>
           <InputGroup>
@@ -165,7 +169,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
           </InputGroup>
         </Form.Group>
         <Form.Group>
-          <Form.Text className="text-muted">
+          <Form.Text className="text-muted mb-1 mt-2">
             <small>PROJECT TO COMPILE </small>
             <span onClick={getList}>
               <FaSyncAlt />
@@ -195,15 +199,30 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       />
       {!fileName ? (
         <Form.Group>
-          <Form.Label className="text-muted">Contract Address</Form.Label>
-          <Form.Control
-            type="text"
-            placeholder="Contract Address"
-            size="sm"
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
-            spellCheck={false}
-          />
+          <InputGroup>
+            {/* <Form.Label className="text-muted">Contract Address</Form.Label> */}
+            <Form.Control
+              type="text"
+              placeholder="Contract Address"
+              size="sm"
+              value={contractAddress}
+              onChange={(e) => setContractAddressInputDraft(e.target.value)}
+              spellCheck={false}
+            />
+            <OverlayTrigger
+              placement="left"
+              overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract Address</Tooltip>}
+            >
+              <Button
+                variant="info"
+                size="sm"
+                disabled={account === ''}
+                onClick={getContractAtAddress}
+              >
+                <small>At Address</small>
+              </Button>
+            </OverlayTrigger>
+          </InputGroup>
         </Form.Group>
       ) : (
         false

@@ -49,6 +49,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [wasm, setWasm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
+  const [txHash, setTxHash] = useState<string>('');
+  const [codeID, setCodeID] = useState<string>('');
 
   const exists = async () => {
     try {
@@ -87,6 +89,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     } else {
       setWasm('');
       setFileName('');
+      setCodeID('');
+      setTxHash('');
       const toml = compileTarget + '/Cargo.toml';
       const schema = compileTarget + '/examples/schema.rs';
 
@@ -188,14 +192,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
           if (file) {
             if (isRealError(annotation)) {
-              // await editorClient.switchFile(`${compileTarget}/${file}`)
+              // await editorClient.switchFile(`${compileTarget}/${file}`);
+              await editorClient.addAnnotation(annotation);
               await editorClient.gotoLine(positionDetail.row, positionDetail.col);
               // await editorClient.highlight(
               //   highlightPosition,
               //   `${compileTarget}/${file}`,
               //   '#ff7675',
               // );
-              await editorClient.addAnnotation(annotation);
 
               setCompileError((prev) => `${prev}\n${data.logMsg}`);
 
@@ -377,6 +381,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               setFileName('');
               setWasm('');
             }}
+            className="mt-2"
           >
             Clear
           </Button>
@@ -393,9 +398,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           client={client}
           wasm={wasm}
           setWasm={setWasm}
+          txHash={txHash}
+          setTxHash={setTxHash}
+          codeID={codeID}
+          setCodeID={setCodeID}
         />
       ) : (
-        false
+        <>
+          <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+            <small>NO COMPILED CONTRACT</small>
+          </p>
+          <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
+            <small>OR</small>
+          </p>
+        </>
       )}
     </>
   );

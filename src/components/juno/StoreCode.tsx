@@ -31,12 +31,21 @@ interface InterfaceProps {
   client: any;
   wasm: string;
   setWasm: Dispatch<React.SetStateAction<string>>;
+  txHash: string;
+  setTxHash: Dispatch<React.SetStateAction<string>>;
+  codeID: string;
+  setCodeID: Dispatch<React.SetStateAction<string>>;
 }
 
-export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, wallet, client }) => {
-  const [txHash, setTxHash] = useState<string>('');
-  const [codeID, setCodeID] = useState<string>('');
-
+export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
+  wasm,
+  wallet,
+  client,
+  txHash,
+  setTxHash,
+  codeID,
+  setCodeID,
+}) => {
   const waitGetCodeID = async (hash: string) => {
     const rpcUrl = 'https://uni-rpc.reece.sh/';
     const stargateClient = await StargateClient.connect(rpcUrl);
@@ -135,6 +144,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({ wasm, walle
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
             params: [rawTx],
+            params: [JSON.stringify(rawTx)],
           });
 
           log.debug('@@@ dapp res', res);
