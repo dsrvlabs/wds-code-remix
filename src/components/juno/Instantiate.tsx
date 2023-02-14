@@ -118,11 +118,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await client.getTx(hash);
-        log.debug(result);
+        // console.log('>>>>>resultttt', result);
         if (!result) {
-          setInitMsgErr(`Not found transaction ${hash}`);
-          clearInterval(id);
-          resolve('');
+          // setInitMsgErr(`Not found transaction ${hash}`);
+          // clearInterval(id);
+          // resolve('');
+          waitGetContract(hash);
           return;
         }
 
@@ -194,7 +195,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           <>
             <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
               <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
-              <Button onClick={format} size="sm">
+              <Button onClick={format} size="sm" className="mt-1">
                 Format
               </Button>
             </div>
@@ -204,8 +205,21 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
                 rows={(initMsg.slice().match(/\n/g) || []).length + 1}
                 value={initMsg}
                 onChange={(e) => setInitMsg(e.target.value)}
+                style={{ resize: 'none' }}
               />
-              <span style={{ color: 'red' }}>{initMsgErr}</span>
+              {initMsgErr && (
+                <span
+                  style={{
+                    marginRight: '1em',
+                    fontSize: '11px',
+                    color: 'red',
+                    wordBreak: 'break-all',
+                  }}
+                  className="mb-1"
+                >
+                  {initMsgErr}
+                </span>
+              )}
             </div>
           </>
         )}
@@ -235,7 +249,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           </Button>
         )}
         {contractAddress && (
-          <Form.Label style={{ wordBreak: 'break-all' }}>
+          <Form.Label style={{ wordBreak: 'break-all' }} className="my-1">
             Contract Address : {contractAddress}
           </Form.Label>
         )}

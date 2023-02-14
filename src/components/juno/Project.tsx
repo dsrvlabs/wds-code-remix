@@ -136,7 +136,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     setContractAddress(contractAddressInputDraft);
   };
   return (
-    <div>
+    <div className="pb-4">
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
