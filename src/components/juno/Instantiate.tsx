@@ -128,7 +128,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           log.debug('contract address', contract);
           setContractAddress(contract as any);
         } catch (error) {
-          log.error('>>>에러', error);
+          log.error(error);
         }
       });
   };
