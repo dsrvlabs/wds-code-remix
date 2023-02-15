@@ -140,6 +140,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     }
     setContractAddress(contractAddressInputDraft);
   };
+
+  const reset = () => {
+    setContractAddress('');
+    setContractAddressInputDraft('');
+    setContractAddressError('');
+  };
   return (
     <div className="pb-4">
       <Form>
@@ -201,6 +207,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         wallet={wallet}
         account={account}
         client={client}
+        reset={reset}
       />
       {!fileName ? (
         <>

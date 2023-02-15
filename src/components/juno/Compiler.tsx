@@ -31,6 +31,7 @@ interface InterfaceProps {
   account: string;
   dapp: any;
   client: any;
+  reset: () => void;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -44,6 +45,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   compileTarget,
   wallet,
   account,
+  reset,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
@@ -380,6 +382,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             onClick={() => {
               setFileName('');
               setWasm('');
+              reset();
             }}
             className="mt-2"
           >
