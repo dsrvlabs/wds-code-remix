@@ -20,6 +20,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
   const [executeResult, setExecuteResult] = useState('');
 
   const execute = async () => {
+    setExecuteResult('');
     const dapp = (window as any).dapp;
 
     if (!dapp) {
