@@ -31,6 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [contractAddress, setContractAddress] = useState<string>('');
   const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
+  const [contractAddressError, setContractAddressError] = useState('');
 
   useEffect(() => {
     getList();
@@ -133,6 +134,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const getContractAtAddress = () => {
+    if (contractAddressInputDraft.slice(0, 4) !== 'juno') {
+      setContractAddressError('Invalid contract address');
+      return;
+    }
     setContractAddress(contractAddressInputDraft);
   };
   return (
@@ -198,36 +203,48 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         client={client}
       />
       {!fileName ? (
-        <Form.Group>
-          <InputGroup>
-            {/* <Form.Label className="text-muted">Contract Address</Form.Label> */}
-            <Form.Control
-              type="text"
-              placeholder="Contract Address"
-              size="sm"
-              value={contractAddress}
-              onChange={(e) => setContractAddressInputDraft(e.target.value)}
-              spellCheck={false}
-            />
-            <OverlayTrigger
-              placement="left"
-              overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract Address</Tooltip>}
-            >
-              <Button
-                variant="info"
+        <>
+          <Form.Group>
+            <InputGroup>
+              {/* <Form.Label className="text-muted">Contract Address</Form.Label> */}
+              <Form.Control
+                type="text"
+                placeholder="Contract Address"
                 size="sm"
-                disabled={account === ''}
-                onClick={getContractAtAddress}
+                value={contractAddressInputDraft}
+                onChange={(e) => {
+                  setContractAddress('');
+                  setContractAddressInputDraft(e.target.value);
+                  setContractAddressError('');
+                }}
+                spellCheck={false}
+              />
+              <OverlayTrigger
+                placement="top"
+                overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract Address</Tooltip>}
               >
-                <small>At Address</small>
-              </Button>
-            </OverlayTrigger>
-          </InputGroup>
-        </Form.Group>
+                <Button
+                  variant="info"
+                  size="sm"
+                  disabled={account === ''}
+                  onClick={getContractAtAddress}
+                  className="mb-2"
+                >
+                  <small>At Address</small>
+                </Button>
+              </OverlayTrigger>
+            </InputGroup>
+          </Form.Group>
+          {contractAddressError && <div style={{ color: 'red' }}>{contractAddressError}</div>}
+        </>
       ) : (
         false
       )}
-      {!fileName && contractAddress ? <Contract contractAddress={contractAddress || ''} /> : false}
+      {!fileName && contractAddress && !contractAddressError ? (
+        <Contract contractAddress={contractAddress || ''} />
+      ) : (
+        false
+      )}
     </div>
   );
 };

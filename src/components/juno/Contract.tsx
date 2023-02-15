@@ -151,6 +151,25 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
     }
   };
 
+  // const handleKeyDown = (e: React.KeyboardEvent<any>) => {
+  //   if (e.key === 'Tab') {
+  //     e.preventDefault();
+  //     const start = e.currentTarget.selectionStart;
+  //     const end = e.currentTarget.selectionEnd;
+  //     const value = e.currentTarget.value;
+  //     const newValue = value.substring(0, start) + '\t' + value.substring(end);
+  //     setQueryMsg(newValue);
+  //   }
+  //   if (e.key === 'Enter') {
+  //     e.preventDefault();
+  //     const start = e.currentTarget.selectionStart;
+  //     const end = e.currentTarget.selectionEnd;
+  //     const value = e.currentTarget.value;
+  //     const newValue = value.substring(0, start) + 't' + value.substring(end);
+  //     setQueryMsg(newValue);
+  //   }
+  // };
+
   return (
     <ReactForm>
       <ReactForm.Group>
@@ -170,7 +189,10 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           as="textarea"
           rows={3}
           value={queryMsg}
-          onChange={(e) => setQueryMsg(e.target.value)}
+          onChange={(e) => {
+            setQueryMsg(e.target.value);
+          }}
+          // onKeyDown={handleKeyDown}
           style={{ resize: 'none' }}
         />
         <div>
@@ -184,7 +206,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
               readOnly
               rows={(queryResult.slice().match(/\n/g) || []).length + 1}
               value={queryResult}
-              style={{ resize: 'none' }}
+              style={{ resize: 'none', height: '69px' }}
             />
           </>
         )}
