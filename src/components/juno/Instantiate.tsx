@@ -1,4 +1,4 @@
-import React, { Dispatch, useState } from 'react';
+import React, { Dispatch, useEffect, useState } from 'react';
 import { Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Contract } from './Contract';
 import { StargateClient } from '@cosmjs/stargate';
@@ -20,10 +20,31 @@ interface InterfaceProps {
 }
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, setCodeID }) => {
-  const [initMsg, setInitMsg] = useState('');
+  const [initMsg, setInitMsg] = useState(
+    `${JSON.stringify(
+      {
+        count: 'change this to your own initMsg',
+      },
+      null,
+      2,
+    )}`,
+  );
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
+
+  useEffect(() => {
+    setContractAddress('');
+    setInitMsg(
+      `${JSON.stringify(
+        {
+          count: 'change this to your own initMsg',
+        },
+        null,
+        2,
+      )}`,
+    );
+  }, [codeID]);
 
   const instantiate = async () => {
     setContractAddress('');
@@ -212,15 +233,17 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
                 style={{ resize: 'none' }}
               /> */}
               <Editor
-                height="60px"
+                height="68px"
                 defaultLanguage="json"
                 theme="vs-dark"
                 onChange={handleEditorChange}
+                value={initMsg}
                 options={{
                   disableLayerHinting: true,
                   disableMonospaceOptimizations: true,
                   contextmenu: false,
                   minimap: { enabled: false },
+                  wordWrap: 'on',
                   scrollbar: {
                     vertical: 'hidden',
                     horizontal: 'hidden',

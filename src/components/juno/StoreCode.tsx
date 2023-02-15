@@ -172,7 +172,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         </Button>
       </Form>
       <div>
-        <Instantiate wallet={wallet} codeID={codeID || ''} setCodeID={setCodeID} />
+        {codeID && <Instantiate wallet={wallet} codeID={codeID || ''} setCodeID={setCodeID} />}
       </div>
     </>
   );

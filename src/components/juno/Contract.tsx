@@ -11,11 +11,21 @@ interface InterfaceProps {
 }
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddress }) => {
-  const [queryMsg, setQueryMsg] = useState(`${JSON.stringify({ msg: {} }, null, 2)}`);
+  const [queryMsg, setQueryMsg] = useState(
+    `${JSON.stringify(
+      {
+        get_count: 'change this to your own query message',
+      },
+      null,
+      2,
+    )}`,
+  );
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
 
-  const [executeMsg, setExecuteMsg] = useState(`${JSON.stringify({ msg: {} }, null, 2)}`);
+  const [executeMsg, setExecuteMsg] = useState(
+    `${JSON.stringify({ increment: 'change this to your own excute message' }, null, 2)}`,
+  );
   const [executeMsgErr, setExecuteMsgErr] = useState('');
   const [executeResult, setExecuteResult] = useState('');
 
@@ -186,19 +196,20 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           style={{ resize: 'none' }}
         /> */}
         <Editor
-          height="60px"
+          height="88px"
           defaultLanguage="json"
           theme="vs-dark"
           onChange={handleQueryChange}
+          value={queryMsg}
           options={{
             disableLayerHinting: true,
             disableMonospaceOptimizations: true,
             contextmenu: false,
+            wordWrap: 'on',
             minimap: { enabled: false },
             scrollbar: {
-              vertical: 'hidden',
               horizontal: 'hidden',
-              handleMouseWheel: false,
+              handleMouseWheel: true,
             },
           }}
         />
@@ -243,11 +254,13 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
             style={{ resize: 'none' }}
           /> */}
           <Editor
-            height="60px"
+            height="88px"
             defaultLanguage="json"
             theme="vs-dark"
             onChange={handleExcuteChange}
+            value={executeMsg}
             options={{
+              wordWrap: 'on',
               disableLayerHinting: true,
               disableMonospaceOptimizations: true,
               contextmenu: false,
