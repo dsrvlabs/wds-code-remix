@@ -4,6 +4,7 @@ import { StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { log } from '../../utils/logger';
+import Editor from '@monaco-editor/react';
 
 interface InterfaceProps {
   contractAddress: string;
@@ -72,7 +73,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
             value: {
               sender: result['juno'].address,
               contract: contractAddress,
-              msg: toBase64(toUtf8(JSON.stringify(executeMsgObj.msg))) as any,
+              msg: toBase64(toUtf8(JSON.stringify(executeMsgObj))) as any,
             },
           };
 
@@ -116,7 +117,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
       return;
     }
     try {
-      const res = await client.queryContractSmart(contractAddress, queryMsgObj.msg);
+      const res = await client.queryContractSmart(contractAddress, queryMsgObj);
       log.debug(res);
       setQueryResult(JSON.stringify(res, null, 2));
     } catch (e: any) {
@@ -125,50 +126,38 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
     }
   };
 
-  const formatQueryMsg = () => {
-    try {
-      const obj = JSON.parse(queryMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setQueryMsg(objStr);
-      setQueryMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setQueryMsgErr(error?.message);
-    }
-  };
-
-  const formatExecuteMsg = () => {
-    try {
-      const obj = JSON.parse(executeMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setExecuteMsg(objStr);
-      setExecuteMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setExecuteMsgErr(error?.message);
-    }
-  };
-
-  // const handleKeyDown = (e: React.KeyboardEvent<any>) => {
-  //   if (e.key === 'Tab') {
-  //     e.preventDefault();
-  //     const start = e.currentTarget.selectionStart;
-  //     const end = e.currentTarget.selectionEnd;
-  //     const value = e.currentTarget.value;
-  //     const newValue = value.substring(0, start) + '\t' + value.substring(end);
-  //     setQueryMsg(newValue);
-  //   }
-  //   if (e.key === 'Enter') {
-  //     e.preventDefault();
-  //     const start = e.currentTarget.selectionStart;
-  //     const end = e.currentTarget.selectionEnd;
-  //     const value = e.currentTarget.value;
-  //     const newValue = value.substring(0, start) + 't' + value.substring(end);
-  //     setQueryMsg(newValue);
+  // const formatQueryMsg = () => {
+  //   try {
+  //     const obj = JSON.parse(queryMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setQueryMsg(objStr);
+  //     setQueryMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setQueryMsgErr(error?.message);
   //   }
   // };
+
+  // const formatExecuteMsg = () => {
+  //   try {
+  //     const obj = JSON.parse(executeMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setExecuteMsg(objStr);
+  //     setExecuteMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setExecuteMsgErr(error?.message);
+  //   }
+  // };
+
+  const handleQueryChange = (value: any, event: any) => {
+    setQueryMsg(value);
+  };
+  const handleExcuteChange = (value: any, event: any) => {
+    setExecuteMsg(value);
+  };
 
   return (
     <ReactForm>
@@ -178,14 +167,14 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           className="mb-2"
         >
           <div style={{ marginRight: '1em', fontSize: '11px' }}>Query Msg</div>
-          <Button onClick={formatQueryMsg} size={'sm'} style={{ marginRight: '1em' }}>
+          {/* <Button onClick={formatQueryMsg} size={'sm'} style={{ marginRight: '1em' }}>
             Format
-          </Button>
+          </Button> */}
           <Button onClick={query} size={'sm'}>
             Query
           </Button>
         </div>
-        <Form.Control
+        {/* <Form.Control
           as="textarea"
           rows={3}
           value={queryMsg}
@@ -194,6 +183,23 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           }}
           // onKeyDown={handleKeyDown}
           style={{ resize: 'none' }}
+        /> */}
+        <Editor
+          height="60px"
+          defaultLanguage="json"
+          theme="vs-dark"
+          onChange={handleQueryChange}
+          options={{
+            disableLayerHinting: true,
+            disableMonospaceOptimizations: true,
+            contextmenu: false,
+            minimap: { enabled: false },
+            scrollbar: {
+              vertical: 'hidden',
+              horizontal: 'hidden',
+              handleMouseWheel: false,
+            },
+          }}
         />
         <div>
           <span style={{ color: 'red' }}>{queryMsgErr}</span>
@@ -221,19 +227,36 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
             className="mb-2 mt-2"
           >
             <div style={{ marginRight: '1em', fontSize: '11px' }}>Execute Msg</div>
-            <Button style={{ marginRight: '1em' }} size={'sm'} onClick={formatExecuteMsg}>
+            {/* <Button style={{ marginRight: '1em' }} size={'sm'} onClick={formatExecuteMsg}>
               Format
-            </Button>
+            </Button> */}
             <Button style={{ marginRight: '1em' }} size={'sm'} onClick={execute}>
               Execute
             </Button>
           </div>
-          <Form.Control
+          {/* <Form.Control
             as="textarea"
             rows={3}
             value={executeMsg}
             onChange={(e) => setExecuteMsg(e.target.value)}
             style={{ resize: 'none' }}
+          /> */}
+          <Editor
+            height="60px"
+            defaultLanguage="json"
+            theme="vs-dark"
+            onChange={handleExcuteChange}
+            options={{
+              disableLayerHinting: true,
+              disableMonospaceOptimizations: true,
+              contextmenu: false,
+              minimap: { enabled: false },
+              scrollbar: {
+                vertical: 'hidden',
+                horizontal: 'hidden',
+                handleMouseWheel: false,
+              },
+            }}
           />
           <span style={{ color: 'red' }}>{executeMsgErr}</span>
           {executeResult && (

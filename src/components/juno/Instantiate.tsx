@@ -6,6 +6,7 @@ import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
+import Editor from '@monaco-editor/react';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -118,7 +119,6 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await client.getTx(hash);
-        // console.log('>>>>>resultttt', result);
         if (!result) {
           // setInitMsgErr(`Not found transaction ${hash}`);
           // clearInterval(id);
@@ -146,17 +146,21 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
     setCodeID(e.target.value);
   };
 
-  const format = () => {
-    try {
-      const obj = JSON.parse(initMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setInitMsg(objStr);
-      setInitMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setInitMsgErr(error?.message);
-    }
+  // const format = () => {
+  //   try {
+  //     const obj = JSON.parse(initMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setInitMsg(objStr);
+  //     setInitMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setInitMsgErr(error?.message);
+  //   }
+  // };
+
+  const handleEditorChange = (value: any, event: any) => {
+    setInitMsg(value);
   };
 
   return (
@@ -193,19 +197,36 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         </div>
         {codeID && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
+            {/* <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
               <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
               <Button onClick={format} size="sm" className="mt-1">
                 Format
               </Button>
-            </div>
+            </div> */}
             <div style={{ padding: '0.2em' }}>
-              <Form.Control
+              {/* <Form.Control
                 as="textarea"
                 rows={(initMsg.slice().match(/\n/g) || []).length + 1}
                 value={initMsg}
                 onChange={(e) => setInitMsg(e.target.value)}
                 style={{ resize: 'none' }}
+              /> */}
+              <Editor
+                height="60px"
+                defaultLanguage="json"
+                theme="vs-dark"
+                onChange={handleEditorChange}
+                options={{
+                  disableLayerHinting: true,
+                  disableMonospaceOptimizations: true,
+                  contextmenu: false,
+                  minimap: { enabled: false },
+                  scrollbar: {
+                    vertical: 'hidden',
+                    horizontal: 'hidden',
+                    handleMouseWheel: false,
+                  },
+                }}
               />
               {initMsgErr && (
                 <span
