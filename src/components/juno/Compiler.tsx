@@ -1,5 +1,5 @@
-import React, { Dispatch, useState } from 'react';
-import { Button } from 'react-bootstrap';
+import React, { Dispatch, useEffect, useState } from 'react';
+import { Alert, Button } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
@@ -18,8 +18,10 @@ import {
 } from 'wds-event';
 import { io } from 'socket.io-client';
 import { COMPILER_API_ENDPOINT, JUNO_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
-import { readFile, stringify } from '../../utils/helper';
+import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
+import { EditorClient } from '../../utils/editor';
+import AlertCloseButton from '../common/AlertCloseButton';
 
 interface InterfaceProps {
   fileName: string;
@@ -29,6 +31,7 @@ interface InterfaceProps {
   account: string;
   dapp: any;
   client: any;
+  reset: () => void;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -42,10 +45,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   compileTarget,
   wallet,
   account,
+  reset,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [compileError, setCompileError] = useState<Nullable<string>>('');
+  const [txHash, setTxHash] = useState<string>('');
+  const [codeID, setCodeID] = useState<string>('');
 
   const exists = async () => {
     try {
@@ -55,7 +62,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({
         type: 'error',
         value:
-          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
+          "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
       });
       const filesName = Object.keys(artifacts || {});
       await Promise.all(
@@ -84,6 +91,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     } else {
       setWasm('');
       setFileName('');
+      setCodeID('');
+      setTxHash('');
       const toml = compileTarget + '/Cargo.toml';
       const schema = compileTarget + '/examples/schema.rs';
 
@@ -127,8 +136,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const compile = async (blob: Blob) => {
+    const editorClient = new EditorClient(client);
+    await editorClient.discardHighlight();
+    await editorClient.clearAnnotations();
     setLoading(true);
     setIconSpin('fa-spin');
+    setCompileError('');
 
     const address = account;
     const timestamp = Date.now().toString();
@@ -156,7 +169,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           if (data.compileId !== compileId(address, timestamp)) {
             return;
           }
-
+          await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
           setIconSpin('');
           setLoading(false);
           socket.disconnect();
@@ -172,7 +185,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
 
         // client?.terminal.log({ value: data.logMsg, type: 'info' }); // todo remix v0.28.0
-        client?.terminal.log(data.logMsg);
+        await client.terminal.log({ type: 'info', value: data.logMsg });
+
+        if (data.logMsg.includes('error')) {
+          const { file, annotation, highlightPosition, positionDetail } = getPositionDetails(
+            data.logMsg,
+          );
+
+          if (file) {
+            if (isRealError(annotation)) {
+              // await editorClient.switchFile(`${compileTarget}/${file}`);
+              await editorClient.addAnnotation(annotation);
+              await editorClient.gotoLine(positionDetail.row, positionDetail.col);
+              // await editorClient.highlight(
+              //   highlightPosition,
+              //   `${compileTarget}/${file}`,
+              //   '#ff7675',
+              // );
+
+              setCompileError((prev) => `${prev}\n${data.logMsg}`);
+
+              setIconSpin('');
+              setLoading(false);
+              socket.disconnect();
+              return;
+            }
+          }
+        }
       });
 
       socket.on(
@@ -308,6 +347,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const handleAlertClose = () => {
+    setCompileError('');
+    client.call('editor', 'discardHighlight');
+    client.call('editor', 'clearAnnotations');
+  };
+
   return (
     <>
       <Button
@@ -319,6 +364,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <FaSyncAlt className={iconSpin} />
         <span> Compile</span>
       </Button>
+      {compileError !== '' && (
+        <Alert
+          variant="danger"
+          className="mt-3"
+          style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}
+        >
+          <AlertCloseButton onClick={handleAlertClose} />
+          {compileError}
+        </Alert>
+      )}
       {fileName ? (
         <div>
           <Button
@@ -327,7 +382,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             onClick={() => {
               setFileName('');
               setWasm('');
+              reset();
             }}
+            className="mt-2"
           >
             Clear
           </Button>
@@ -344,9 +401,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           client={client}
           wasm={wasm}
           setWasm={setWasm}
+          txHash={txHash}
+          setTxHash={setTxHash}
+          codeID={codeID}
+          setCodeID={setCodeID}
         />
       ) : (
-        false
+        <>
+          <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+            <small>NO COMPILED CONTRACT</small>
+          </p>
+          <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
+            <small>OR</small>
+          </p>
+        </>
       )}
     </>
   );

@@ -4,6 +4,7 @@ import { StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { log } from '../../utils/logger';
+import Editor from '@monaco-editor/react';
 
 interface InterfaceProps {
   contractAddress: string;
@@ -19,6 +20,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
   const [executeResult, setExecuteResult] = useState('');
 
   const execute = async () => {
+    setExecuteResult('');
     const dapp = (window as any).dapp;
 
     if (!dapp) {
@@ -37,7 +39,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+          const rpcUrl = 'https://uni-rpc.reece.sh/';
 
           const client = await StargateClient.connect(rpcUrl);
           log.debug(client);
@@ -54,7 +56,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           log.debug(executeMsg);
           log.debug(contractAddress);
 
-          let executeMsgObj = {};
+          let executeMsgObj = {} as any;
           try {
             executeMsgObj = JSON.parse(executeMsg);
             const objStr = JSON.stringify(executeMsgObj, null, 2);
@@ -84,125 +86,194 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
             msgs: [execContractMsg],
           };
 
-          log.debug(rawTx);
-
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
-            params: [rawTx],
+            params: [JSON.stringify(rawTx)],
           });
-
+          setExecuteResult(`transaction hash : ${res[0]}`);
           log.debug(res);
         } catch (error) {
-          log.error('>>>에러', error);
+          log.error(error);
         }
       });
   };
 
   // query
   const query = async () => {
-    const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+    const rpcUrl = 'https://uni-rpc.reece.sh/';
     const client = await SigningCosmWasmClient.connect(rpcUrl);
 
-    let queryMsgObj = {};
+    let queryMsgObj = {} as any;
     try {
+      log.debug('queryMsg', queryMsg);
       queryMsgObj = JSON.parse(queryMsg);
+      log.debug('queryMsgObj', queryMsgObj);
       const objStr = JSON.stringify(queryMsgObj, null, 2);
+      log.debug('objStr', objStr);
       setQueryMsg(objStr);
       setQueryMsgErr('');
     } catch (e: any) {
       const error: SyntaxError = e;
-      log.error(e);
       setQueryMsgErr(error?.message);
       return;
     }
-
     try {
       const res = await client.queryContractSmart(contractAddress, queryMsgObj);
       log.debug(res);
       setQueryResult(JSON.stringify(res, null, 2));
     } catch (e: any) {
-      log.error(e);
+      log.debug('error', e);
       setQueryResult(e?.message);
     }
   };
 
-  const formatQueryMsg = () => {
-    try {
-      const obj = JSON.parse(queryMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setQueryMsg(objStr);
-      setQueryMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setQueryMsgErr(error?.message);
-    }
-  };
+  // const formatQueryMsg = () => {
+  //   try {
+  //     const obj = JSON.parse(queryMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setQueryMsg(objStr);
+  //     setQueryMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setQueryMsgErr(error?.message);
+  //   }
+  // };
 
-  const formatExecuteMsg = () => {
-    try {
-      const obj = JSON.parse(executeMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setExecuteMsg(objStr);
-      setExecuteMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setExecuteMsgErr(error?.message);
-    }
+  // const formatExecuteMsg = () => {
+  //   try {
+  //     const obj = JSON.parse(executeMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setExecuteMsg(objStr);
+  //     setExecuteMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setExecuteMsgErr(error?.message);
+  //   }
+  // };
+
+  const handleQueryChange = (value: any, event: any) => {
+    setQueryMsg(value);
+  };
+  const handleExcuteChange = (value: any, event: any) => {
+    setExecuteMsg(value);
   };
 
   return (
     <ReactForm>
       <ReactForm.Group>
-        <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
+          className="mb-2"
+        >
           <div style={{ marginRight: '1em', fontSize: '11px' }}>Query Msg</div>
-          <Button onClick={formatQueryMsg} size={'sm'} style={{ marginRight: '1em' }}>
+          {/* <Button onClick={formatQueryMsg} size={'sm'} style={{ marginRight: '1em' }}>
             Format
-          </Button>
+          </Button> */}
           <Button onClick={query} size={'sm'}>
             Query
           </Button>
         </div>
-        <Form.Control
+        {/* <Form.Control
           as="textarea"
           rows={3}
           value={queryMsg}
-          onChange={(e) => setQueryMsg(e.target.value)}
+          onChange={(e) => {
+            setQueryMsg(e.target.value);
+          }}
+          // onKeyDown={handleKeyDown}
+          style={{ resize: 'none' }}
+        /> */}
+        <Editor
+          height="60px"
+          defaultLanguage="json"
+          theme="vs-dark"
+          onChange={handleQueryChange}
+          options={{
+            disableLayerHinting: true,
+            disableMonospaceOptimizations: true,
+            contextmenu: false,
+            minimap: { enabled: false },
+            scrollbar: {
+              vertical: 'hidden',
+              horizontal: 'hidden',
+              handleMouseWheel: false,
+            },
+          }}
         />
         <div>
           <span style={{ color: 'red' }}>{queryMsgErr}</span>
         </div>
-        <Form.Label className="text-muted">Query Result</Form.Label>
-        <div style={{ padding: '8px 8px', backgroundColor: '#35384C', color: '#D1D3DC' }}>
+        {queryResult && (
+          <>
+            <Form.Label className="text-muted">Query Result</Form.Label>
+            <Form.Control
+              as="textarea"
+              readOnly
+              rows={(queryResult.slice().match(/\n/g) || []).length + 1}
+              value={queryResult}
+              style={{ resize: 'none', height: '69px' }}
+            />
+          </>
+        )}
+        {/* <div style={{ padding: '8px 8px', backgroundColor: '#35384C', color: '#D1D3DC' }}>
           {queryResult}
-        </div>
+        </div> */}
       </ReactForm.Group>
       <ReactForm.Group>
         <Form.Group>
-          <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
+            className="mb-2 mt-2"
+          >
             <div style={{ marginRight: '1em', fontSize: '11px' }}>Execute Msg</div>
-            <Button style={{ marginRight: '1em' }} size={'sm'} onClick={formatExecuteMsg}>
+            {/* <Button style={{ marginRight: '1em' }} size={'sm'} onClick={formatExecuteMsg}>
               Format
-            </Button>
+            </Button> */}
             <Button style={{ marginRight: '1em' }} size={'sm'} onClick={execute}>
               Execute
             </Button>
           </div>
-          <Form.Control
+          {/* <Form.Control
             as="textarea"
             rows={3}
             value={executeMsg}
             onChange={(e) => setExecuteMsg(e.target.value)}
+            style={{ resize: 'none' }}
+          /> */}
+          <Editor
+            height="60px"
+            defaultLanguage="json"
+            theme="vs-dark"
+            onChange={handleExcuteChange}
+            options={{
+              disableLayerHinting: true,
+              disableMonospaceOptimizations: true,
+              contextmenu: false,
+              minimap: { enabled: false },
+              scrollbar: {
+                vertical: 'hidden',
+                horizontal: 'hidden',
+                handleMouseWheel: false,
+              },
+            }}
           />
           <span style={{ color: 'red' }}>{executeMsgErr}</span>
-          <Form.Label className="text-muted">Execute Result</Form.Label>
-          <Form.Control
-            as="textarea"
-            readOnly
-            rows={(executeResult.slice().match(/\n/g) || []).length + 1}
-            value={executeResult}
-          />
+          {executeResult && (
+            <>
+              <Form.Label className="text-muted">Execute Result</Form.Label>
+              <Form.Control
+                as="textarea"
+                readOnly
+                // rows={(executeResult.slice().match(/\n/g) || []).length + 1}
+                value={executeResult}
+                style={{ resize: 'none', height: '86px' }}
+                // onChange={handleResizeHeight}
+                // innerRef={textareaRef}
+              />
+            </>
+          )}
         </Form.Group>
         <hr />
       </ReactForm.Group>

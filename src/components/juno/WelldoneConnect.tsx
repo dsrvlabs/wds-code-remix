@@ -70,7 +70,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 
             setAccount(address);
 
-            const client = await StargateClient.connect('https://rpc.uni.junonetwork.io/');
+            const client = await StargateClient.connect('https://uni-rpc.reece.sh/');
             const balances = await client.getAllBalances(address);
             const balance = balances.find((balance) => balance.denom === 'ujunox');
             if (balance) {

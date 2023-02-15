@@ -35,8 +35,8 @@ export class EditorClient {
 
   currentFileChanged = async () => {
     this.client.on('fileManager', 'currentFileChanged', (file) => {
-      this.discardHighlight();
-      this.clearAnnotations();
+      // this.discardHighlight();
+      // this.clearAnnotations();
     });
   };
 
