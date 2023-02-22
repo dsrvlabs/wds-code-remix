@@ -2,10 +2,11 @@ import React from 'react';
 
 import { IoMdRefresh } from 'react-icons/io';
 
-function RefreshButton() {
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+interface RefreshButtonProps {
+  handleRefresh: () => void;
+}
+
+function RefreshButton({ handleRefresh }: RefreshButtonProps) {
   return (
     <button
       onClick={handleRefresh}

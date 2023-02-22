@@ -1,11 +1,12 @@
-import React, { Dispatch, useState } from 'react';
-import { Button, Form, InputGroup } from 'react-bootstrap';
+import React, { Dispatch, useEffect, useState } from 'react';
+import { Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Contract } from './Contract';
 import { StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
+import Editor from '@monaco-editor/react';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -19,12 +20,34 @@ interface InterfaceProps {
 }
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, setCodeID }) => {
-  const [initMsg, setInitMsg] = useState('');
+  const [initMsg, setInitMsg] = useState(
+    `${JSON.stringify(
+      {
+        count: 'change this to your own initMsg',
+      },
+      null,
+      2,
+    )}`,
+  );
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
 
+  useEffect(() => {
+    setContractAddress('');
+    setInitMsg(
+      `${JSON.stringify(
+        {
+          count: 'change this to your own initMsg',
+        },
+        null,
+        2,
+      )}`,
+    );
+  }, [codeID]);
+
   const instantiate = async () => {
+    setContractAddress('');
     const dapp = (window as any).dapp;
 
     if (!dapp) {
@@ -43,7 +66,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+          const rpcUrl = 'https://uni-rpc.reece.sh/';
 
           const client = await StargateClient.connect(rpcUrl);
           log.debug(client);
@@ -96,7 +119,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
 
           const res = await (window as any).dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
-            params: [rawTx],
+            params: [JSON.stringify(rawTx)],
           });
 
           log.debug(res);
@@ -105,23 +128,23 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           log.debug('contract address', contract);
           setContractAddress(contract as any);
         } catch (error) {
-          log.error('>>>에러', error);
+          log.error(error);
         }
       });
   };
 
   const waitGetContract = async (hash: string) => {
-    const rpcUrl = 'https://rpc.uni.junonetwork.io/';
+    const rpcUrl = 'https://uni-rpc.reece.sh/';
     const client = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await client.getTx(hash);
-        log.debug(result);
         if (!result) {
-          setInitMsgErr(`Not found transaction ${hash}`);
-          clearInterval(id);
-          resolve('');
+          // setInitMsgErr(`Not found transaction ${hash}`);
+          // clearInterval(id);
+          // resolve('');
+          waitGetContract(hash);
           return;
         }
 
@@ -144,17 +167,21 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
     setCodeID(e.target.value);
   };
 
-  const format = () => {
-    try {
-      const obj = JSON.parse(initMsg);
-      const objStr = JSON.stringify(obj, null, 2);
-      setInitMsg(objStr);
-      setInitMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      log.error(e);
-      setInitMsgErr(error?.message);
-    }
+  // const format = () => {
+  //   try {
+  //     const obj = JSON.parse(initMsg);
+  //     const objStr = JSON.stringify(obj, null, 2);
+  //     setInitMsg(objStr);
+  //     setInitMsgErr('');
+  //   } catch (e: any) {
+  //     const error: SyntaxError = e;
+  //     log.error(e);
+  //     setInitMsgErr(error?.message);
+  //   }
+  // };
+
+  const handleEditorChange = (value: any, event: any) => {
+    setInitMsg(value);
   };
 
   return (
@@ -168,30 +195,78 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
             margin: '0.3em 0.3em',
           }}
         >
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Code ID</div>
-          <Form.Control
-            type="number"
-            placeholder="code_id"
-            size="sm"
-            value={codeID}
-            onChange={changeCodeID}
-          />
+          <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
+            Code ID
+          </div>
+          <OverlayTrigger
+            placement="bottom"
+            overlay={
+              <Tooltip id="overlay-ataddresss">
+                Click the Store Code button to get the code id
+              </Tooltip>
+            }
+          >
+            <Form.Control
+              type="number"
+              placeholder="code_id"
+              size="sm"
+              value={codeID}
+              onChange={changeCodeID}
+              readOnly
+            />
+          </OverlayTrigger>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
-          <Button onClick={format} size="sm">
-            Format
-          </Button>
-        </div>
-        <div style={{ padding: '0.2em' }}>
-          <Form.Control
-            as="textarea"
-            rows={(initMsg.slice().match(/\n/g) || []).length + 1}
-            value={initMsg}
-            onChange={(e) => setInitMsg(e.target.value)}
-          />
-          <span style={{ color: 'red' }}>{initMsgErr}</span>
-        </div>
+        {codeID && (
+          <>
+            {/* <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
+              <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
+              <Button onClick={format} size="sm" className="mt-1">
+                Format
+              </Button>
+            </div> */}
+            <div style={{ padding: '0.2em' }}>
+              {/* <Form.Control
+                as="textarea"
+                rows={(initMsg.slice().match(/\n/g) || []).length + 1}
+                value={initMsg}
+                onChange={(e) => setInitMsg(e.target.value)}
+                style={{ resize: 'none' }}
+              /> */}
+              <Editor
+                height="68px"
+                defaultLanguage="json"
+                theme="vs-dark"
+                onChange={handleEditorChange}
+                value={initMsg}
+                options={{
+                  disableLayerHinting: true,
+                  disableMonospaceOptimizations: true,
+                  contextmenu: false,
+                  minimap: { enabled: false },
+                  wordWrap: 'on',
+                  scrollbar: {
+                    vertical: 'hidden',
+                    horizontal: 'hidden',
+                    handleMouseWheel: false,
+                  },
+                }}
+              />
+              {initMsgErr && (
+                <span
+                  style={{
+                    marginRight: '1em',
+                    fontSize: '11px',
+                    color: 'red',
+                    wordBreak: 'break-all',
+                  }}
+                  className="mb-1"
+                >
+                  {initMsgErr}
+                </span>
+              )}
+            </div>
+          </>
+        )}
         {/*<div*/}
         {/*  style={{*/}
         {/*    display: 'flex',*/}
@@ -207,15 +282,21 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         {/*</div>*/}
       </Form.Group>
       <Form.Group>
-        <Button
-          variant="warning"
-          onClick={instantiate}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-          disabled={!!!codeID}
-        >
-          <span>Instantiate</span>
-        </Button>
-        <Form.Label>{contractAddress}</Form.Label>
+        {codeID && (
+          <Button
+            variant="warning"
+            onClick={instantiate}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            disabled={!!!codeID}
+          >
+            <span>Instantiate</span>
+          </Button>
+        )}
+        {contractAddress && (
+          <Form.Label style={{ wordBreak: 'break-all' }} className="my-1">
+            Contract Address : {contractAddress}
+          </Form.Label>
+        )}
       </Form.Group>
       {contractAddress ? <Contract contractAddress={contractAddress || ''} /> : <></>}
     </div>

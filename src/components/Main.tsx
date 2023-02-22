@@ -20,7 +20,7 @@ export const Main: FunctionComponent<InterfaceProps> = ({ client }) => {
         <ChainConnectContainer client={client} chain={chain} setChain={setChain} />
       ) : (
         <div>
-          <ChainSelectButtonContainer setChain={setChain} />
+          <ChainSelectButtonContainer setChain={setChain} client={client} />
           <DocumentationButton />
           <MakeAIssueButton />
         </div>
