@@ -15,7 +15,7 @@ jobs:
 #      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 #      AWS_DEFAULT_REGION: 'us-west-2'
     steps:
-      - uses: actions/checkout@master
+#      - uses: actions/checkout@master
 
 #      - name: Install dependencies
 #        run: npm install
