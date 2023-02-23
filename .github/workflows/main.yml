@@ -42,8 +42,10 @@ jobs:
 
       - name: Upload file to S3 bucket
         run: aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }}
+
       - name: Invalidate cache CloudFront
-        uses: chetan/invalidate-cloudfront-action@master
-        env:
-          DISTRIBUTION: ${{ secrets.DISTRIBUTION_ID }}
-          PATHS: '/index.html'
+#        uses: chetan/invalidate-cloudfront-action@master
+        run: aws cloudfront create-invalidation --distribution-id ${{secrets.DEV_DISTRIBUTION_ID}} --paths "/index.html"
+#        env:
+#          DISTRIBUTION: ${{ secrets.DISTRIBUTION_ID }}
+#          PATHS: '/index.html'
