@@ -45,7 +45,7 @@ jobs:
 
       - name: Invalidate cache CloudFront
 #        uses: chetan/invalidate-cloudfront-action@master
-        run: aws cloudfront create-invalidation --distribution-id ${{secrets.DEV_DISTRIBUTION_ID}} --paths "/index.html"
+        run: aws cloudfront create-invalidation --distribution-id ${{secrets.DISTRIBUTION_ID}} --paths "/index.html"
 #        env:
 #          DISTRIBUTION: ${{ secrets.DISTRIBUTION_ID }}
 #          PATHS: '/index.html'
