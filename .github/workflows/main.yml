@@ -10,21 +10,21 @@ env:
 jobs:
   run:
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: 'us-west-2'
+#    env:
+#      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#      AWS_DEFAULT_REGION: 'us-west-2'
     steps:
       - uses: actions/checkout@master
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: After Build
-        run: npm run postbuild
+#      - name: Install dependencies
+#        run: npm install
+#
+#      - name: Build
+#        run: npm run build
+#
+#      - name: After Build
+#        run: npm run postbuild
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -32,12 +32,13 @@ jobs:
 #          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
 #          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           role-to-assume: arn:aws:iam::116580135187:role/wds-code-remix-github-action-s3-deploy
+          role-skip-session-tagging: true
           aws-region: us-west-2
 
-      - name: Upload file to S3 bucket
-        run: aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }}
-      - name: Invalidate cache CloudFront
-        uses: chetan/invalidate-cloudfront-action@master
-        env:
-          DISTRIBUTION: ${{ secrets.DISTRIBUTION_ID }}
-          PATHS: '/index.html'
+#      - name: Upload file to S3 bucket
+#        run: aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }}
+#      - name: Invalidate cache CloudFront
+#        uses: chetan/invalidate-cloudfront-action@master
+#        env:
+#          DISTRIBUTION: ${{ secrets.DISTRIBUTION_ID }}
+#          PATHS: '/index.html'
