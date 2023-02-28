@@ -155,10 +155,21 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
-            <small>TEMPLATE CODE</small>
+            <small>PROJECT</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control as="select" value={template} onChange={setTargetTemplate}>
+            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
+            <Button variant="success" size="sm" onClick={wrappedCreateProject}>
+              <small>Create</small>
+            </Button>
+          </InputGroup>
+        </Form.Group>
+        <Form.Group style={mt8}>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>SELECT A TEMPLATE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
               {templateList.map((temp, idx) => {
                 return (
                   <option value={temp} key={idx}>
@@ -168,24 +179,13 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
               })}
             </Form.Control>
             <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
-              <small>Create Template</small>
+              <small>Create</small>
             </Button>
           </InputGroup>
         </Form.Group>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
-            <small>PROJECT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
-            <Button variant="success" size="sm" onClick={wrappedCreateProject}>
-              <small>New Project</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>PROJECT TO COMPILE </small>
+            <small>TARGET PROJECT </small>
             <span onClick={wrappedGetList}>
               <FaSyncAlt />
             </span>
