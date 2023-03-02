@@ -196,6 +196,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           if (data.compileId !== compileId(address, timestamp)) {
             return;
           }
+          await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
 
           setLoading(false);
           socket.disconnect();
@@ -210,7 +211,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
-        await client.terminal.log({ value: data.logMsg, type: 'info' });
+        await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
       socket.on(
@@ -425,7 +426,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
-        await client.terminal.log({ value: data.logMsg, type: 'info' });
+        await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
       socket.on(COMPILER_APTOS_PROVE_COMPLETED_V1, async (data: CompilerAptosProveCompletedV1) => {
@@ -752,7 +753,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             await wrappedRequestCompile();
           }}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        // onClick={setSchemaObj}
+          // onClick={setSchemaObj}
         >
           <FaSyncAlt className={loading ? 'fa-spin' : ''} />
           <span> Compile</span>
@@ -930,85 +931,85 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {targetModule && targetFunction
         ? modules.map((mod) => {
-          if (mod.abi.name === targetModule) {
-            return mod.abi.exposed_functions.map((func: any, idx: any) => {
-              if (func.name === targetFunction) {
-                return (
-                  <Form.Group key={`parameters-${idx}`}>
-                    <InputGroup>
-                      <div style={{ width: '100%' }}>
-                        <div>
+            if (mod.abi.name === targetModule) {
+              return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                if (func.name === targetFunction) {
+                  return (
+                    <Form.Group key={`parameters-${idx}`}>
+                      <InputGroup>
+                        <div style={{ width: '100%' }}>
                           <div>
-                            {func.generic_type_params.length > 0 ? (
-                              <small>Type Parameters</small>
-                            ) : (
-                              <></>
-                            )}
-                          </div>
-                          {func.generic_type_params.map((param: any, idx: number) => {
-                            return (
-                              <Form.Control
-                                style={{ width: '100%', marginBottom: '5px' }}
-                                type="text"
-                                placeholder={`Type Arg ${idx + 1}`}
-                                size="sm"
-                                onChange={(e) => {
-                                  updateGenericParam(e, idx);
-                                }}
-                                key={idx}
-                              />
-                            );
-                          })}
-                        </div>
-                        <div>
-                          <small>Parameters</small>
-                          {func.params.map((param: any, idx: number) => {
-                            if (func.is_entry && idx === 0) {
-                              return <></>;
-                            }
-                            return (
-                              <Form.Control
-                                style={{ width: '100%', marginBottom: '5px' }}
-                                type="text"
-                                placeholder={param}
-                                size="sm"
-                                onChange={(e) => {
-                                  updateParam(e, idx);
-                                }}
-                              />
-                            );
-                          })}
-                          {func.is_entry ? (
-                            <Button
-                              style={{ marginTop: '10px', minWidth: '70px' }}
-                              variant="primary"
-                              size="sm"
-                              onClick={entry}
-                            >
-                              <small>{func.name}</small>
-                            </Button>
-                          ) : (
                             <div>
+                              {func.generic_type_params.length > 0 ? (
+                                <small>Type Parameters</small>
+                              ) : (
+                                <></>
+                              )}
+                            </div>
+                            {func.generic_type_params.map((param: any, idx: number) => {
+                              return (
+                                <Form.Control
+                                  style={{ width: '100%', marginBottom: '5px' }}
+                                  type="text"
+                                  placeholder={`Type Arg ${idx + 1}`}
+                                  size="sm"
+                                  onChange={(e) => {
+                                    updateGenericParam(e, idx);
+                                  }}
+                                  key={idx}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div>
+                            <small>Parameters</small>
+                            {func.params.map((param: any, idx: number) => {
+                              if (func.is_entry && idx === 0) {
+                                return <></>;
+                              }
+                              return (
+                                <Form.Control
+                                  style={{ width: '100%', marginBottom: '5px' }}
+                                  type="text"
+                                  placeholder={param}
+                                  size="sm"
+                                  onChange={(e) => {
+                                    updateParam(e, idx);
+                                  }}
+                                />
+                              );
+                            })}
+                            {func.is_entry ? (
                               <Button
                                 style={{ marginTop: '10px', minWidth: '70px' }}
-                                variant="warning"
+                                variant="primary"
                                 size="sm"
-                                onClick={view}
+                                onClick={entry}
                               >
                                 <small>{func.name}</small>
                               </Button>
-                            </div>
-                          )}
+                            ) : (
+                              <div>
+                                <Button
+                                  style={{ marginTop: '10px', minWidth: '70px' }}
+                                  variant="warning"
+                                  size="sm"
+                                  onClick={view}
+                                >
+                                  <small>{func.name}</small>
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </InputGroup>
-                    <hr />
-                  </Form.Group>
-                );
-              }
-            });
-          }
-        })
+                      </InputGroup>
+                      <hr />
+                    </Form.Group>
+                  );
+                }
+              });
+            }
+          })
         : false}
     </>
   );
