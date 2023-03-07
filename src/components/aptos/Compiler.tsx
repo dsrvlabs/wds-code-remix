@@ -39,12 +39,19 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { build, getAccountModules, getAccountResources, viewFunction } from './aptos-helper';
+import {
+  ArgTypeValuePair,
+  dappTxn,
+  getAccountModules,
+  getAccountResources,
+  serializedArgs,
+  viewFunction,
+} from './aptos-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { Types } from 'aptos';
+import { TxnBuilderTypes, Types } from 'aptos';
 
 interface ModuleWrapper {
   path: string;
@@ -80,13 +87,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
   const [metaData64, setMetaDataBase64] = useState<string>('');
 
-  const [modules, setModules] = useState<any[]>([]);
+  const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
   const [targetModule, setTargetModule] = useState<string>('');
 
   const [targetFunction, setTargetFunction] = useState<string>('');
+  const [moveFunction, setMoveFunction] = useState<Types.MoveFunction | undefined>();
 
   const [genericParameters, setGenericParameters] = useState<any[]>([]);
-  const [parameters, setParameters] = useState<any[]>([]);
+  const [parameters, setParameters] = useState<ArgTypeValuePair[]>([]);
 
   const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
   const [targetResource, setTargetResource] = useState<string>('');
@@ -495,12 +503,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setModules([]);
         setTargetModule('');
         setTargetFunction('');
+        setMoveFunction(undefined);
         return;
       }
       setModules(accountModules);
       const firstAccountModule = accountModules[0];
       setTargetModule(firstAccountModule.abi!.name);
       setTargetFunction(firstAccountModule.abi!.exposed_functions[0].name);
+      setMoveFunction(firstAccountModule.abi!.exposed_functions[0]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
@@ -530,8 +540,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTargetModule(e.target.value);
     if (modules.length) {
       modules.map((mod, idx) => {
-        if (mod.abi.name === e.target.value) {
-          setTargetFunction(mod.abi.exposed_functions[0].name);
+        if (mod.abi?.name === e.target.value) {
+          setTargetFunction(mod.abi?.exposed_functions[0].name || '');
+          setMoveFunction(mod.abi?.exposed_functions[0]);
           setParameters([]);
         }
       });
@@ -542,6 +553,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTargetFunction(e.target.value);
     setParameters([]);
     setGenericParameters([]);
+    console.log('targetFunction', e.target.value);
+    console.log('targetModule', targetModule);
+    console.log('modules', modules);
+    const module = modules.find((m) => m.abi?.name);
+    if (!module) {
+      return;
+    }
+    const matchFunc = module.abi?.exposed_functions.find((f) => f.name === e.target.value);
+    if (!matchFunc) {
+      return;
+    }
+    setMoveFunction(matchFunc);
   };
 
   const onChangeResource = (e: any) => {
@@ -569,29 +592,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const entry = async () => {
-    // remove signer param
-    let param = parameters;
-    if (param.length >= 1 && param[0] === undefined) {
-      param.shift();
-    }
-
-    console.log(param);
-    const chainId = dapp.networks.aptos.chain;
-    const abiBuilderConfig = {
-      sender: accountID,
-    };
-
-    const setMsg = await build(
-      deployedContract + '::' + targetModule + '::' + targetFunction,
-      genericParameters,
-      param, // Array
-      chainId,
-      abiBuilderConfig,
+    console.log('parameters', parameters);
+    const dappTxn_ = await dappTxn(
+      accountID,
+      dapp.networks.aptos.chain,
+      deployedContract + '::' + targetModule,
+      targetFunction,
+      genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
+      serializedArgs(parameters),
     );
 
     const txHash = await dapp.request('aptos', {
       method: 'dapp:signAndSendTransaction',
-      params: [setMsg],
+      params: [dappTxn_],
     });
     log.debug(`@@@ txHash=${txHash}`);
   };
@@ -603,10 +616,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
-  const updateParam = (e: any, idx: any) => {
-    setParameters((existingParams) => {
-      log.debug(e.target.value);
-      existingParams[idx] = e.target.value;
+  const updateParam = (e: any, idx: any, parameterType: string) => {
+    setParameters((existingParams: ArgTypeValuePair[]) => {
+      existingParams[idx] = {
+        type: parameterType,
+        val: e.target.value as string,
+      };
+      console.log('existingParams', existingParams);
       return existingParams;
     });
   };
@@ -876,64 +892,60 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         false
       )}
 
-      {modules.length ? (
-        <Form.Group>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>Modules</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={targetModule}
-              onChange={setModuleAndABI}
-            >
-              {modules?.map((mod, idx) => {
-                return (
-                  <option value={mod.abi.name} key={idx + 1}>
-                    {mod.abi.name}
-                  </option>
-                );
-              })}
-            </Form.Control>
-          </InputGroup>
-        </Form.Group>
-      ) : (
-        false
-      )}
-      {modules.length && targetModule ? (
-        <Form.Group>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>Functions</small>
-          </Form.Text>
-          <Form.Control
-            style={{ marginBottom: '10px' }}
-            className="custom-select"
-            as="select"
-            value={targetFunction}
-            onChange={handleFunction}
-          >
-            {modules.map((mod, idx) => {
-              if (mod.abi.name === targetModule) {
-                return mod.abi.exposed_functions.map((func: any, idx: any) => {
+      {modules.length > 0 ? (
+        <>
+          <Form.Group>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Modules</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={targetModule}
+                onChange={setModuleAndABI}
+              >
+                {modules.map((mod, idx) => {
                   return (
-                    <option value={func.name} key={idx}>
-                      {func.name}
+                    <option value={mod.abi?.name} key={idx + 1}>
+                      {mod.abi?.name}
                     </option>
                   );
-                });
-              }
-            })}
-          </Form.Control>
-        </Form.Group>
-      ) : (
-        false
-      )}
-      {targetModule && targetFunction
-        ? modules.map((mod) => {
-            if (mod.abi.name === targetModule) {
-              return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Functions</small>
+            </Form.Text>
+            <Form.Control
+              style={{ marginBottom: '10px' }}
+              className="custom-select"
+              as="select"
+              value={targetFunction}
+              onChange={handleFunction}
+            >
+              {modules.map((mod, idx) => {
+                if (mod.abi?.name === targetModule) {
+                  return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                    return (
+                      <option value={func.name} key={idx}>
+                        {func.name}
+                      </option>
+                    );
+                  });
+                }
+              })}
+            </Form.Control>
+          </Form.Group>
+          {modules.map((mod: Types.MoveModuleBytecode) => {
+            if (mod.abi?.name === targetModule) {
+              return mod.abi.exposed_functions.map((func: Types.MoveFunction, idx: number) => {
                 if (func.name === targetFunction) {
+                  const singerRemovedParams = func.params.filter((para, i) => {
+                    return !(i === 0 && (para === 'signer' || para === '&signer'));
+                  });
                   return (
                     <Form.Group key={`parameters-${idx}`}>
                       <InputGroup>
@@ -963,18 +975,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                           </div>
                           <div>
                             <small>Parameters</small>
-                            {func.params.map((param: any, idx: number) => {
-                              if (func.is_entry && idx === 0) {
-                                return <></>;
-                              }
+                            {singerRemovedParams.map((parameterType: string, idx: number) => {
+                              log.debug(`idx=${idx}, parameterType=${parameterType}`);
                               return (
                                 <Form.Control
                                   style={{ width: '100%', marginBottom: '5px' }}
                                   type="text"
-                                  placeholder={param}
+                                  placeholder={parameterType}
                                   size="sm"
                                   onChange={(e) => {
-                                    updateParam(e, idx);
+                                    updateParam(e, idx, parameterType);
                                   }}
                                 />
                               );
@@ -1009,8 +1019,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 }
               });
             }
-          })
-        : false}
+          })}
+        </>
+      ) : (
+        false
+      )}
     </>
   );
 };

@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Button, Card, InputGroup, Form as ReactForm } from 'react-bootstrap';
-import { FaSyncAlt } from 'react-icons/fa';
+import { Button } from 'react-bootstrap';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { genRawTx, getAccountResources, waitForTransactionWithResult } from './aptos-helper';
+import {
+  codeBytes,
+  dappTxn,
+  getAccountResources,
+  metadataSerializedBytes,
+  waitForTransactionWithResult,
+} from './aptos-helper';
 
 import copy from 'copy-to-clipboard';
 import { isNotEmptyList } from '../../utils/ListUtil';
@@ -79,27 +84,25 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
     try {
       setDeployIconSpin('fa-spin');
-      const chainId = dapp.networks.aptos.chain;
-      const rawTx_ = await genRawTx(metaData64, moduleBase64s, accountID, chainId, 20000, 100);
+      const rawTx_ = await dappTxn(
+        accountID,
+        dapp.networks.aptos.chain,
+        '0x1::code',
+        'publish_package_txn',
+        [],
+        [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
+      );
+
       const txnHash = await dapp.request('aptos', {
         method: 'dapp:signAndSendTransaction',
         params: [rawTx_],
       });
       log.debug(`@@@ txnHash=${txnHash}`);
 
-      /**
-       * Config for creating raw transactions.
-       */
-      // interface ABIBuilderConfig {
-      //   sender: MaybeHexString | AccountAddress;
-      //   sequenceNumber: Uint64 | string;
-      //   gasUnitPrice: Uint64 | string;
-      //   maxGasAmount?: Uint64 | string;
-      //   expSecFromNow?: number | string;
-      //   chainId: Uint8 | string;
-      // }
-
-      const result = (await waitForTransactionWithResult(txnHash, chainId)) as any;
+      const result = (await waitForTransactionWithResult(
+        txnHash,
+        dapp.networks.aptos.chain,
+      )) as any;
       log.debug(result);
       if (result.success) {
         await client.terminal.log({
