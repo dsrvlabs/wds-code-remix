@@ -52,6 +52,7 @@ import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { TxnBuilderTypes, Types } from 'aptos';
+import { Parameters } from './Parameters';
 
 interface ModuleWrapper {
   path: string;
@@ -89,11 +90,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
   const [targetModule, setTargetModule] = useState<string>('');
-
-  const [targetFunction, setTargetFunction] = useState<string>('');
   const [moveFunction, setMoveFunction] = useState<Types.MoveFunction | undefined>();
 
-  const [genericParameters, setGenericParameters] = useState<any[]>([]);
+  const [genericParameters, setGenericParameters] = useState<string[]>([]);
   const [parameters, setParameters] = useState<ArgTypeValuePair[]>([]);
 
   const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
@@ -502,14 +501,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       if (isEmptyList(accountModules)) {
         setModules([]);
         setTargetModule('');
-        setTargetFunction('');
         setMoveFunction(undefined);
         return;
       }
       setModules(accountModules);
       const firstAccountModule = accountModules[0];
       setTargetModule(firstAccountModule.abi!.name);
-      setTargetFunction(firstAccountModule.abi!.exposed_functions[0].name);
       setMoveFunction(firstAccountModule.abi!.exposed_functions[0]);
     } catch (e) {
       log.error(e);
@@ -541,7 +538,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (modules.length) {
       modules.map((mod, idx) => {
         if (mod.abi?.name === e.target.value) {
-          setTargetFunction(mod.abi?.exposed_functions[0].name || '');
           setMoveFunction(mod.abi?.exposed_functions[0]);
           setParameters([]);
         }
@@ -550,17 +546,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const handleFunction = (e: any) => {
-    setTargetFunction(e.target.value);
     setParameters([]);
     setGenericParameters([]);
-    console.log('targetFunction', e.target.value);
-    console.log('targetModule', targetModule);
-    console.log('modules', modules);
-    const module = modules.find((m) => m.abi?.name);
+    setMoveFunction(undefined);
+
+    const module = modules.find((m) => m.abi?.name === targetModule);
     if (!module) {
       return;
     }
-    const matchFunc = module.abi?.exposed_functions.find((f) => f.name === e.target.value);
+
+    const matchFunc = module.abi?.exposed_functions.find((f) => {
+      return f.name === e.target.value;
+    });
     if (!matchFunc) {
       return;
     }
@@ -597,7 +594,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       accountID,
       dapp.networks.aptos.chain,
       deployedContract + '::' + targetModule,
-      targetFunction,
+      moveFunction?.name || '',
       genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
       serializedArgs(parameters),
     );
@@ -609,31 +606,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.debug(`@@@ txHash=${txHash}`);
   };
 
-  const updateGenericParam = (e: any, idx: any) => {
-    setGenericParameters((existingGenericParams) => {
-      existingGenericParams[idx] = e.target.value;
-      return existingGenericParams;
-    });
-  };
-
-  const updateParam = (e: any, idx: any, parameterType: string) => {
-    setParameters((existingParams: ArgTypeValuePair[]) => {
-      existingParams[idx] = {
-        type: parameterType,
-        val: e.target.value as string,
-      };
-      console.log('existingParams', existingParams);
-      return existingParams;
-    });
-  };
-
   const view = async () => {
     console.log(parameters);
 
     const view = await viewFunction(
       deployedContract,
       targetModule,
-      targetFunction,
+      moveFunction?.name || '',
       dapp.networks.aptos.chain,
       genericParameters, // typeArgs
       parameters,
@@ -923,7 +902,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               style={{ marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={targetFunction}
+              value={moveFunction?.name}
               onChange={handleFunction}
             >
               {modules.map((mod, idx) => {
@@ -939,87 +918,43 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               })}
             </Form.Control>
           </Form.Group>
-          {modules.map((mod: Types.MoveModuleBytecode) => {
-            if (mod.abi?.name === targetModule) {
-              return mod.abi.exposed_functions.map((func: Types.MoveFunction, idx: number) => {
-                if (func.name === targetFunction) {
-                  const singerRemovedParams = func.params.filter((para, i) => {
-                    return !(i === 0 && (para === 'signer' || para === '&signer'));
-                  });
-                  return (
-                    <Form.Group key={`parameters-${idx}`}>
-                      <InputGroup>
-                        <div style={{ width: '100%' }}>
-                          <div>
-                            <div>
-                              {func.generic_type_params.length > 0 ? (
-                                <small>Type Parameters</small>
-                              ) : (
-                                <></>
-                              )}
-                            </div>
-                            {func.generic_type_params.map((param: any, idx: number) => {
-                              return (
-                                <Form.Control
-                                  style={{ width: '100%', marginBottom: '5px' }}
-                                  type="text"
-                                  placeholder={`Type Arg ${idx + 1}`}
-                                  size="sm"
-                                  onChange={(e) => {
-                                    updateGenericParam(e, idx);
-                                  }}
-                                  key={idx}
-                                />
-                              );
-                            })}
-                          </div>
-                          <div>
-                            <small>Parameters</small>
-                            {singerRemovedParams.map((parameterType: string, idx: number) => {
-                              log.debug(`idx=${idx}, parameterType=${parameterType}`);
-                              return (
-                                <Form.Control
-                                  style={{ width: '100%', marginBottom: '5px' }}
-                                  type="text"
-                                  placeholder={parameterType}
-                                  size="sm"
-                                  onChange={(e) => {
-                                    updateParam(e, idx, parameterType);
-                                  }}
-                                />
-                              );
-                            })}
-                            {func.is_entry ? (
-                              <Button
-                                style={{ marginTop: '10px', minWidth: '70px' }}
-                                variant="primary"
-                                size="sm"
-                                onClick={entry}
-                              >
-                                <small>{func.name}</small>
-                              </Button>
-                            ) : (
-                              <div>
-                                <Button
-                                  style={{ marginTop: '10px', minWidth: '70px' }}
-                                  variant="warning"
-                                  size="sm"
-                                  onClick={view}
-                                >
-                                  <small>{func.name}</small>
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </InputGroup>
-                      <hr />
-                    </Form.Group>
-                  );
-                }
-              });
-            }
-          })}
+          {moveFunction ? (
+            <Form.Group>
+              <InputGroup>
+                <Parameters
+                  func={moveFunction}
+                  setGenericParameters={setGenericParameters}
+                  setParameters={setParameters}
+                />
+                <div>
+                  {moveFunction.is_entry ? (
+                    <Button
+                      style={{ marginTop: '10px', minWidth: '70px' }}
+                      variant="primary"
+                      size="sm"
+                      onClick={entry}
+                    >
+                      <small>{moveFunction.name}</small>
+                    </Button>
+                  ) : (
+                    <div>
+                      <Button
+                        style={{ marginTop: '10px', minWidth: '70px' }}
+                        variant="warning"
+                        size="sm"
+                        onClick={view}
+                      >
+                        <small>{moveFunction.name}</small>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </InputGroup>
+              <hr />
+            </Form.Group>
+          ) : (
+            false
+          )}
         </>
       ) : (
         false
