@@ -4,9 +4,10 @@
 
 // @ts-ignore
 // import {ArgsAbi} from './ArgsAbi';
-import {AptosClient, Types,} from 'aptos';
-import {aptosNodeUrl} from './aptos-helper';
-
+import { AccountAddress, AptosClient, BCS, HexString, TxnBuilderTypes, Types } from 'aptos';
+import { aptosNodeUrl } from './aptos-helper';
+import { TextEncoder } from 'util';
+global.TextEncoder = TextEncoder;
 // require('../../../jest.config');
 
 describe('Aptos Helper', () => {
@@ -32,14 +33,42 @@ describe('Aptos Helper', () => {
 
   it('view get_message', async () => {
     const payload: Types.ViewRequest = {
-      function: '0x61a6c5dfe2d61907e2daf4bc843590561873cadf36f091414239b9b1933fbe1f::message::get_message',
+      function:
+        '0x61a6c5dfe2d61907e2daf4bc843590561873cadf36f091414239b9b1933fbe1f::message::get_message',
       type_arguments: [],
-      arguments: ["0x61a6c5dfe2d61907e2daf4bc843590561873cadf36f091414239b9b1933fbe1f"],
+      arguments: ['0x61a6c5dfe2d61907e2daf4bc843590561873cadf36f091414239b9b1933fbe1f'],
     };
 
     const aptosClient = new AptosClient(aptosNodeUrl('testnet'));
     const results = await aptosClient.view(payload);
 
     console.log(results);
+  });
+
+  it('serialize vector', async () => {
+    const el1 = HexString.fromUint8Array(BCS.bcsSerializeStr('abc')).hex();
+    const el2 = HexString.fromUint8Array(BCS.bcsSerializeUint64(23)).hex();
+    const el3 = HexString.fromUint8Array(
+      BCS.bcsToBytes(TxnBuilderTypes.AccountAddress.fromHex('0x2')),
+    ).hex();
+
+    console.log(el1);
+    console.log(el2);
+    console.log(el3);
+    const vector = [el1, el2, el3];
+    const serializer = new BCS.Serializer();
+    serializer.serializeU32AsUleb128(vector.length);
+    vector.forEach((hexStr) => {
+      const uint8Arr = new HexString(hexStr).toUint8Array();
+      serializer.serializeBytes(uint8Arr);
+    });
+
+    const vectorArg = serializer.getBytes();
+    console.log(HexString.fromUint8Array(vectorArg).hex());
+
+    // 03
+    // 04 03616263
+    // 08 1700000000000000
+    // 20 0000000000000000000000000000000000000000000000000000000000000002
   });
 });
