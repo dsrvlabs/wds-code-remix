@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Form, InputGroup } from 'react-bootstrap';
-
-import { EncodeObject } from '@cosmjs/proto-signing';
-
-import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
+import { Alert, Form, InputGroup } from 'react-bootstrap';
+import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
-import { StargateClient } from '@cosmjs/stargate';
-
-interface MsgStoreCodeEncodeObject extends EncodeObject {
-  readonly typeUrl: '/cosmwasm.wasm.v1.MsgStoreCode';
-  readonly value: Partial<MsgStoreCode>;
-}
 
 interface InterfaceProps {
   active: boolean;
@@ -34,59 +25,93 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   setActive,
 }) => {
   const [balance, setBalance] = useState<null | string>();
-  const [wasm, setWasm] = useState<any>();
+  const [error, setError] = useState<String>('');
 
   const dappProvider = (window as any).dapp;
 
   useEffect(() => {
-    if (active) {
-      if (dappProvider) {
-        log.debug(dappProvider);
+    const connect = async () => {
+      if (active) {
+        try {
+          if (dappProvider) {
+            dappProvider.on('dapp:chainChanged', (provider: any) => {
+              window.location.reload();
+            });
 
-        dappProvider.on('chainChanged', (provider: any) => {
-          log.debug(provider);
-          window.location.reload();
-        });
+            dappProvider.on('dapp:accountsChanged', (provider: any) => {
+              window.location.reload();
+            });
 
-        dappProvider.on('accountsChanged', (provider: any) => {
-          log.debug(provider);
-          window.location.reload();
-        });
+            dappProvider
+              .request('juno', {
+                method: 'dapp:accounts',
+              })
+              .then((account: any) => {
+                if (account.constructor === Object && Object.keys(account).length === 0) {
+                  setAccount('');
+                  setBalance('');
+                  setActive(false);
+                }
 
-        dappProvider
-          .request('juno', {
-            method: 'dapp:accounts',
-          })
-          .then(async (account: { [x: string]: { address: any } }) => {
-            log.debug(account);
-            const address = account?.['juno'].address;
-
-            if (!address) {
-              setAccount('');
-              setBalance('');
-              setActive(false);
-              return;
-            }
-
-            setAccount(address);
-
-            const client = await StargateClient.connect('https://uni-rpc.reece.sh/');
-            const balances = await client.getAllBalances(address);
-            const balance = balances.find((balance) => balance.denom === 'ujunox');
-            if (balance) {
-              setBalance(`${balance.amount} ${balance.denom}`);
-            }
-          });
-      } else {
-        setAccount('');
-        setBalance('');
-        setActive(false);
+                if (account) {
+                  gtag('event', 'login', {
+                    method: 'juno',
+                  });
+                }
+                dappProvider
+                  .request('juno', {
+                    method: 'dapp:getBalance',
+                    params: [account['juno'].address],
+                  })
+                  .then((balance: any) => {
+                    setAccount(account['juno'].address);
+                    log.debug('bal: ', balance);
+                    setBalance(balance ?? '');
+                    setDapp(dappProvider);
+                  })
+                  .catch(async (e: any) => {
+                    setAccount('');
+                    setBalance('');
+                    await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+                    await client.terminal.log({
+                      type: 'error',
+                      value: 'Please create account on chain',
+                    });
+                    setError('Create account on chain');
+                    setActive(false);
+                  })
+              })
+              .catch(async (e: any) => {
+                setAccount('');
+                setBalance('');
+                await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+                await client.terminal.log({
+                  type: 'error',
+                  value: 'Please Unlock your WELLDONE Wallet OR Create Account',
+                });
+                setError('Unlock your WELLDONE Wallet OR Create Account');
+                setActive(false);
+              });
+          } else {
+            setAccount('');
+            setBalance('');
+            setActive(false);
+          }
+        } catch (e: any) {
+          log.error(e);
+          await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+        }
       }
-    }
+    };
+    connect();
   }, [active, dappProvider]);
 
   return (
     <div>
+      <Alert variant="danger" hidden={error === ''}>
+        <AlertCloseButton onClick={() => setError('')} />
+        <div>{error}</div>
+      </Alert>
       <Form>
         <Form.Text className="text-muted" style={mb4}>
           <small>ACCOUNT</small>

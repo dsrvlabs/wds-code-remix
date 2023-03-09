@@ -1,4 +1,4 @@
-import React, { Dispatch, useEffect, useState } from 'react';
+import React, { Dispatch, useState } from 'react';
 import { Alert, Button } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -54,6 +54,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
 
+  const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({})
+  const [schemaExec, setSchemaExec] = useState<Object>({})
+  const [schemaQuery, setSchemaQuery] = useState<Object>({})
+
   const exists = async () => {
     try {
       const artifacts = await client?.fileManager.readdir(
@@ -62,7 +66,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({
         type: 'error',
         value:
-          "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
+          "If you want to run a new compilation, delete the 'artifacts' and 'schema' directory and click the Compile button again.",
       });
       const filesName = Object.keys(artifacts || {});
       await Promise.all(
@@ -85,6 +89,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
+
+    setCodeID('')
+    setSchemaExec({})
+    setSchemaInit({})
+    setSchemaQuery({})
 
     if (await exists()) {
       await setSchemaObj();
@@ -339,9 +348,27 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       await Promise.all(
         schemaFiles.map(async (filename: string) => {
-          arr.push(JSON.parse((await client?.fileManager.readFile('browser/' + filename)) || ''));
+          if (getExtensionOfFilename(filename) === '.json') {
+            arr.push(JSON.parse((await client?.fileManager.readFile('browser/' + filename)) || {}));
+          }
         }),
       );
+
+      arr.map((schema: { [key: string]: any }) => {
+        if (schema.title === 'InstantiateMsg') {
+          setSchemaInit(schema)
+        } else if (schema.title === 'ExecuteMsg') {
+          setSchemaExec(schema)
+        } else if (schema.title === 'QueryMsg') {
+          setSchemaQuery(schema)
+          // using new schema
+        } else if (schema.instantiate || schema.query || schema.exeucte) {
+          setSchemaInit(schema.instantiate || {})
+          setSchemaQuery(schema.query || {})
+          setSchemaExec(schema.execute || {})
+        }
+      })
+
     } catch (e) {
       log.error(e);
     }
@@ -376,18 +403,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {fileName ? (
         <div>
-          <Button
-            size="sm"
-            style={{ marginRight: '1em' }}
-            onClick={() => {
-              setFileName('');
-              setWasm('');
-              reset();
-            }}
-            className="mt-2"
-          >
-            Clear
-          </Button>
           <small>{fileName}</small>
         </div>
       ) : (
@@ -405,15 +420,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setTxHash={setTxHash}
           codeID={codeID}
           setCodeID={setCodeID}
+          schemaInit={schemaInit} schemaExec={schemaExec} schemaQuery={schemaQuery}
         />
       ) : (
         <>
-          <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+          {/* need not this feature now */}
+          {/* <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
             <small>NO COMPILED CONTRACT</small>
           </p>
           <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
             <small>OR</small>
-          </p>
+          </p> */}
         </>
       )}
     </>

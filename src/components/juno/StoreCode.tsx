@@ -1,28 +1,12 @@
 import React, { Dispatch, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
-import { calculateFee, defaultRegistryTypes, GasPrice, StargateClient } from '@cosmjs/stargate';
+import { Button, Form, InputGroup } from 'react-bootstrap';
+import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
-import {
-  MsgClearAdmin,
-  MsgExecuteContract,
-  MsgInstantiateContract,
-  MsgMigrateContract,
-  MsgStoreCode,
-  MsgUpdateAdmin,
-} from 'cosmjs-types/cosmwasm/wasm/v1/tx';
+import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
-import { GeneratedType, Registry } from '@cosmjs/proto-signing';
 import { Decimal } from '@cosmjs/math';
-
-export const wasmTypes: ReadonlyArray<[string, GeneratedType]> = [
-  ['/cosmwasm.wasm.v1.MsgClearAdmin', MsgClearAdmin],
-  ['/cosmwasm.wasm.v1.MsgExecuteContract', MsgExecuteContract],
-  ['/cosmwasm.wasm.v1.MsgMigrateContract', MsgMigrateContract],
-  ['/cosmwasm.wasm.v1.MsgStoreCode', MsgStoreCode],
-  ['/cosmwasm.wasm.v1.MsgInstantiateContract', MsgInstantiateContract],
-  ['/cosmwasm.wasm.v1.MsgUpdateAdmin', MsgUpdateAdmin],
-];
+import { simulate } from './juno-helper';
 
 interface InterfaceProps {
   dapp: any;
@@ -35,9 +19,13 @@ interface InterfaceProps {
   setTxHash: Dispatch<React.SetStateAction<string>>;
   codeID: string;
   setCodeID: Dispatch<React.SetStateAction<string>>;
+  schemaInit: { [key: string]: any };
+  schemaExec: { [key: string]: any };
+  schemaQuery: { [key: string]: any };
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
+  dapp,
   wasm,
   wallet,
   client,
@@ -45,9 +33,20 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   setTxHash,
   codeID,
   setCodeID,
+  schemaInit, schemaExec, schemaQuery
 }) => {
+
+  const [gasPrice, setGasPrice] = useState<number>(0.025);
+  const [fund, setFund] = useState<number>(0);
+
   const waitGetCodeID = async (hash: string) => {
-    const rpcUrl = 'https://uni-rpc.reece.sh/';
+    const cid = dapp.networks.juno.chain
+
+    let rpcUrl = 'https://uni-rpc.reece.sh/';
+    if (cid === 'juno') {
+      rpcUrl = 'https://rpc-juno.itastakers.com';
+    }
+
     const stargateClient = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
@@ -65,8 +64,16 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!Number.isNaN(value) && value > 0) {
+      setFund(value);
+    } else {
+      setFund(0);
+    }
+  };
+
   const dsrvProceed = async () => {
-    const dapp = (window as any).dapp;
 
     if (!dapp) {
       return;
@@ -88,7 +95,14 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://uni-rpc.reece.sh/';
+          const cid = dapp.networks.juno.chain
+
+          let rpcUrl = 'https://uni-rpc.reece.sh/';
+          let denom = 'ujunox';
+          if (cid === 'juno') {
+            rpcUrl = 'https://rpc-juno.itastakers.com';
+            denom = 'ujuno';
+          }
 
           const stargateClient = await StargateClient.connect(rpcUrl);
           log.debug(stargateClient);
@@ -102,8 +116,6 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           const chainId = await stargateClient.getChainId();
           log.debug('chainId: ' + chainId);
-
-          // const compressed = pako.gzip((wasm), { level: 9 });
 
           const messages = [
             {
@@ -124,10 +136,15 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             sequence,
           );
           log.debug('@@@ gasEstimation', gasEstimation);
+          log.debug('@@@ gasPrice', gasPrice);
+          log.debug('@@@ denom', gasEstimation);
 
-          const gasPrice = new GasPrice(Decimal.fromUserInput('0.0025', 18), 'ujunox');
-          const multiplier = 1.3;
-          const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gasPrice);
+          const gas = new GasPrice(Decimal.fromUserInput(String(gasPrice), 18), denom);
+
+          // const multiplier = 1.3;
+          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
+          const usedFee = calculateFee(Number(gasEstimation), gas);
+
           log.debug('@@@ usedFee', usedFee);
 
           log.debug(messages[0]);
@@ -141,7 +158,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(JSON.stringify(rawTx));
 
-          const res = await (window as any).dapp.request('juno', {
+          const res = await dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -163,6 +180,51 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   return (
     <>
       <Form>
+        <hr />
+        <Form>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>FUND VALUE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              type="number"
+              placeholder="0"
+              value={fund}
+              size="sm"
+              onChange={(e) => setFund(Number(e.target.value))}
+              onBlur={handleBlur}
+            />
+            <Form.Control
+              type="text"
+              placeholder=""
+              value={'ujuno / ujunox'}
+              size="sm"
+              readOnly
+            />
+          </InputGroup>
+        </Form>
+        <Form>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>GAS PRICE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              type="number"
+              placeholder={gasPrice.toString()}
+              value={gasPrice}
+              size="sm"
+              onChange={(e) => setGasPrice(Number(e.target.value))}
+            />
+            <Form.Control
+              type="text"
+              placeholder=""
+              value={'ujuno / ujunox'}
+              size="sm"
+              readOnly
+            />
+          </InputGroup>
+        </Form>
+        <hr />
         <Button
           variant="primary"
           onClick={dsrvProceed}
@@ -171,30 +233,22 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
           <span>Store Code</span>
         </Button>
       </Form>
+      <hr />
       <div>
-        {codeID && <Instantiate wallet={wallet} codeID={codeID || ''} setCodeID={setCodeID} />}
+        {
+          codeID &&
+          <>
+            <Instantiate
+              client={client} dapp={dapp} wallet={wallet} codeID={codeID || ''} setCodeID={setCodeID} fund={fund} gasPrice={gasPrice}
+              schemaInit={schemaInit} schemaExec={schemaExec} schemaQuery={schemaQuery}
+            />
+          </>
+        }
       </div>
     </>
   );
 };
 
-async function simulate(
-  client: any,
-  messages: readonly any[],
-  memo: string | undefined,
-  pubKey: string,
-  sequence: number,
-) {
-  const registry = new Registry([...defaultRegistryTypes, ...wasmTypes]);
-  const anyMsgs = messages.map((m) => registry.encodeAsAny(m));
-  const simulateResult = await client.queryClient.tx.simulate(
-    anyMsgs,
-    memo,
-    {
-      type: 'tendermint/PubKeySecp256k1',
-      value: pubKey,
-    },
-    `${sequence}`,
-  );
-  return simulateResult.gasInfo.gasUsed;
-}
+const mb4 = {
+  marginBottom: '4px',
+};

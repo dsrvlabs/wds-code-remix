@@ -1,12 +1,17 @@
 import React, { Dispatch, useEffect, useState } from 'react';
-import { Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Button, Form as ReactForm, } from 'react-bootstrap';
 import { Contract } from './Contract';
-import { StargateClient } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
-import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
-import Editor from '@monaco-editor/react';
+import { Decimal } from '@cosmjs/math';
+
+import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
+import { simulate } from './juno-helper';
+
+import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -14,41 +19,34 @@ export interface MsgInstantiateContractEncodeObject extends EncodeObject {
 }
 
 interface InterfaceProps {
+  dapp: any;
   wallet: string;
   codeID: string;
+  client: any;
   setCodeID: Dispatch<React.SetStateAction<string>>;
+  fund: number;
+  gasPrice: number;
+  schemaInit: { [key: string]: any };
+  schemaExec: { [key: string]: any };
+  schemaQuery: { [key: string]: any };
 }
 
-export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, setCodeID }) => {
-  const [initMsg, setInitMsg] = useState(
-    `${JSON.stringify(
-      {
-        count: 'change this to your own initMsg',
-      },
-      null,
-      2,
-    )}`,
-  );
+export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ client, dapp, codeID, setCodeID, fund, gasPrice, schemaInit, schemaExec, schemaQuery }) => {
+
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
-  const [txHash, setTxHash] = useState<string>('');
+  const [param, setParams] = useState({});
 
   useEffect(() => {
     setContractAddress('');
-    setInitMsg(
-      `${JSON.stringify(
-        {
-          count: 'change this to your own initMsg',
-        },
-        null,
-        2,
-      )}`,
-    );
   }, [codeID]);
+
+  useEffect(() => {
+    setParams({});
+  }, [schemaInit]);
 
   const instantiate = async () => {
     setContractAddress('');
-    const dapp = (window as any).dapp;
 
     if (!dapp) {
       return;
@@ -66,32 +64,30 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://uni-rpc.reece.sh/';
+          const cid = dapp.networks.juno.chain
 
-          const client = await StargateClient.connect(rpcUrl);
-          log.debug(client);
+          let rpcUrl = 'https://uni-rpc.reece.sh/';
+          let denom = 'ujunox';
+          if (cid === 'juno') {
+            rpcUrl = 'https://rpc-juno.itastakers.com';
+            denom = 'ujuno';
+          }
 
-          const sequence = (await client.getSequence(result['juno'].address)).sequence;
+          const stargateClient = await StargateClient.connect(rpcUrl);
+          log.debug(stargateClient);
+
+          const sequence = (await stargateClient.getSequence(result['juno'].address)).sequence;
           log.debug('sequence: ' + sequence);
 
-          const accountNumber = (await client.getSequence(result['juno'].address)).accountNumber;
+          const accountNumber = (await stargateClient.getSequence(result['juno'].address)).accountNumber;
           log.debug('accountNumber: ' + accountNumber);
 
-          const chainId = await client.getChainId();
+          const chainId = await stargateClient.getChainId();
           log.debug('chainId: ' + chainId);
 
-          let initMsgObj = {};
-          try {
-            initMsgObj = JSON.parse(initMsg);
-            const objStr = JSON.stringify(initMsgObj, null, 2);
-            setInitMsg(objStr);
-            setInitMsgErr('');
-          } catch (e: any) {
-            const error: SyntaxError = e;
-            log.error(e);
-            setInitMsgErr(error?.message);
-            return;
-          }
+          log.debug('fund: ' + fund);
+
+          const funds = fund ? [{ denom, amount: fund.toString() }] : [];
 
           const instantiateContractMsg: MsgInstantiateContractEncodeObject = {
             typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract',
@@ -100,24 +96,43 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
               admin: result['juno'].address,
               codeId: parseInt(codeID) as any,
               label: 'contract init',
-              msg: toBase64(toUtf8(JSON.stringify(initMsgObj))) as any,
-              funds: [...[]],
+              msg: toBase64(toUtf8(JSON.stringify(param))) as any,
+              funds
             },
           };
 
           log.debug(JSON.stringify(instantiateContractMsg));
 
+          const memo = undefined;
+          const gasEstimation = await simulate(
+            stargateClient,
+            [instantiateContractMsg],
+            memo,
+            result['juno'].pubKey,
+            sequence,
+          );
+          log.debug('@@@ gasEstimation', gasEstimation);
+          log.debug('@@@ gasPrice', gasPrice);
+          log.debug('@@@ denom', gasEstimation);
+
+          const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+
+          // const multiplier = 1.3;
+          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
+          const usedFee = calculateFee(Number(gasEstimation), gas);
+          log.debug('@@@ usedFee', usedFee);
+
           const rawTx = {
             account_number: accountNumber,
             chain_id: chainId,
             sequence: sequence,
-            fee: { amount: [{ denom: 'ujunox', amount: '50000' }], gas: 200000 },
+            fee: usedFee,
             msgs: [instantiateContractMsg],
           };
 
           log.debug(rawTx);
 
-          const res = await (window as any).dapp.request('juno', {
+          const res = await dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -127,19 +142,30 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           const contract = await waitGetContract(res[0]);
           log.debug('contract address', contract);
           setContractAddress(contract as any);
-        } catch (error) {
+          await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
+
+        } catch (error: any) {
           log.error(error);
+          await client.terminal.log({ type: 'error', value: error?.message?.toString() });
+
         }
       });
   };
 
+
   const waitGetContract = async (hash: string) => {
-    const rpcUrl = 'https://uni-rpc.reece.sh/';
-    const client = await StargateClient.connect(rpcUrl);
+    const cid = dapp.networks.juno.chain
+
+    let rpcUrl = 'https://uni-rpc.reece.sh/';
+    if (cid === 'juno') {
+      rpcUrl = 'https://rpc-juno.itastakers.com';
+    }
+
+    const stargateClient = await StargateClient.connect(rpcUrl);
 
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
-        const result = await client.getTx(hash);
+        const result = await stargateClient.getTx(hash);
         if (!result) {
           // setInitMsgErr(`Not found transaction ${hash}`);
           // clearInterval(id);
@@ -167,26 +193,13 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
     setCodeID(e.target.value);
   };
 
-  // const format = () => {
-  //   try {
-  //     const obj = JSON.parse(initMsg);
-  //     const objStr = JSON.stringify(obj, null, 2);
-  //     setInitMsg(objStr);
-  //     setInitMsgErr('');
-  //   } catch (e: any) {
-  //     const error: SyntaxError = e;
-  //     log.error(e);
-  //     setInitMsgErr(error?.message);
-  //   }
-  // };
-
-  const handleEditorChange = (value: any, event: any) => {
-    setInitMsg(value);
+  const handleChange = ({ formData }: any) => {
+    setParams(formData);
   };
 
   return (
     <div>
-      <Form.Group>
+      <ReactForm.Group>
         <div
           style={{
             display: 'flex',
@@ -198,59 +211,37 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
           <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
             Code ID
           </div>
-          <OverlayTrigger
-            placement="bottom"
-            overlay={
-              <Tooltip id="overlay-ataddresss">
-                Click the Store Code button to get the code id
-              </Tooltip>
-            }
-          >
-            <Form.Control
-              type="number"
-              placeholder="code_id"
-              size="sm"
-              value={codeID}
-              onChange={changeCodeID}
-              readOnly
-            />
-          </OverlayTrigger>
+          <ReactForm.Control
+            type="number"
+            placeholder="code_id"
+            size="sm"
+            value={codeID}
+            onChange={changeCodeID}
+            readOnly
+          />
         </div>
+        <hr />
         {codeID && (
           <>
-            {/* <div style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}>
-              <div style={{ marginRight: '1em', fontSize: '11px' }}>Instantiate Msg</div>
-              <Button onClick={format} size="sm" className="mt-1">
-                Format
-              </Button>
-            </div> */}
             <div style={{ padding: '0.2em' }}>
-              {/* <Form.Control
-                as="textarea"
-                rows={(initMsg.slice().match(/\n/g) || []).length + 1}
-                value={initMsg}
-                onChange={(e) => setInitMsg(e.target.value)}
-                style={{ resize: 'none' }}
-              /> */}
-              <Editor
-                height="68px"
-                defaultLanguage="json"
-                theme="vs-dark"
-                onChange={handleEditorChange}
-                value={initMsg}
-                options={{
-                  disableLayerHinting: true,
-                  disableMonospaceOptimizations: true,
-                  contextmenu: false,
-                  minimap: { enabled: false },
-                  wordWrap: 'on',
-                  scrollbar: {
-                    vertical: 'hidden',
-                    horizontal: 'hidden',
-                    handleMouseWheel: false,
-                  },
-                }}
-              />
+              <Form
+                schema={(schemaInit
+                )} validator={validator}
+                onChange={handleChange}
+                formData={param || {}}
+              >
+                <div>
+                  {codeID && (
+                    <Button
+                      type="submit"
+                      variant="warning"
+                      onClick={instantiate}
+                      className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+                      disabled={!codeID}
+                    >
+                      <span>Instantiate</span>
+                    </Button>)}
+                </div></Form>
               {initMsgErr && (
                 <span
                   style={{
@@ -267,38 +258,24 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({ codeID, s
             </div>
           </>
         )}
-        {/*<div*/}
-        {/*  style={{*/}
-        {/*    display: 'flex',*/}
-        {/*    flexDirection: 'column',*/}
-        {/*    alignItems: 'start',*/}
-        {/*    margin: '0.3em 0.3em',*/}
-        {/*  }}*/}
-        {/*>*/}
-        {/*  <div style={{ marginRight: '1em', fontSize: '11px' }}>Amount</div>*/}
-        {/*  <InputGroup>*/}
-        {/*    <Form.Control type="text" placeholder="0" size="sm" />*/}
-        {/*  </InputGroup>*/}
-        {/*</div>*/}
-      </Form.Group>
-      <Form.Group>
-        {codeID && (
-          <Button
-            variant="warning"
-            onClick={instantiate}
-            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-            disabled={!!!codeID}
-          >
-            <span>Instantiate</span>
-          </Button>
-        )}
+      </ReactForm.Group>
+      <ReactForm.Group>
         {contractAddress && (
-          <Form.Label style={{ wordBreak: 'break-all' }} className="my-1">
+          <ReactForm.Label style={{ wordBreak: 'break-all' }} className="my-1">
             Contract Address : {contractAddress}
-          </Form.Label>
+          </ReactForm.Label>
         )}
-      </Form.Group>
-      {contractAddress ? <Contract contractAddress={contractAddress || ''} /> : <></>}
+      </ReactForm.Group>
+      {contractAddress ?
+        <Contract
+          contractAddress={contractAddress || ''}
+          dapp={dapp}
+          client={client}
+          fund={fund}
+          gasPrice={gasPrice}
+          schemaExec={schemaExec}
+          schemaQuery={schemaQuery}
+        /> : <></>}
     </div>
   );
 };

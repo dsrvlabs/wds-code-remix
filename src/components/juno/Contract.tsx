@@ -1,37 +1,45 @@
 import React, { useState } from 'react';
-import { Button, Form, Form as ReactForm } from 'react-bootstrap';
-import { StargateClient } from '@cosmjs/stargate';
+import { Button, Form as ReactForm } from 'react-bootstrap';
+import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { log } from '../../utils/logger';
-import Editor from '@monaco-editor/react';
+import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
+import { Decimal } from '@cosmjs/math';
+import { simulate } from './juno-helper';
 
 interface InterfaceProps {
   contractAddress: string;
+  dapp: any;
+  client: any;
+  fund: number;
+  gasPrice: number;
+  schemaExec: { [key: string]: any };
+  schemaQuery: { [key: string]: any };
 }
 
-export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddress }) => {
-  const [queryMsg, setQueryMsg] = useState(
-    `${JSON.stringify(
-      {
-        get_count: 'change this to your own query message',
-      },
-      null,
-      2,
-    )}`,
-  );
+export const Contract: React.FunctionComponent<InterfaceProps> = ({
+  contractAddress,
+  dapp,
+  client,
+  fund,
+  gasPrice,
+  schemaExec,
+  schemaQuery
+}) => {
+
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
 
-  const [executeMsg, setExecuteMsg] = useState(
-    `${JSON.stringify({ increment: 'change this to your own excute message' }, null, 2)}`,
-  );
   const [executeMsgErr, setExecuteMsgErr] = useState('');
   const [executeResult, setExecuteResult] = useState('');
 
+  const [queryMsg, setQueryMsg] = useState({});
+  const [executeMsg, setExecuteMsg] = useState({});
+
   const execute = async () => {
     setExecuteResult('');
-    const dapp = (window as any).dapp;
 
     if (!dapp) {
       return;
@@ -49,126 +57,136 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const rpcUrl = 'https://uni-rpc.reece.sh/';
+          const cid = dapp.networks.juno.chain
 
-          const client = await StargateClient.connect(rpcUrl);
-          log.debug(client);
+          let rpcUrl = 'https://uni-rpc.reece.sh/';
+          let denom = 'ujunox';
+          if (cid === 'juno') {
+            rpcUrl = 'https://rpc-juno.itastakers.com';
+            denom = 'ujuno';
+          }
 
-          const sequence = (await client.getSequence(result['juno'].address)).sequence;
+          const stargateClient = await StargateClient.connect(rpcUrl);
+          log.debug(stargateClient);
+
+          const sequence = (await stargateClient.getSequence(result['juno'].address)).sequence;
           log.debug('sequence: ' + sequence);
 
-          const accountNumber = (await client.getSequence(result['juno'].address)).accountNumber;
+          const accountNumber = (await stargateClient.getSequence(result['juno'].address)).accountNumber;
           log.debug('accountNumber: ' + accountNumber);
 
-          const chainId = await client.getChainId();
+          const chainId = await stargateClient.getChainId();
           log.debug('chainId: ' + chainId);
 
-          log.debug(executeMsg);
           log.debug(contractAddress);
 
-          let executeMsgObj = {} as any;
-          try {
-            executeMsgObj = JSON.parse(executeMsg);
-            const objStr = JSON.stringify(executeMsgObj, null, 2);
-            setExecuteMsg(objStr);
-            setExecuteMsgErr('');
-          } catch (e: any) {
-            const error: SyntaxError = e;
-            log.error(e);
-            setExecuteMsgErr(error?.message);
-            return;
-          }
+          const funds = fund ? [{ denom, amount: fund.toString() }] : [];
 
           const execContractMsg = {
             typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
             value: {
               sender: result['juno'].address,
               contract: contractAddress,
-              msg: toBase64(toUtf8(JSON.stringify(executeMsgObj))) as any,
+              msg: toBase64(toUtf8(JSON.stringify(executeMsg))) as any,
+              funds
             },
           };
+
+          log.debug(JSON.stringify(execContractMsg));
+
+          const memo = undefined;
+          const gasEstimation = await simulate(
+            stargateClient,
+            [execContractMsg],
+            memo,
+            result['juno'].pubKey,
+            sequence,
+          );
+          log.debug('@@@ gasEstimation', gasEstimation);
+          log.debug('@@@ gasPrice', gasPrice);
+          log.debug('@@@ denom', gasEstimation);
+
+          const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+
+          // const multiplier = 1.3;
+          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
+          const usedFee = calculateFee(Number(gasEstimation), gas);
+          log.debug('@@@ usedFee', usedFee);
 
           const rawTx = {
             account_number: accountNumber,
             chain_id: chainId,
             sequence: sequence,
-            fee: { amount: [{ denom: 'ujunox', amount: '50000' }], gas: 200000 },
+            fee: usedFee,
             msgs: [execContractMsg],
           };
 
-          const res = await (window as any).dapp.request('juno', {
+          log.debug(rawTx);
+
+          const res = await dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
           setExecuteResult(`transaction hash : ${res[0]}`);
           log.debug(res);
-        } catch (error) {
+          await client.terminal.log({ type: 'info', value: `transaction hash : ${res[0]}` });
+        } catch (error: any) {
           log.error(error);
+          await client.terminal.log({ type: 'error', value: error?.message?.toString() });
+
         }
       });
   };
 
   // query
   const query = async () => {
-    const rpcUrl = 'https://uni-rpc.reece.sh/';
-    const client = await SigningCosmWasmClient.connect(rpcUrl);
+    const cid = dapp.networks.juno.chain
 
-    let queryMsgObj = {} as any;
-    try {
-      log.debug('queryMsg', queryMsg);
-      queryMsgObj = JSON.parse(queryMsg);
-      log.debug('queryMsgObj', queryMsgObj);
-      const objStr = JSON.stringify(queryMsgObj, null, 2);
-      log.debug('objStr', objStr);
-      setQueryMsg(objStr);
-      setQueryMsgErr('');
-    } catch (e: any) {
-      const error: SyntaxError = e;
-      setQueryMsgErr(error?.message);
-      return;
+    let rpcUrl = 'https://uni-rpc.reece.sh/';
+    if (cid === 'juno') {
+      rpcUrl = 'https://rpc-juno.itastakers.com';
     }
+    const cosmwasmClient = await SigningCosmWasmClient.connect(rpcUrl);
+
     try {
-      const res = await client.queryContractSmart(contractAddress, queryMsgObj);
+      const res = await cosmwasmClient.queryContractSmart(contractAddress, queryMsg);
       log.debug(res);
       setQueryResult(JSON.stringify(res, null, 2));
+      await client.terminal.log({ type: 'info', value: res });
+
     } catch (e: any) {
       log.debug('error', e);
       setQueryResult(e?.message);
+      await client.terminal.log({ type: 'error', value: e?.message?.toString() });
     }
   };
 
-  // const formatQueryMsg = () => {
-  //   try {
-  //     const obj = JSON.parse(queryMsg);
-  //     const objStr = JSON.stringify(obj, null, 2);
-  //     setQueryMsg(objStr);
-  //     setQueryMsgErr('');
-  //   } catch (e: any) {
-  //     const error: SyntaxError = e;
-  //     log.error(e);
-  //     setQueryMsgErr(error?.message);
-  //   }
-  // };
 
-  // const formatExecuteMsg = () => {
-  //   try {
-  //     const obj = JSON.parse(executeMsg);
-  //     const objStr = JSON.stringify(obj, null, 2);
-  //     setExecuteMsg(objStr);
-  //     setExecuteMsgErr('');
-  //   } catch (e: any) {
-  //     const error: SyntaxError = e;
-  //     log.error(e);
-  //     setExecuteMsgErr(error?.message);
-  //   }
-  // };
+  const handleQueryChange = ({ formData }: any) => {
+    setQueryMsg(formData);
+  };
 
-  const handleQueryChange = (value: any, event: any) => {
-    setQueryMsg(value);
+  const handleExecuteChange = ({ formData }: any) => {
+    setExecuteMsg(formData);
   };
-  const handleExcuteChange = (value: any, event: any) => {
-    setExecuteMsg(value);
+
+  const generateUiSchemaFromSchema = (schema: any) => {
+    if (schema.oneOf) {
+      const enumOptions = schema.oneOf.map((obj: any, key: any) => {
+        const lbl = Object.keys(obj.properties)[0];
+        return { value: key, label: lbl };
+      });
+      return {
+        "ui:widget": "select",
+        "ui:options": { enumOptions },
+        "classNames": "no-legend"
+      };
+    }
+    return {};
   };
+
+  const uiSchemaQuery = generateUiSchemaFromSchema(schemaQuery);
+  const uiSchemaExecute = generateUiSchemaFromSchema(schemaExec);
 
   return (
     <ReactForm>
@@ -177,119 +195,47 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({ contractAddr
           style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
           className="mb-2"
         >
-          <div style={{ marginRight: '1em', fontSize: '11px' }}>Query Msg</div>
-          {/* <Button onClick={formatQueryMsg} size={'sm'} style={{ marginRight: '1em' }}>
-            Format
-          </Button> */}
-          <Button onClick={query} size={'sm'}>
-            Query
-          </Button>
+          <Form
+            schema={(schemaQuery
+            )} validator={validator}
+            uiSchema={uiSchemaQuery}
+            onChange={handleQueryChange}
+            formData={queryMsg || {}}
+          >
+            <Button onClick={query} size={'sm'}>
+              Query
+            </Button>
+          </Form>
+
         </div>
-        {/* <Form.Control
-          as="textarea"
-          rows={3}
-          value={queryMsg}
-          onChange={(e) => {
-            setQueryMsg(e.target.value);
-          }}
-          // onKeyDown={handleKeyDown}
-          style={{ resize: 'none' }}
-        /> */}
-        <Editor
-          height="88px"
-          defaultLanguage="json"
-          theme="vs-dark"
-          onChange={handleQueryChange}
-          value={queryMsg}
-          options={{
-            disableLayerHinting: true,
-            disableMonospaceOptimizations: true,
-            contextmenu: false,
-            wordWrap: 'on',
-            minimap: { enabled: false },
-            scrollbar: {
-              horizontal: 'hidden',
-              handleMouseWheel: true,
-            },
-          }}
-        />
         <div>
           <span style={{ color: 'red' }}>{queryMsgErr}</span>
         </div>
-        {queryResult && (
-          <>
-            <Form.Label className="text-muted">Query Result</Form.Label>
-            <Form.Control
-              as="textarea"
-              readOnly
-              rows={(queryResult.slice().match(/\n/g) || []).length + 1}
-              value={queryResult}
-              style={{ resize: 'none', height: '69px' }}
-            />
-          </>
-        )}
-        {/* <div style={{ padding: '8px 8px', backgroundColor: '#35384C', color: '#D1D3DC' }}>
-          {queryResult}
-        </div> */}
       </ReactForm.Group>
+      <hr />
       <ReactForm.Group>
-        <Form.Group>
-          <div
-            style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
-            className="mb-2 mt-2"
+        <div
+          style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
+          className="mb-2"
+        >
+          <Form
+            schema={(schemaExec
+            )} validator={validator}
+            uiSchema={uiSchemaExecute}
+            onChange={handleExecuteChange}
+            formData={executeMsg || {}}
           >
-            <div style={{ marginRight: '1em', fontSize: '11px' }}>Execute Msg</div>
-            {/* <Button style={{ marginRight: '1em' }} size={'sm'} onClick={formatExecuteMsg}>
-              Format
-            </Button> */}
-            <Button style={{ marginRight: '1em' }} size={'sm'} onClick={execute}>
+            <Button onClick={execute} size={'sm'}>
               Execute
             </Button>
-          </div>
-          {/* <Form.Control
-            as="textarea"
-            rows={3}
-            value={executeMsg}
-            onChange={(e) => setExecuteMsg(e.target.value)}
-            style={{ resize: 'none' }}
-          /> */}
-          <Editor
-            height="88px"
-            defaultLanguage="json"
-            theme="vs-dark"
-            onChange={handleExcuteChange}
-            value={executeMsg}
-            options={{
-              wordWrap: 'on',
-              disableLayerHinting: true,
-              disableMonospaceOptimizations: true,
-              contextmenu: false,
-              minimap: { enabled: false },
-              scrollbar: {
-                vertical: 'hidden',
-                horizontal: 'hidden',
-                handleMouseWheel: false,
-              },
-            }}
-          />
+          </Form>
+
+        </div>
+        <div>
           <span style={{ color: 'red' }}>{executeMsgErr}</span>
-          {executeResult && (
-            <>
-              <Form.Label className="text-muted">Execute Result</Form.Label>
-              <Form.Control
-                as="textarea"
-                readOnly
-                // rows={(executeResult.slice().match(/\n/g) || []).length + 1}
-                value={executeResult}
-                style={{ resize: 'none', height: '86px' }}
-                // onChange={handleResizeHeight}
-                // innerRef={textareaRef}
-              />
-            </>
-          )}
-        </Form.Group>
-        <hr />
+        </div>
       </ReactForm.Group>
     </ReactForm>
   );
 };
+

@@ -9,3 +9,96 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+.rjsf {
+  width: 100%
+}
+
+.rjsf legend {
+  font-size: 15px !important;
+}
+
+.no-legend legend {
+  visibility: hidden;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.no-legend .form-group {
+  margin-bottom: 0;
+}
+
+.rjsf button[title="Add"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-left: 1rem;
+}
+
+.rjsf button[title="Add"]::before {
+  content: "+";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 3px;
+  width: 1.6rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #fff;
+  /* background-color: #007bff; */
+  border-top-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.rjsf button[title="Add"] span {
+  margin-left: 0.5rem;
+}
+
+.rjsf button[title="Remove"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 1px;
+  width: 30px;
+}
+
+.rjsf button[title="Remove"]::before {
+  content: "-";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 3px;
+  width: 1.6rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.rjsf button[title="Remove"] span {
+  margin-left: 0.5rem;
+}
+
+.rjsf .btn-group {
+  display: inline-flex !important;
+  justify-content: flex-end !important;
+  position: relative
+}
+
+.rjsf .array-item-list {
+  margin-bottom: 20px;
+  margin-left: 0px
+}
+
+.rjsf fieldset>div:last-child {
+  margin-left: 0px;
+
+}

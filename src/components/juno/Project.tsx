@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, InputGroup, Button, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Form, InputGroup, Button } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 import { Compiler } from './Compiler';
@@ -7,7 +7,6 @@ import { Compiler } from './Compiler';
 import axios from 'axios';
 import JSZip from 'jszip';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
-import { Contract } from './Contract';
 import { log } from '../../utils/logger';
 
 interface InterfaceProps {
@@ -27,7 +26,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('counter');
-  const templateList = ['counter', 'to-do-list', 'name-service'];
+  const templateList = ['counter', 'to-do-list', 'name-service', 'cw20-pot'];
   const [contractAddress, setContractAddress] = useState<string>('');
   const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
@@ -57,7 +56,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const createProject = async () => {
     if (await isExists(projectName)) {
-      await client.terminal.log('The folder "solana/' + projectName + '" already exists');
+      await client.terminal.log('The folder "juno/' + projectName + '" already exists');
       return;
     }
 
@@ -133,19 +132,21 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const getContractAtAddress = () => {
-    if (contractAddressInputDraft.slice(0, 4) !== 'juno') {
-      setContractAddressError('Invalid contract address');
-      return;
-    }
-    setContractAddress(contractAddressInputDraft);
-  };
+  // Need not this function now
+  // const getContractAtAddress = () => {
+  //   if (contractAddressInputDraft.slice(0, 4) !== 'juno') {
+  //     setContractAddressError('Invalid contract address');
+  //     return;
+  //   }
+  //   setContractAddress(contractAddressInputDraft);
+  // };
 
   const reset = () => {
     setContractAddress('');
     setContractAddressInputDraft('');
     setContractAddressError('');
   };
+
   return (
     <div className="pb-4">
       <Form>
@@ -209,11 +210,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         client={client}
         reset={reset}
       />
-      {!fileName ? (
+
+      {/* need not this 'at address' feature */}
+      {/* {!fileName ? (
         <>
           <Form.Group>
             <InputGroup>
-              {/* <Form.Label className="text-muted">Contract Address</Form.Label> */}
               <Form.Control
                 type="text"
                 placeholder="Contract Address"
@@ -247,11 +249,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       ) : (
         false
       )}
-      {!fileName && contractAddress && !contractAddressError ? (
+       */}
+      {/* {!fileName && contractAddress && !contractAddressError ? (
         <Contract contractAddress={contractAddress || ''} />
       ) : (
         false
-      )}
+      )} */}
     </div>
   );
 };
