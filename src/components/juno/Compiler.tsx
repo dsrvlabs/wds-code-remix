@@ -54,9 +54,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
 
-  const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({})
-  const [schemaExec, setSchemaExec] = useState<Object>({})
-  const [schemaQuery, setSchemaQuery] = useState<Object>({})
+  const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
+  const [schemaExec, setSchemaExec] = useState<Object>({});
+  const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
   const exists = async () => {
     try {
@@ -90,10 +90,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    setCodeID('')
-    setSchemaExec({})
-    setSchemaInit({})
-    setSchemaQuery({})
+    setCodeID('');
+    setSchemaExec({});
+    setSchemaInit({});
+    setSchemaQuery({});
 
     if (await exists()) {
       await setSchemaObj();
@@ -161,7 +161,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       socket.on('connect_error', function (err) {
         // handle server error here
-        log.debug('Error connecting to server');
+        log.info('Error connecting to server');
         setIconSpin('');
         setLoading(false);
         socket.disconnect();
@@ -170,7 +170,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerJunoCompileErrorOccurredV1) => {
-          log.debug(
+          log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
               data,
             )}`,
@@ -186,7 +186,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       );
 
       socket.on(COMPILER_JUNO_COMPILE_LOGGED_V1, async (data: CompilerJunoCompileLoggedV1) => {
-        log.debug(
+        log.info(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_LOGGED_V1} data=${stringify(data)}`,
         );
         if (data.compileId !== compileId(address, timestamp)) {
@@ -228,7 +228,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         async (data: CompilerJunoCompileCompletedV1) => {
           socket.disconnect();
 
-          log.debug(
+          log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_COMPLETED_V1} data=${stringify(data)}`,
           );
           if (data.compileId !== compileId(address, timestamp)) {
@@ -249,12 +249,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           try {
             await Promise.all(
               Object.keys(zip.files).map(async (filename) => {
-                log.debug(`juno build result filename=${filename}`);
+                log.info(`juno build result filename=${filename}`);
                 if (getExtensionOfFilename(filename) === '.wasm') {
                   const fileData = await zip.files[filename].async('blob');
 
                   const wasmFile = await readFile(new File([fileData], filename));
-                  log.debug(wasmFile);
+                  log.info(wasmFile);
 
                   // wasm 파일 base64 형태로 저장했다가 쉽게 재사용
                   await client?.fileManager.writeFile(
@@ -302,7 +302,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       });
 
-      log.debug(res);
+      log.info(res);
 
       if (res.status !== 201) {
         log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
@@ -319,7 +319,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         fileType: 'juno',
       };
       socket.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
-      log.debug(
+      log.info(
         `${SEND_EVENT_LOG_PREFIX} ${REMIX_JUNO_COMPILE_REQUESTED_V1} data=${stringify(
           remixJunoCompileRequestedV1,
         )}`,
@@ -339,9 +339,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const setSchemaObj = async () => {
     try {
-      log.debug(compileTarget);
+      log.info(compileTarget);
       const schemaPath = await client?.fileManager.readdir('browser/' + compileTarget + '/schema');
-      log.debug(schemaPath);
+      log.info(schemaPath);
 
       const schemaFiles = Object.keys(schemaPath || ['']);
       const arr: Object[] = [];
@@ -356,19 +356,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       arr.map((schema: { [key: string]: any }) => {
         if (schema.title === 'InstantiateMsg') {
-          setSchemaInit(schema)
+          setSchemaInit(schema);
         } else if (schema.title === 'ExecuteMsg') {
-          setSchemaExec(schema)
+          setSchemaExec(schema);
         } else if (schema.title === 'QueryMsg') {
-          setSchemaQuery(schema)
+          setSchemaQuery(schema);
           // using new schema
         } else if (schema.instantiate || schema.query || schema.exeucte) {
-          setSchemaInit(schema.instantiate || {})
-          setSchemaQuery(schema.query || {})
-          setSchemaExec(schema.execute || {})
+          setSchemaInit(schema.instantiate || {});
+          setSchemaQuery(schema.query || {});
+          setSchemaExec(schema.execute || {});
         }
-      })
-
+      });
     } catch (e) {
       log.error(e);
     }
@@ -420,7 +419,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setTxHash={setTxHash}
           codeID={codeID}
           setCodeID={setCodeID}
-          schemaInit={schemaInit} schemaExec={schemaExec} schemaQuery={schemaQuery}
+          schemaInit={schemaInit}
+          schemaExec={schemaExec}
+          schemaQuery={schemaQuery}
         />
       ) : (
         <>
