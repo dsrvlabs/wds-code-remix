@@ -4,7 +4,15 @@
 
 // @ts-ignore
 // import {ArgsAbi} from './ArgsAbi';
-import { AccountAddress, AptosClient, BCS, HexString, TxnBuilderTypes, Types } from 'aptos';
+import {
+  AptosClient,
+  BCS,
+  HexString,
+  TransactionBuilder,
+  TxnBuilderTypes,
+  Types,
+  TypeTagParser,
+} from 'aptos';
 import { aptosNodeUrl } from './aptos-helper';
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder;
@@ -70,5 +78,34 @@ describe('Aptos Helper', () => {
     // 04 03616263
     // 08 1700000000000000
     // 20 0000000000000000000000000000000000000000000000000000000000000002
+  });
+
+  it('typetag', async () => {
+    const vectorU64: any = new TypeTagParser(' vector < vector<u8> > ').parseTypeTag();
+    console.log(vectorU64.value.value.constructor.name);
+  });
+
+  it('serializeArg', async () => {
+    const arg = [
+      [1, 1],
+      [2, 2, 2],
+    ];
+    const vectorU64: any = new TypeTagParser(' vector < vector<u8> > ').parseTypeTag();
+    console.log(vectorU64.value.value.constructor.name);
+  });
+
+  it('isArray', async () => {
+    console.log(Array.isArray('abc'));
+  });
+  it('split', async () => {
+    const id = 'vec-arg-add-';
+    console.log(`id`, id);
+    const indices = id
+      .slice('vec-arg-add-'.length)
+      .split('-')
+      .filter((str) => str.trim() !== '')
+      .map((i) => Number(i));
+
+    console.log('indices', indices);
   });
 });

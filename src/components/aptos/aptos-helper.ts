@@ -1,4 +1,4 @@
-import { AptosClient, BCS, HexString, TxnBuilderTypes, Types } from 'aptos';
+import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 
@@ -111,6 +111,28 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
       return ser.getBytes();
     }
   });
+}
+
+export function extractVectorTypeTagName(vectorType: string) {
+  const depth = wordCount(vectorType, 'vector');
+  for (let i = 0; i++; i < depth) {
+    const curVectorType = vectorType;
+    const parser = new TypeTagParser(curVectorType);
+  }
+}
+
+export function wordCount(str: string, word: string): number {
+  let depth = 0;
+  let curIdx = -1;
+  while (curIdx < str.length) {
+    curIdx = str.indexOf(word, curIdx);
+    if (curIdx === -1) {
+      break;
+    }
+    depth++;
+    curIdx = curIdx + word.length;
+  }
+  return depth;
 }
 
 export async function getAccountModules(account: string, chainId: string) {
