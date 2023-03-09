@@ -151,11 +151,22 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     <div className="pb-4">
       <Form>
         <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>TEMPLATE CODE</small>
+          <Form.Text className="text-muted mb-1">
+            <small>NEW PROJECT</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control as="select" value={template} onChange={setTargetTemplate}>
+            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
+            <Button variant="success" size="sm" onClick={createProject}>
+              <small>Create</small>
+            </Button>
+          </InputGroup>
+        </Form.Group>
+        <Form.Group style={mt8}>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>SELECT A TEMPLATE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
               {templateList.map((temp, idx) => {
                 return (
                   <option value={temp} key={idx}>
@@ -165,30 +176,19 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
               })}
             </Form.Control>
             <Button variant="success" size="sm" onClick={createTemplate}>
-              <small>Create Template</small>
+              <small>Create</small>
             </Button>
           </InputGroup>
         </Form.Group>
         <Form.Group style={mt8}>
-          <Form.Text className="text-muted mb-1">
-            <small>PROJECT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
-            <Button variant="success" size="sm" onClick={createProject}>
-              <small>New Project</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group>
-          <Form.Text className="text-muted mb-1 mt-2">
-            <small>PROJECT TO COMPILE </small>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>TARGET PROJECT </small>
             <span onClick={getList}>
               <FaSyncAlt />
             </span>
           </Form.Text>
           <InputGroup>
-            <Form.Control as="select" value={compileTarget} onChange={setTarget}>
+            <Form.Control className="custom-select" as="select" value={compileTarget} onChange={setTarget}>
               {projectList.map((projectName, idx) => {
                 return (
                   <option value={projectName} key={idx}>

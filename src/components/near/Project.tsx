@@ -185,26 +185,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
-            <small>TEMPLATE CODE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control as="select" value={template} onChange={setTargetTemplate}>
-              {templateList.map((temp, idx) => {
-                return (
-                  <option value={temp} key={idx}>
-                    {temp}
-                  </option>
-                );
-              })}
-            </Form.Control>
-            <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
-              <small>Create Template</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted">
-            <small>PROJECT</small>
+            <small>NEW PROJECT</small>
           </Form.Text>
           <InputGroup style={mb4}>
             {PROJECT_TEMPLATE_FILETYPE.map(({ label, value }, idx) => {
@@ -217,20 +198,40 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
                   id={`radio${idx}`}
                   value={value}
                   onChange={handleChange}
+                  key={`radio${idx}`}
                 />
               );
             })}
           </InputGroup>
-          <InputGroup>
+          <InputGroup style={mt8}>
             <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
             <Button variant="success" size="sm" onClick={wrappedCreateProject}>
-              <small>New Project</small>
+              <small>Create</small>
             </Button>
           </InputGroup>
         </Form.Group>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
-            <small>PROJECT TO COMPILE </small>
+            <small>SELECT A TEMPLATE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
+              {templateList.map((temp, idx) => {
+                return (
+                  <option value={temp} key={idx}>
+                    {temp}
+                  </option>
+                );
+              })}
+            </Form.Control>
+            <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
+              <small>Create</small>
+            </Button>
+          </InputGroup>
+        </Form.Group>
+        <Form.Group style={mt8}>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>TARGET PROJECT </small>
             <span onClick={wrappedGetList}>
               <FaSyncAlt />
             </span>

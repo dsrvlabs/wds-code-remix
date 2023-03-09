@@ -155,7 +155,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
-            <small>PROJECT</small>
+            <small>NEW PROJECT</small>
           </Form.Text>
           <InputGroup>
             <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
