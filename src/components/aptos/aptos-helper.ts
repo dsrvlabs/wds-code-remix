@@ -1,6 +1,7 @@
 import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
+import { serializeArg } from './transaction_builder/builder_utils';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -9,7 +10,7 @@ export interface ViewResult {
 
 export interface ArgTypeValuePair {
   type: string;
-  val: string;
+  val: any;
 }
 
 export async function dappTxn(
@@ -90,22 +91,39 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
       const ser = new BCS.Serializer();
       ser.serializeStr(arg.val);
       return ser.getBytes();
-    } else if (arg.type === 'vector<0x1::string::String>') {
-      const strs = arg.val.split(',');
-      return BCS.serializeVectorWithFunc(strs, 'serializeStr');
-    } else if (arg.type === 'vector<vector<u8>>') {
-      const hexStrs = arg.val.split(',');
-      const serializer = new BCS.Serializer();
-      serializer.serializeU32AsUleb128(hexStrs.length);
-      hexStrs.forEach((hexStr) => {
-        const uint8Arr = new HexString(hexStr).toUint8Array();
-        serializer.serializeBytes(uint8Arr);
-      });
-      return serializer.getBytes();
-    } else if (arg.type === 'vector<bool>') {
-      const strs = arg.val.split(',').map((v) => v === 'true');
-      return BCS.serializeVectorWithFunc(strs, 'serializeBool');
-    } else {
+    } else if (arg.type.startsWith('vector')) {
+      const ser = new BCS.Serializer();
+      const depth = wordCount(arg.type, 'vector');
+      let argTypeTag;
+      let elementTypeTag = new TxnBuilderTypes.TypeTagU8();
+      for (let i = 0; i < depth; i++) {
+        if (i === 0) {
+          argTypeTag = new TxnBuilderTypes.TypeTagVector(elementTypeTag);
+        } else {
+          argTypeTag = new TxnBuilderTypes.TypeTagVector(argTypeTag as any);
+        }
+      }
+
+      serializeArg(arg.val, argTypeTag as any, ser);
+      return ser.getBytes();
+    }
+    // else if (arg.type === 'vector<0x1::string::String>') {
+    //   const strs = arg.val.split(',');
+    //   return BCS.serializeVectorWithFunc(strs, 'serializeStr');
+    // } else if (arg.type === 'vector<vector<u8>>') {
+    //   const hexStrs = arg.val.split(',');
+    //   const serializer = new BCS.Serializer();
+    //   serializer.serializeU32AsUleb128(hexStrs.length);
+    //   hexStrs.forEach((hexStr) => {
+    //     const uint8Arr = new HexString(hexStr).toUint8Array();
+    //     serializer.serializeBytes(uint8Arr);
+    //   });
+    //   return serializer.getBytes();
+    // } else if (arg.type === 'vector<bool>') {
+    //   const strs = arg.val.split(',').map((v) => v === 'true');
+    //   return BCS.serializeVectorWithFunc(strs, 'serializeBool');
+    // }
+    else {
       const ser = new BCS.Serializer();
       ser.serializeBytes(new HexString(arg.val).toUint8Array());
       return ser.getBytes();
@@ -115,10 +133,16 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
 
 export function extractVectorTypeTagName(vectorType: string) {
   const depth = wordCount(vectorType, 'vector');
-  for (let i = 0; i++; i < depth) {
-    const curVectorType = vectorType;
-    const parser = new TypeTagParser(curVectorType);
+  console.log(`depth`, depth);
+  const parser = new TypeTagParser(vectorType);
+  let curTypeTag: TxnBuilderTypes.TypeTag = parser.parseTypeTag();
+  for (let i = 0; i < depth; i++) {
+    if (curTypeTag instanceof TxnBuilderTypes.TypeTagVector) {
+      curTypeTag = curTypeTag.value;
+    }
   }
+
+  return curTypeTag;
 }
 
 export function wordCount(str: string, word: string): number {

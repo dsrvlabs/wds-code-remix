@@ -13,7 +13,7 @@ import {
   Types,
   TypeTagParser,
 } from 'aptos';
-import { aptosNodeUrl } from './aptos-helper';
+import { aptosNodeUrl, extractVectorTypeTagName } from './aptos-helper';
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder;
 // require('../../../jest.config');
@@ -82,7 +82,14 @@ describe('Aptos Helper', () => {
 
   it('typetag', async () => {
     const vectorU64: any = new TypeTagParser(' vector < vector<u8> > ').parseTypeTag();
-    console.log(vectorU64.value.value.constructor.name);
+    // console.log(vectorU64.value.value.constructor.name);
+    console.log(vectorU64.value.constructor.name);
+    console.log(vectorU64.value.value.value);
+  });
+
+  it('extractVectorTypeTagName', async () => {
+    const tagName = extractVectorTypeTagName(' vector < vector<u8> > ');
+    console.log(tagName);
   });
 
   it('serializeArg', async () => {

@@ -21,11 +21,11 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
     return !(i === 0 && (para === 'signer' || para === '&signer'));
   });
 
-  const updateParam = (value: string, idx: number, parameterType: string) => {
+  const updateParam = (value: any, idx: number, parameterType: string) => {
     setParameters((existingParams: ArgTypeValuePair[]) => {
       existingParams[idx] = {
         type: parameterType,
-        val: value as string,
+        val: value,
       };
       console.log('existingParams', existingParams);
       return existingParams;
@@ -60,9 +60,11 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
       <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
       {singerRemovedParams.map((parameterType: string, idx: number) => {
         log.debug(`idx=${idx}, parameterType=${parameterType}`);
-        if (parameterType.startsWith('vector')) {
-          return <VectorArgForm typeName={parameterType} vectorElType={'u8'} />;
-        }
+        // if (parameterType.startsWith('vector')) {
+        //   return (
+        //     <VectorArgForm typeName={parameterType} vectorElType={'u8'} updateParam={updateParam} />
+        //   );
+        // }
         return (
           <Form.Control
             style={{ width: '100%', marginBottom: '5px' }}

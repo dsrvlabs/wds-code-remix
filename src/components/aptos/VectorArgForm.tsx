@@ -3,14 +3,23 @@ import React, { ChangeEvent, useState } from 'react';
 interface Props {
   typeName: string;
   vectorElType: string;
+  parentIdx: number;
+  updateParam: (value: any, idx: number, parameterType: string) => void;
 }
 
 type Arg = string | Arg[];
 
-const VectorArgForm: React.FunctionComponent<Props> = ({ typeName, vectorElType }) => {
-  const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
+const VectorArgForm: React.FunctionComponent<Props> = ({
+  typeName,
+  vectorElType,
+  parentIdx,
+  updateParam,
+}) => {
+  const [args, setArgs] = useState<Arg[]>([]);
+  // const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
   // const [args, setArgs] = useState<Arg[]>(["a", "b", "c"]);
   const indexMemo: number[] = [];
+
   const handleFormChange = (event: ChangeEvent<HTMLInputElement>) => {
     const depth = wordCount(typeName, 'vector');
     const id = event.target.id as string;
@@ -27,6 +36,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({ typeName, vectorElType 
     if (indices.length === 1) {
       data[indices[0]] = event.target.value;
       setArgs(data);
+      updateParam(data, parentIdx, typeName);
       return;
     }
 
@@ -41,6 +51,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({ typeName, vectorElType 
     }
     el[indices[indices.length - 1]] = event.target.value;
     setArgs([...data]);
+    updateParam(data, parentIdx, typeName);
   };
 
   function wordCount(str: string, word: string): number {
