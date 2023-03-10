@@ -138,6 +138,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({ typeName, vectorElType 
             placeholder={vectorElType}
             value={val}
             onChange={(event) => handleFormChange(event)}
+            style={{}}
           />
           <br></br>
         </div>

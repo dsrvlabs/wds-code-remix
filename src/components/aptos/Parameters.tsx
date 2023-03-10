@@ -4,6 +4,7 @@ import { log } from '../../utils/logger';
 
 import { Types } from 'aptos';
 import { ArgTypeValuePair } from './aptos-helper';
+import VectorArgForm from './VectorArgForm';
 
 interface InterfaceProps {
   func: Types.MoveFunction;
@@ -20,11 +21,11 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
     return !(i === 0 && (para === 'signer' || para === '&signer'));
   });
 
-  const updateParam = (e: any, idx: number, parameterType: string) => {
+  const updateParam = (value: string, idx: number, parameterType: string) => {
     setParameters((existingParams: ArgTypeValuePair[]) => {
       existingParams[idx] = {
         type: parameterType,
-        val: e.target.value as string,
+        val: value as string,
       };
       console.log('existingParams', existingParams);
       return existingParams;
@@ -59,6 +60,9 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
       <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
       {singerRemovedParams.map((parameterType: string, idx: number) => {
         log.debug(`idx=${idx}, parameterType=${parameterType}`);
+        if (parameterType.startsWith('vector')) {
+          return <VectorArgForm typeName={parameterType} vectorElType={'u8'} />;
+        }
         return (
           <Form.Control
             style={{ width: '100%', marginBottom: '5px' }}
@@ -66,7 +70,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
             placeholder={parameterType}
             size="sm"
             onChange={(e) => {
-              updateParam(e, idx, parameterType);
+              updateParam(e.target.value, idx, parameterType);
             }}
           />
         );
