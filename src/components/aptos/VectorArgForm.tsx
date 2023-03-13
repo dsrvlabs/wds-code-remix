@@ -27,7 +27,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       return id
         .split('-')
         .filter((str) => str.trim() !== '')
-        .filter((str, idx) => idx > 5)
+        .filter((str, idx) => idx > 6)
         .map((i) => Number(i));
     }
     return id
@@ -58,6 +58,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         const el: any = document.getElementById(counterBoolElementId(id));
         el.checked = !el.checked;
         data[indices[0]] = parseArgVal(id.includes('true'), extractVectorElementTypeTag(typeName));
+      } else if (event.target.value === '') {
+        data[indices[0]] = '';
       } else {
         data[indices[0]] = parseArgVal(event.target.value, extractVectorElementTypeTag(typeName));
       }
@@ -77,10 +79,14 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       }
     }
 
-    el[indices[indices.length - 1]] = parseArgVal(
-      event.target.value,
-      extractVectorElementTypeTag(typeName),
-    );
+    if (event.target.value === '') {
+      el[indices[indices.length - 1]] = '';
+    } else {
+      el[indices[indices.length - 1]] = parseArgVal(
+        event.target.value,
+        extractVectorElementTypeTag(typeName),
+      );
+    }
     setArgs([...data]);
     updateParam(data, parentIdx, typeName);
   };
@@ -194,11 +200,11 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         val = true;
       }
       return vectorElType === 'bool' ? (
-        <div id={`vec-arg-input-bool-${i}`}>
+        <div id={`vec-arg-input-bool-${parentIdx}-${i}`}>
           <input
-            id={`vec-arg-input-bool-${i}-true-${indexMemo.join('-')}`}
+            id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
             type="radio"
-            name={`vec-arg-input-bool-${i}-true-${indexMemo.join('-')}`}
+            name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
             placeholder={vectorElType}
             defaultChecked={true}
             onChange={(event) => handleFormChange(event)}
@@ -206,9 +212,9 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           />
           <label>true</label>
           <input
-            id={`vec-arg-input-bool-${i}-false-${indexMemo.join('-')}`}
+            id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
             type="radio"
-            name={`vec-arg-input-bool-${i}-false-${indexMemo.join('-')}`}
+            name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
             placeholder={vectorElType}
             onChange={(event) => handleFormChange(event)}
             style={{}}

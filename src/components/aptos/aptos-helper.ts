@@ -27,6 +27,7 @@ export async function dappTxn(
     genPayload(module, func, type_args, args),
   );
   log.info(`rawTransaction`, rawTransaction);
+  log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
 
   const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
   return (
@@ -94,7 +95,8 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
     } else if (arg.type.startsWith('vector')) {
       const ser = new BCS.Serializer();
       const parser = new TypeTagParser(arg.type);
-      serializeArg(arg.val, parser.parseTypeTag(), ser);
+      const typeTag = parser.parseTypeTag();
+      serializeArg(arg.val, typeTag, ser);
       return ser.getBytes();
     }
     // else if (arg.type === 'vector<0x1::string::String>') {

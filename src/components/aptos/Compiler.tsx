@@ -589,7 +589,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const entry = async () => {
-    console.log('parameters', parameters);
+    log.info('parameters', JSON.stringify(parameters, null, 2));
     const dappTxn_ = await dappTxn(
       accountID,
       dapp.networks.aptos.chain,

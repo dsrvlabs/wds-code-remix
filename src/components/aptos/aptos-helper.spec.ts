@@ -15,6 +15,7 @@ import {
 } from 'aptos';
 import { aptosNodeUrl, extractVectorElementTypeTag, getVectorArgTypeStr } from './aptos-helper';
 import { TextEncoder } from 'util';
+import { serializeArg } from './transaction_builder/builder_utils';
 global.TextEncoder = TextEncoder;
 // require('../../../jest.config');
 
@@ -101,6 +102,61 @@ describe('Aptos Helper', () => {
     const vecElTypeName = getVectorArgTypeStr(' vector < vector<u8> > ');
     console.log(vecElTypeName);
     expect(vecElTypeName).toBe('u8');
+  });
+
+  it('serial vector<vector<u8>>', async () => {
+    console.log(`@@@ vector<vector<u8>>`);
+    const arg = '61,62,63';
+    const hexStrs = arg.split(',');
+    const serializer = new BCS.Serializer();
+    serializer.serializeU32AsUleb128(hexStrs.length);
+    hexStrs.forEach((hexStr: string) => {
+      const uint8Arr = new HexString(hexStr).toUint8Array();
+      serializer.serializeBytes(uint8Arr);
+    });
+    console.log(serializer.getBytes());
+  });
+
+  it('serializeArg vector<vector<u8>>', async () => {
+    console.log(`@@@ vector<vector<u8>>`);
+    const ser = new BCS.Serializer();
+
+    const argVal = [[97, 98, 99]];
+    const typeTag = new TxnBuilderTypes.TypeTagVector(
+      new TxnBuilderTypes.TypeTagVector(new TxnBuilderTypes.TypeTagU8()),
+    );
+    console.log(typeTag);
+    serializeArg(argVal, typeTag, ser);
+    console.log(ser.getBytes());
+  });
+
+  it('serializeArg 0x1::string:String', async () => {
+    const ser = new BCS.Serializer();
+    const argVal = 'abc';
+    const typeTag = new TxnBuilderTypes.TypeTagStruct(
+      new TxnBuilderTypes.StructTag(
+        TxnBuilderTypes.AccountAddress.fromHex('0x1'),
+        new TxnBuilderTypes.Identifier('string'),
+        new TxnBuilderTypes.Identifier('String'),
+        [],
+      ),
+    );
+    console.log(typeTag);
+    serializeArg(argVal, typeTag, ser);
+    console.log(ser.getBytes());
+  });
+
+  it('serializeArg address', async () => {
+    const ser = new BCS.Serializer();
+    const argVal = '1';
+    const typeTag = new TxnBuilderTypes.TypeTagAddress();
+    console.log(typeTag);
+    serializeArg(argVal, typeTag, ser);
+    console.log(ser.getBytes());
+  });
+
+  it('bcsSerializeStr abc', async () => {
+    console.log(BCS.bcsSerializeStr('abc'));
   });
 
   it('getVectorArgTypeStr vector < vector<0x1::string::String> >', async () => {
