@@ -13,7 +13,7 @@ import {
   Types,
   TypeTagParser,
 } from 'aptos';
-import { aptosNodeUrl, extractVectorTypeTagName } from './aptos-helper';
+import { aptosNodeUrl, extractVectorElementTypeTag, getVectorArgTypeStr } from './aptos-helper';
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder;
 // require('../../../jest.config');
@@ -88,8 +88,25 @@ describe('Aptos Helper', () => {
   });
 
   it('extractVectorTypeTagName', async () => {
-    const tagName = extractVectorTypeTagName(' vector < vector<u8> > ');
+    const tagName = extractVectorElementTypeTag(' vector < vector<u8> > ');
     console.log(tagName);
+  });
+
+  it('parseTypeTag', async () => {
+    const parser = new TypeTagParser(' vector < vector<u8> > ');
+    console.log(parser.parseTypeTag());
+  });
+
+  it('getVectorArgTypeStr vector < vector<u8> >', async () => {
+    const vecElTypeName = getVectorArgTypeStr(' vector < vector<u8> > ');
+    console.log(vecElTypeName);
+    expect(vecElTypeName).toBe('u8');
+  });
+
+  it('getVectorArgTypeStr vector < vector<0x1::string::String> >', async () => {
+    const vecElTypeName = getVectorArgTypeStr(' vector < vector<0x1::string::String> > ');
+    console.log(vecElTypeName);
+    expect(vecElTypeName).toBe('0x1::string::String');
   });
 
   it('serializeArg', async () => {

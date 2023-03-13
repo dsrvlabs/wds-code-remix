@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useState } from 'react';
+import { parseArgVal, extractVectorElementTypeTag } from './aptos-helper';
 
 interface Props {
   typeName: string;
@@ -15,26 +16,52 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   parentIdx,
   updateParam,
 }) => {
-  const [args, setArgs] = useState<Arg[]>([]);
+  const [args, setArgs] = useState<any[]>([]);
   // const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
   // const [args, setArgs] = useState<Arg[]>(["a", "b", "c"]);
   const indexMemo: number[] = [];
 
-  const handleFormChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const depth = wordCount(typeName, 'vector');
-    const id = event.target.id as string;
-    console.log(`id`, id);
-    const indices = id
+  const toIndices = (id: string) => {
+    if (id.startsWith('vec-arg-input-bool')) {
+      // "vec-arg-input-bool-0-true-0"
+      return id
+        .split('-')
+        .filter((str) => str.trim() !== '')
+        .filter((str, idx) => idx > 5)
+        .map((i) => Number(i));
+    }
+    return id
       .slice('vec-arg-input-'.length)
       .split('-')
       .filter((str) => str.trim() !== '')
       .map((i) => Number(i));
+  };
+
+  const counterBoolElementId = (id: string) => {
+    if (id.includes('true')) {
+      return id.replace('true', 'false');
+    } else {
+      return id.replace('false', 'true');
+    }
+  };
+  const handleFormChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const depth = wordCount(typeName, 'vector');
+    const id = event.target.id;
+
+    const indices = toIndices(id);
     console.log('depth', depth);
     console.log('indices', indices);
 
     const data = [...args];
     if (indices.length === 1) {
-      data[indices[0]] = event.target.value;
+      if (id.includes('bool')) {
+        const el: any = document.getElementById(counterBoolElementId(id));
+        el.checked = !el.checked;
+        data[indices[0]] = parseArgVal(id.includes('true'), extractVectorElementTypeTag(typeName));
+      } else {
+        data[indices[0]] = parseArgVal(event.target.value, extractVectorElementTypeTag(typeName));
+      }
+
       setArgs(data);
       updateParam(data, parentIdx, typeName);
       return;
@@ -49,7 +76,11 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         el = el[idx];
       }
     }
-    el[indices[indices.length - 1]] = event.target.value;
+
+    el[indices[indices.length - 1]] = parseArgVal(
+      event.target.value,
+      extractVectorElementTypeTag(typeName),
+    );
     setArgs([...data]);
     updateParam(data, parentIdx, typeName);
   };
@@ -68,10 +99,11 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     return depth;
   }
 
-  const addRow = (event: any) => {
+  const addRow = (event: any, vectorElType: string) => {
     const depth = wordCount(typeName, 'vector');
     const id = event.target.id as string;
     console.log(`id`, id);
+
     const indices = id
       .slice('vec-arg-add-'.length)
       .split('-')
@@ -83,14 +115,21 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     const data = [...args];
     console.log(`data_1`, data);
     if (depth === 1) {
-      data.push('');
+      if (vectorElType === 'bool') {
+        data.push(true);
+      } else {
+        data.push('');
+      }
       setArgs([...data]);
+      updateParam(data, parentIdx, typeName);
+      console.log(`data_2`, data);
       return;
     }
 
     if (indices.length === 0) {
       data.push([]);
       setArgs([...data]);
+      updateParam(data, parentIdx, typeName);
       return;
     }
 
@@ -102,13 +141,18 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     console.log(`el`, el);
 
     if (indices.length === depth - 1) {
-      el.push('');
+      if (vectorElType === 'bool') {
+        el.push(true);
+      } else {
+        el.push('');
+      }
     } else {
       el.push([]);
     }
 
     console.log(`data_2`, data);
     setArgs(data);
+    updateParam(data, parentIdx, typeName);
   };
 
   const removeRow = (event: any) => {
@@ -124,6 +168,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     if (indices.length === 1) {
       data.splice(indices[0], 1);
       setArgs(data);
+      updateParam(data, parentIdx, typeName);
+      console.log(`data_2`, data);
       return;
     }
 
@@ -136,12 +182,41 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       }
     }
     (el as string[]).splice(indices[indices.length - 1], 1);
+    console.log(`data_2`, data);
     setArgs([...data]);
+    updateParam(data, parentIdx, typeName);
   };
 
   const render: (val: any, i: number) => any = (val: any, i: number) => {
+    console.log(`@@@ val=${val}`);
     if (!Array.isArray(val)) {
-      return (
+      if (vectorElType === 'bool' && val === '') {
+        val = true;
+      }
+      return vectorElType === 'bool' ? (
+        <div id={`vec-arg-input-bool-${i}`}>
+          <input
+            id={`vec-arg-input-bool-${i}-true-${indexMemo.join('-')}`}
+            type="radio"
+            name={`vec-arg-input-bool-${i}-true-${indexMemo.join('-')}`}
+            placeholder={vectorElType}
+            defaultChecked={true}
+            onChange={(event) => handleFormChange(event)}
+            style={{}}
+          />
+          <label>true</label>
+          <input
+            id={`vec-arg-input-bool-${i}-false-${indexMemo.join('-')}`}
+            type="radio"
+            name={`vec-arg-input-bool-${i}-false-${indexMemo.join('-')}`}
+            placeholder={vectorElType}
+            onChange={(event) => handleFormChange(event)}
+            style={{}}
+          />
+          <label>false</label>
+          <br></br>
+        </div>
+      ) : (
         <div>
           <input
             id={`vec-arg-input-${indexMemo.join('-')}`}
@@ -181,8 +256,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                 <button
                   key={`button-${i}`}
                   id={`vec-arg-add-${indexMemo.join('-')}`}
-                  onClick={addRow}
-                  style={{ width: '2em' }}
+                  onClick={(e: any) => addRow(e, vectorElType)}
+                  // style={{ width: '2em' }}
                 >
                   +
                 </button>
@@ -203,8 +278,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             <button
               key={`button-${i}`}
               id={`vec-arg-add-${indexMemo.join('-')}`}
-              onClick={addRow}
-              style={{ width: '2em' }}
+              onClick={(e) => addRow(e, vectorElType)}
+              // style={{ width: '2em' }}
             >
               +
             </button>
@@ -223,7 +298,12 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       <div>{typeName}</div>
       <div style={{ border: '2px solid', padding: '0.5em' }}>
         {args.length === 0 ? (
-          <button key={`button-${0}`} id={`add-btn-${0}`} onClick={addRow} style={{ width: '2em' }}>
+          <button
+            key={`button-${0}`}
+            id={`add-btn-${0}`}
+            onClick={(e) => addRow(e, vectorElType)}
+            // style={{ width: '2em' }}
+          >
             +
           </button>
         ) : (
@@ -231,8 +311,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             {render(args, -1)}
             <button
               id={`vec-arg-add-${indexMemo.join('-')}`}
-              onClick={addRow}
-              style={{ width: '2em' }}
+              onClick={(e) => addRow(e, vectorElType)}
+              // style={{ width: '2em' }}
             >
               +
             </button>

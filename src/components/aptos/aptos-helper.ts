@@ -1,7 +1,7 @@
 import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
-import { serializeArg } from './transaction_builder/builder_utils';
+import { ensureBigInt, ensureNumber, serializeArg } from './transaction_builder/builder_utils';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -93,18 +93,8 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
       return ser.getBytes();
     } else if (arg.type.startsWith('vector')) {
       const ser = new BCS.Serializer();
-      const depth = wordCount(arg.type, 'vector');
-      let argTypeTag;
-      let elementTypeTag = new TxnBuilderTypes.TypeTagU8();
-      for (let i = 0; i < depth; i++) {
-        if (i === 0) {
-          argTypeTag = new TxnBuilderTypes.TypeTagVector(elementTypeTag);
-        } else {
-          argTypeTag = new TxnBuilderTypes.TypeTagVector(argTypeTag as any);
-        }
-      }
-
-      serializeArg(arg.val, argTypeTag as any, ser);
+      const parser = new TypeTagParser(arg.type);
+      serializeArg(arg.val, parser.parseTypeTag(), ser);
       return ser.getBytes();
     }
     // else if (arg.type === 'vector<0x1::string::String>') {
@@ -131,7 +121,52 @@ export function serializedArgs(args_: ArgTypeValuePair[]) {
   });
 }
 
-export function extractVectorTypeTagName(vectorType: string) {
+export function getVectorArgTypeStr(vectorTypeFullName: string): string {
+  const argType = extractVectorElementTypeTag(vectorTypeFullName);
+  if (argType instanceof TxnBuilderTypes.TypeTagBool) {
+    return 'bool';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU8) {
+    return 'u8';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU16) {
+    return 'u16';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU32) {
+    return 'u32';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU64) {
+    return 'u64';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU128) {
+    return 'u128';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU256) {
+    return 'u256';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagAddress) {
+    return 'address';
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagStruct) {
+    const {
+      address,
+      module_name: moduleName,
+      name,
+    } = (argType as TxnBuilderTypes.TypeTagStruct).value;
+    if (
+      `${HexString.fromUint8Array(address.address).toShortString()}::${moduleName.value}::${
+        name.value
+      }` !== '0x1::string::String'
+    ) {
+      throw new Error('The only supported struct arg is of type 0x1::string::String');
+    }
+    return '0x1::string::String';
+  }
+  throw new Error('Unsupported arg type.');
+}
+
+export function extractVectorElementTypeTag(vectorType: string): TxnBuilderTypes.TypeTag {
   const depth = wordCount(vectorType, 'vector');
   console.log(`depth`, depth);
   const parser = new TypeTagParser(vectorType);
@@ -143,6 +178,50 @@ export function extractVectorTypeTagName(vectorType: string) {
   }
 
   return curTypeTag;
+}
+
+export function parseArgVal(argVal: any, argType: TxnBuilderTypes.TypeTag) {
+  if (argType instanceof TxnBuilderTypes.TypeTagBool) {
+    return argVal;
+  }
+
+  if (
+    argType instanceof TxnBuilderTypes.TypeTagU8 ||
+    argType instanceof TxnBuilderTypes.TypeTagU16 ||
+    argType instanceof TxnBuilderTypes.TypeTagU32
+  ) {
+    return ensureNumber(argVal);
+  }
+
+  if (
+    argType instanceof TxnBuilderTypes.TypeTagU64 ||
+    argType instanceof TxnBuilderTypes.TypeTagU128 ||
+    argType instanceof TxnBuilderTypes.TypeTagU256
+  ) {
+    return ensureBigInt(argVal);
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagAddress) {
+    return TxnBuilderTypes.AccountAddress.fromHex(argVal);
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagStruct) {
+    const {
+      address,
+      module_name: moduleName,
+      name,
+    } = (argType as TxnBuilderTypes.TypeTagStruct).value;
+    if (
+      `${HexString.fromUint8Array(address.address).toShortString()}::${moduleName.value}::${
+        name.value
+      }` !== '0x1::string::String'
+    ) {
+      throw new Error('The only supported struct arg is of type 0x1::string::String');
+    }
+    return argVal;
+  }
+
+  throw new Error(`Unsupported Type. ${argType}`);
 }
 
 export function wordCount(str: string, word: string): number {

@@ -3,7 +3,7 @@ import { Form } from 'react-bootstrap';
 import { log } from '../../utils/logger';
 
 import { Types } from 'aptos';
-import { ArgTypeValuePair } from './aptos-helper';
+import { ArgTypeValuePair, getVectorArgTypeStr } from './aptos-helper';
 import VectorArgForm from './VectorArgForm';
 
 interface InterfaceProps {
@@ -22,6 +22,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
   });
 
   const updateParam = (value: any, idx: number, parameterType: string) => {
+    console.log(`@@@ updateParam`, value, idx, parameterType);
     setParameters((existingParams: ArgTypeValuePair[]) => {
       existingParams[idx] = {
         type: parameterType,
@@ -60,11 +61,16 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
       <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
       {singerRemovedParams.map((parameterType: string, idx: number) => {
         log.debug(`idx=${idx}, parameterType=${parameterType}`);
-        // if (parameterType.startsWith('vector')) {
-        //   return (
-        //     <VectorArgForm typeName={parameterType} vectorElType={'u8'} updateParam={updateParam} />
-        //   );
-        // }
+        if (parameterType.startsWith('vector')) {
+          return (
+            <VectorArgForm
+              typeName={parameterType}
+              vectorElType={getVectorArgTypeStr(parameterType)}
+              updateParam={updateParam}
+              parentIdx={idx}
+            />
+          );
+        }
         return (
           <Form.Control
             style={{ width: '100%', marginBottom: '5px' }}
