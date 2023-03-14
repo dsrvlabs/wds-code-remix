@@ -200,26 +200,37 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         val = true;
       }
       return vectorElType === 'bool' ? (
-        <div id={`vec-arg-input-bool-${parentIdx}-${i}`}>
-          <input
-            id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
-            type="radio"
-            name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
-            placeholder={vectorElType}
-            defaultChecked={true}
-            onChange={(event) => handleFormChange(event)}
-            style={{}}
-          />
-          <label>true</label>
-          <input
-            id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
-            type="radio"
-            name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
-            placeholder={vectorElType}
-            onChange={(event) => handleFormChange(event)}
-            style={{}}
-          />
-          <label>false</label>
+        <div
+          id={`vec-arg-input-bool-${parentIdx}-${i}`}
+          style={{ display: 'flex', alignItems: 'center' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
+            <input
+              id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
+              type="radio"
+              name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
+              placeholder={vectorElType}
+              defaultChecked={true}
+              onChange={(event) => handleFormChange(event)}
+            />
+            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+              <label>True</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <input
+              id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
+              type="radio"
+              name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
+              placeholder={vectorElType}
+              onChange={(event) => handleFormChange(event)}
+              style={{}}
+            />
+            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+              <label>False</label>
+            </div>
+          </div>
+
           <br></br>
         </div>
       ) : (
@@ -230,7 +241,13 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             placeholder={vectorElType}
             value={val}
             onChange={(event) => handleFormChange(event)}
-            style={{}}
+            style={{
+              backgroundColor: '#35384C',
+              color: '#dfe1ea ',
+              outline: 'none',
+              border: 'none',
+              width: '100%',
+            }}
           />
           <br></br>
         </div>
@@ -241,9 +258,17 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       indexMemo.push(i);
       // console.log(indexMemo);
       const b = (
-        <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+        <div
+          key={i}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <div style={{ display: 'flex' }}>
-            <div style={{ width: '2em' }}>[{i}]</div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: '2em' }}>[{i}]</div>
+            </div>
             <div
               key={i}
               style={
@@ -253,6 +278,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                       flexDirection: 'column',
                       border: '1px solid',
                       padding: '0.5em',
+                      width: '80%',
                     }
                   : {}
               }
@@ -263,7 +289,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                   key={`button-${i}`}
                   id={`vec-arg-add-${indexMemo.join('-')}`}
                   onClick={(e: any) => addRow(e, vectorElType)}
-                  // style={{ width: '2em' }}
+                  style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
                 >
                   +
                 </button>
@@ -271,21 +297,25 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                 <></>
               )}
             </div>
-            <button id={`vec-arg-remove-${indexMemo.join('-')}`} onClick={(e) => removeRow(e)}>
+            <button
+              id={`vec-arg-remove-${indexMemo.join('-')}`}
+              style={{
+                backgroundColor: 'lightgrey',
+                border: 'none',
+                outline: 'none',
+              }}
+              onClick={(e) => removeRow(e)}
+            >
               -
             </button>
           </div>
-          {Array.isArray(v) ? (
-            <div style={{ height: '0.5em', backgroundColor: 'white' }}></div>
-          ) : (
-            <></>
-          )}
+          <div style={{ height: '0.5em' }}></div>
           {indexMemo.length === 0 ? (
             <button
               key={`button-${i}`}
               id={`vec-arg-add-${indexMemo.join('-')}`}
               onClick={(e) => addRow(e, vectorElType)}
-              // style={{ width: '2em' }}
+              style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
             >
               +
             </button>
@@ -308,7 +338,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             key={`button-${0}`}
             id={`add-btn-${0}`}
             onClick={(e) => addRow(e, vectorElType)}
-            // style={{ width: '2em' }}
+            style={{ backgroundColor: 'lightgrey', border: 'none' }}
           >
             +
           </button>
@@ -318,7 +348,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             <button
               id={`vec-arg-add-${indexMemo.join('-')}`}
               onClick={(e) => addRow(e, vectorElType)}
-              // style={{ width: '2em' }}
+              style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
             >
               +
             </button>
