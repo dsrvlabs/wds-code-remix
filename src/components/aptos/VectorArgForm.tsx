@@ -24,6 +24,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     for (let i = 0; i < parameterBoxes.length; i++) {
       (parameterBoxes[i] as any).value = '';
     }
+    setArgs([]);
   }, [func]);
   const [args, setArgs] = useState<any[]>([]);
   // const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
