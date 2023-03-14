@@ -1,7 +1,9 @@
-import React, { ChangeEvent, useState } from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 import { parseArgVal, extractVectorElementTypeTag } from './aptos-helper';
+import { Types } from 'aptos';
 
 interface Props {
+  func: Types.MoveFunction;
   typeName: string;
   vectorElType: string;
   parentIdx: number;
@@ -11,11 +13,18 @@ interface Props {
 type Arg = string | Arg[];
 
 const VectorArgForm: React.FunctionComponent<Props> = ({
+  func,
   typeName,
   vectorElType,
   parentIdx,
   updateParam,
 }) => {
+  useEffect(() => {
+    const parameterBoxes = document.getElementsByClassName('aptos-parameter');
+    for (let i = 0; i < parameterBoxes.length; i++) {
+      (parameterBoxes[i] as any).value = '';
+    }
+  }, [func]);
   const [args, setArgs] = useState<any[]>([]);
   // const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
   // const [args, setArgs] = useState<Arg[]>(["a", "b", "c"]);
@@ -194,7 +203,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   };
 
   const render: (val: any, i: number) => any = (val: any, i: number) => {
-    console.log(`@@@ val=${val}`);
     if (!Array.isArray(val)) {
       if (vectorElType === 'bool' && val === '') {
         val = true;
@@ -206,6 +214,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
             <input
+              className={'aptos-parameter'}
               id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
               type="radio"
               name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
@@ -219,6 +228,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <input
+              className={'aptos-parameter'}
               id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
               type="radio"
               name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
@@ -236,6 +246,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       ) : (
         <div>
           <input
+            className={'aptos-parameter'}
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}

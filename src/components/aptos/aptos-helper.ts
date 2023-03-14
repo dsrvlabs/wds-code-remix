@@ -170,7 +170,6 @@ export function getVectorArgTypeStr(vectorTypeFullName: string): string {
 
 export function extractVectorElementTypeTag(vectorType: string): TxnBuilderTypes.TypeTag {
   const depth = wordCount(vectorType, 'vector');
-  console.log(`depth`, depth);
   const parser = new TypeTagParser(vectorType);
   let curTypeTag: TxnBuilderTypes.TypeTag = parser.parseTypeTag();
   for (let i = 0; i < depth; i++) {

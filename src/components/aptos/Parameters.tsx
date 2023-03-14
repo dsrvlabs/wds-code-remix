@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Form } from 'react-bootstrap';
-import { log } from '../../utils/logger';
 
 import { Types } from 'aptos';
 import { ArgTypeValuePair, getVectorArgTypeStr } from './aptos-helper';
@@ -17,6 +16,12 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
   setGenericParameters,
   setParameters,
 }) => {
+  useEffect(() => {
+    const parameterBoxes = document.getElementsByClassName('aptos-parameter');
+    for (let i = 0; i < parameterBoxes.length; i++) {
+      (parameterBoxes[i] as any).value = '';
+    }
+  }, [func]);
   const singerRemovedParams = func.params.filter((para, i) => {
     return !(i === 0 && (para === 'signer' || para === '&signer'));
   });
@@ -60,10 +65,10 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
       {singerRemovedParams.map((parameterType: string, idx: number) => {
-        log.debug(`idx=${idx}, parameterType=${parameterType}`);
         if (parameterType.startsWith('vector')) {
           return (
             <VectorArgForm
+              func={func}
               typeName={parameterType}
               vectorElType={getVectorArgTypeStr(parameterType)}
               updateParam={updateParam}
@@ -73,6 +78,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
         }
         return (
           <Form.Control
+            className={'aptos-parameter'}
             style={{ width: '100%', marginBottom: '5px' }}
             type="text"
             placeholder={parameterType}
