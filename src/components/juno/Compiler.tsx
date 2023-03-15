@@ -16,12 +16,13 @@ import {
   REMIX_JUNO_COMPILE_REQUESTED_V1,
   RemixJunoCompileRequestedV1,
 } from 'wds-event';
-import { io } from 'socket.io-client';
-import { COMPILER_API_ENDPOINT, JUNO_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
 import { EditorClient } from '../../utils/editor';
 import AlertCloseButton from '../common/AlertCloseButton';
+import { DisconnectDescription, Socket } from 'socket.io-client/build/esm/socket';
+import { cleanupSocketJuno, SOCKET } from '../../socket';
 
 interface InterfaceProps {
   fileName: string;
@@ -156,18 +157,49 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const timestamp = Date.now().toString();
 
     try {
-      // socket connect
-      const socket = io(JUNO_COMPILER_CONSUMER_ENDPOINT);
+      SOCKET.JUNO.on('connect', () => {
+        log.info('[SOCKET.JUNO] connected.');
 
-      socket.on('connect_error', function (err) {
-        // handle server error here
-        log.info('Error connecting to server');
-        setIconSpin('');
-        setLoading(false);
-        socket.disconnect();
+        if (loading) {
+          log.info(`[SOCKET.JUNO] loading. skip compile request`);
+          return;
+        }
+
+        const remixJunoCompileRequestedV1: RemixJunoCompileRequestedV1 = {
+          compileId: compileId(address, timestamp),
+          address: address || 'noaddress',
+          timestamp: timestamp.toString() || '0',
+          fileType: 'juno',
+        };
+
+        SOCKET.JUNO.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
+        log.info(
+          `${SEND_EVENT_LOG_PREFIX} ${REMIX_JUNO_COMPILE_REQUESTED_V1} data=${stringify(
+            remixJunoCompileRequestedV1,
+          )}`,
+        );
       });
 
-      socket.on(
+      SOCKET.JUNO.on(
+        'disconnect',
+        (reason: Socket.DisconnectReason, description?: DisconnectDescription) => {
+          log.info('[SOCKET.JUNO] disconnected.', reason, description);
+          setIconSpin('');
+          setLoading(false);
+          cleanupSocketJuno();
+        },
+      );
+
+      SOCKET.JUNO.on('connect_error', function (err) {
+        // handle server error here
+        log.info('[SOCKET.JUNO] Error connecting to server');
+        log.error(err);
+        setIconSpin('');
+        setLoading(false);
+        SOCKET.JUNO.disconnect();
+      });
+
+      SOCKET.JUNO.on(
         COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerJunoCompileErrorOccurredV1) => {
           log.info(
@@ -181,11 +213,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
           setIconSpin('');
           setLoading(false);
-          socket.disconnect();
+          SOCKET.JUNO.disconnect();
         },
       );
 
-      socket.on(COMPILER_JUNO_COMPILE_LOGGED_V1, async (data: CompilerJunoCompileLoggedV1) => {
+      SOCKET.JUNO.on(COMPILER_JUNO_COMPILE_LOGGED_V1, async (data: CompilerJunoCompileLoggedV1) => {
         log.info(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_LOGGED_V1} data=${stringify(data)}`,
         );
@@ -216,17 +248,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
               setIconSpin('');
               setLoading(false);
-              socket.disconnect();
+              SOCKET.JUNO.disconnect();
               return;
             }
           }
         }
       });
 
-      socket.on(
+      SOCKET.JUNO.on(
         COMPILER_JUNO_COMPILE_COMPLETED_V1,
         async (data: CompilerJunoCompileCompletedV1) => {
-          socket.disconnect();
+          SOCKET.JUNO.disconnect();
 
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_COMPLETED_V1} data=${stringify(data)}`,
@@ -306,19 +338,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       if (res.status !== 201) {
         log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
-        socket.disconnect();
+        SOCKET.JUNO.disconnect();
         setIconSpin('');
         setLoading(false);
         return;
       }
 
+      log.info(`[SOCKET.JUNO] check before emit. connected=${SOCKET.JUNO.connected}`);
+      if (SOCKET.JUNO.disconnected) {
+        log.info(`[SOCKET.JUNO] juno SOCKET.JUNO is disconnected and try to connect`);
+        SOCKET.JUNO.connect();
+        return;
+      }
       const remixJunoCompileRequestedV1: RemixJunoCompileRequestedV1 = {
         compileId: compileId(address, timestamp),
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'juno',
       };
-      socket.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
+
+      SOCKET.JUNO.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
       log.info(
         `${SEND_EVENT_LOG_PREFIX} ${REMIX_JUNO_COMPILE_REQUESTED_V1} data=${stringify(
           remixJunoCompileRequestedV1,
