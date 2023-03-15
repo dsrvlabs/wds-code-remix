@@ -165,6 +165,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
+        setLoading(true);
+        setIconSpin('fa-spin');
+
         const remixJunoCompileRequestedV1: RemixJunoCompileRequestedV1 = {
           compileId: compileId(address, timestamp),
           address: address || 'noaddress',
