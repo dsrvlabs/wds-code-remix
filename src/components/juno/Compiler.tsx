@@ -186,6 +186,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       SOCKET.JUNO.on(
         'disconnect',
         (reason: Socket.DisconnectReason, description?: DisconnectDescription) => {
+          log.info('[SOCKET.JUNO] disconnected.', reason, description);
           setIconSpin('');
           setLoading(false);
           cleanupSocketJuno();
