@@ -53,23 +53,19 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
               Beta
             </Badge>
           </ListGroup.Item>
-          {enableJuno() ? (
-            <ListGroup.Item
-              as="li"
-              action
-              onClick={() => {
-                setChain('Juno');
-              }}
-            >
-              <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
-              <b>JUNO (CosmWasm)</b>
-              <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-                Beta
-              </Badge>
-            </ListGroup.Item>
-          ) : (
-            <></>
-          )}
+          <ListGroup.Item
+            as="li"
+            action
+            onClick={() => {
+              setChain('Juno');
+            }}
+          >
+            <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
+            <b>JUNO (CosmWasm)</b>
+            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+              Beta
+            </Badge>
+          </ListGroup.Item>
           <ListGroup.Item
             as="li"
             action
