@@ -7,7 +7,9 @@ import {
 } from 'wds-event';
 
 export const SOCKET = {
-  JUNO: io(JUNO_COMPILER_CONSUMER_ENDPOINT),
+  JUNO: io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
+    transports: ['websocket'],
+  }),
 };
 
 export function cleanupSocketJuno() {
