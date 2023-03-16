@@ -7,7 +7,7 @@ import {
 } from 'wds-event';
 
 export const SOCKET = {
-  JUNO: io(JUNO_COMPILER_CONSUMER_ENDPOINT),
+  JUNO: io(JUNO_COMPILER_CONSUMER_ENDPOINT, { timeout: 40_000, ackTimeout: 300_000 }),
 };
 
 export function cleanupSocketJuno() {
