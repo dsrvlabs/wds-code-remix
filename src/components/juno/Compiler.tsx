@@ -22,7 +22,7 @@ import { log } from '../../utils/logger';
 import { EditorClient } from '../../utils/editor';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { DisconnectDescription, Socket } from 'socket.io-client/build/esm/socket';
-import { cleanupSocketJuno, SOCKET } from '../../socket';
+import { cleanupSocketJuno } from '../../socket';
 import { io } from 'socket.io-client';
 
 interface InterfaceProps {
@@ -159,6 +159,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
       timeout: 40_000,
       ackTimeout: 300_000,
+      reconnection: false,
+      transports: ['websocket'],
     });
 
     try {
@@ -208,7 +210,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setIconSpin('');
           setLoading(false);
           log.info(`@@@ after disconnect. disconnected=${socketJuno.disconnected}`);
-          cleanupSocketJuno();
+          cleanupSocketJuno(socketJuno);
         },
       );
 
@@ -219,7 +221,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setIconSpin('');
         setLoading(false);
         log.info(`@@@ after connect_error. disconnected=${socketJuno.disconnected}`);
-
+        cleanupSocketJuno(socketJuno);
         client.terminal.log({
           type: 'error',
           value: `${err.message}`,
@@ -241,6 +243,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setIconSpin('');
           setLoading(false);
           socketJuno.disconnect();
+          cleanupSocketJuno(socketJuno);
         },
       );
 

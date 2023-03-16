@@ -1,16 +1,11 @@
-import { io } from 'socket.io-client';
-import { JUNO_COMPILER_CONSUMER_ENDPOINT } from './const/endpoint';
+import { Socket } from 'socket.io-client';
 import {
   COMPILER_JUNO_COMPILE_COMPLETED_V1,
   COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
   COMPILER_JUNO_COMPILE_LOGGED_V1,
 } from 'wds-event';
 
-export const SOCKET = {
-  JUNO: io(JUNO_COMPILER_CONSUMER_ENDPOINT, { timeout: 40_000, ackTimeout: 300_000 }),
-};
-
-export function cleanupSocketJuno() {
+export function cleanupSocketJuno(socketJuno: Socket) {
   const events = [
     'connect',
     'disconnect',
@@ -21,6 +16,6 @@ export function cleanupSocketJuno() {
   ];
 
   for (const event of events) {
-    SOCKET.JUNO.off(event);
+    socketJuno.off(event);
   }
 }
