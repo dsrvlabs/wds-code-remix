@@ -283,8 +283,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                   ? {
                     display: 'flex',
                     flexDirection: 'column',
-                    border: '1px solid',
                     padding: '0.5em',
+                    border: '0.1px solid',
                     width: '80%',
                   }
                   : {}
@@ -335,9 +335,9 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   };
 
   return (
-    <div>
+    <div style={{ marginBottom: '10px' }}>
       <div>{typeName}</div>
-      <div style={{ border: '2px solid', padding: '0.5em' }}>
+      <div style={{ border: '0.1px solid', padding: '0.5em' }}>
         {args.length === 0 ? (
           <button
             className='btn btn-info btn-sm'
