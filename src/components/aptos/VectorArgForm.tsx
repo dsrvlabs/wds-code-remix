@@ -235,7 +235,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
               name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
               placeholder={vectorElType}
               onChange={(event) => handleFormChange(event)}
-              style={{}}
             />
             <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
               <label>False</label>
@@ -247,18 +246,14 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       ) : (
         <div>
           <input
-            className={'aptos-parameter'}
+            className={'form-control aptos-parameter'}
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}
             value={val}
             onChange={(event) => handleFormChange(event)}
             style={{
-              backgroundColor: '#35384C',
-              color: '#dfe1ea ',
-              outline: 'none',
-              border: 'none',
-              width: '100%',
+              display: 'inline-block',
             }}
           />
           <br></br>
@@ -286,22 +281,23 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
               style={
                 Array.isArray(v)
                   ? {
-                      display: 'flex',
-                      flexDirection: 'column',
-                      border: '1px solid',
-                      padding: '0.5em',
-                      width: '80%',
-                    }
+                    display: 'flex',
+                    flexDirection: 'column',
+                    border: '1px solid',
+                    padding: '0.5em',
+                    width: '80%',
+                  }
                   : {}
               }
             >
               {render(v, i)}
               {Array.isArray(v) ? (
                 <button
+                  className='btn btn-info btn-sm'
                   key={`button-${i}`}
                   id={`vec-arg-add-${indexMemo.join('-')}`}
                   onClick={(e: any) => addRow(e, vectorElType)}
-                  style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
+                // style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
                 >
                   +
                 </button>
@@ -310,12 +306,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
               )}
             </div>
             <button
+              className='btn btn-info btn-sm'
               id={`vec-arg-remove-${indexMemo.join('-')}`}
-              style={{
-                backgroundColor: 'lightgrey',
-                border: 'none',
-                outline: 'none',
-              }}
               onClick={(e) => removeRow(e)}
             >
               -
@@ -324,6 +316,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           <div style={{ height: '0.5em' }}></div>
           {indexMemo.length === 0 ? (
             <button
+              className='btn btn-info btn-sm'
               key={`button-${i}`}
               id={`vec-arg-add-${indexMemo.join('-')}`}
               onClick={(e) => addRow(e, vectorElType)}
@@ -347,10 +340,10 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       <div style={{ border: '2px solid', padding: '0.5em' }}>
         {args.length === 0 ? (
           <button
+            className='btn btn-info btn-sm'
             key={`button-${0}`}
             id={`add-btn-${0}`}
             onClick={(e) => addRow(e, vectorElType)}
-            style={{ backgroundColor: 'lightgrey', border: 'none' }}
           >
             +
           </button>
@@ -358,9 +351,9 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           <div>
             {render(args, -1)}
             <button
+              className='btn btn-info btn-sm'
               id={`vec-arg-add-${indexMemo.join('-')}`}
               onClick={(e) => addRow(e, vectorElType)}
-              style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
             >
               +
             </button>
