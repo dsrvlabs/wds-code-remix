@@ -159,8 +159,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
       timeout: 40_000,
       ackTimeout: 300_000,
-      reconnection: false,
-      transports: ['websocket'],
     });
 
     try {
