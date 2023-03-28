@@ -11,24 +11,12 @@ import stripAnsi from 'strip-ansi';
 
 import * as _ from 'lodash';
 import {
-  compileId,
-  COMPILER_APTOS_COMPILE_COMPLETED_V1,
-  COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V1,
-  COMPILER_APTOS_COMPILE_LOGGED_V1,
-  COMPILER_APTOS_PROVE_COMPLETED_V1,
-  COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1,
-  COMPILER_APTOS_PROVE_LOGGED_V1,
-  CompilerAptosCompileCompletedV1,
-  CompilerAptosCompileErrorOccurredV1,
-  CompilerAptosCompileLoggedV1,
-  CompilerAptosProveCompletedV1,
-  CompilerAptosProveErrorOccurredV1,
-  CompilerAptosProveLoggedV1,
-  REMIX_APTOS_COMPILE_REQUESTED_V1,
-  REMIX_APTOS_PROVE_REQUESTED_V1,
-  RemixAptosCompileRequestedV1,
-  RemixAptosProveRequestedV1,
-  reqId,
+  compileIdV2,
+  REMIX_APTOS_COMPILE_REQUESTED_V2,
+  REMIX_APTOS_PROVE_REQUESTED_V2,
+  RemixAptosCompileRequestedV2,
+  RemixAptosProveRequestedV2,
+  reqIdV2,
 } from 'wds-event';
 
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
@@ -53,10 +41,28 @@ import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
+import { S3Path } from '../../const/s3-path';
+import {
+  COMPILER_APTOS_COMPILE_COMPLETED_V2,
+  COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2,
+  COMPILER_APTOS_COMPILE_LOGGED_V2,
+  COMPILER_APTOS_PROVE_COMPLETED_V2,
+  COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2,
+  COMPILER_APTOS_PROVE_LOGGED_V2,
+  CompilerAptosCompileCompletedV2,
+  CompilerAptosCompileErrorOccurredV2,
+  CompilerAptosCompileLoggedV2,
+  CompilerAptosProveCompletedV2,
+  CompilerAptosProveErrorOccurredV2,
+  CompilerAptosProveLoggedV2,
+} from 'wds-event/dist/event/compiler/aptos/v2/aptos';
+import { CHAIN_NAME } from '../../const/chain';
 
-interface ModuleWrapper {
+export interface ModuleWrapper {
+  packageName: string;
   path: string;
   module: string;
+  moduleName: string;
   moduleNameHex: string;
   order: number;
 }
@@ -85,6 +91,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
 
+  const [packageName, setPackageName] = useState<string>('');
+  const [compileTimestamp, setCompileTimestamp] = useState<string>('');
+  const [moduleWrappers, setModuleWrappers] = useState<ModuleWrapper[]>([]);
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
   const [metaData64, setMetaDataBase64] = useState<string>('');
 
@@ -174,6 +183,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const address = accountID;
     const timestamp = Date.now().toString();
+    setCompileTimestamp(timestamp);
     try {
       // socket connect
       let socket: Socket;
@@ -193,14 +203,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V1,
-        async (data: CompilerAptosCompileErrorOccurredV1) => {
+        COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2,
+        async (data: CompilerAptosCompileErrorOccurredV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2} data=${stringify(
               data,
             )}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+          ) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -210,11 +223,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       );
 
-      socket.on(COMPILER_APTOS_COMPILE_LOGGED_V1, async (data: CompilerAptosCompileLoggedV1) => {
+      socket.on(COMPILER_APTOS_COMPILE_LOGGED_V2, async (data: CompilerAptosCompileLoggedV2) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_LOGGED_V1} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_LOGGED_V2} data=${stringify(data)}`,
         );
-        if (data.compileId !== compileId(address, timestamp)) {
+        if (
+          data.compileId !==
+          compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+        ) {
           return;
         }
 
@@ -222,22 +238,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_APTOS_COMPILE_COMPLETED_V1,
-        async (data: CompilerAptosCompileCompletedV1) => {
+        COMPILER_APTOS_COMPILE_COMPLETED_V2,
+        async (data: CompilerAptosCompileCompletedV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V2} data=${stringify(
               data,
             )}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+          ) {
             return;
           }
 
-          const bucket = 'aptos-origin-code';
-          const fileKey = `${address}/${timestamp}/out_${address}_${timestamp}_move.zip`;
           const res = await axios.request({
             method: 'GET',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=${bucket}&fileKey=${fileKey}`,
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              bucket: S3Path.bucket(),
+              fileKey: S3Path.outKey(
+                CHAIN_NAME.aptos,
+                dapp.networks.aptos.chain,
+                accountID,
+                timestamp,
+              ),
+            },
             responseType: 'arraybuffer',
             responseEncoding: 'null',
           });
@@ -254,7 +280,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
+          let packageName = '';
           let metaData64 = '';
+          let metaData: Buffer;
           let metaDataHex = '';
           let filenames: string[] = [];
           let moduleWrappers: ModuleWrapper[] = [];
@@ -283,7 +311,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 let content = await zip.file(key)?.async('blob');
                 content = content?.slice(0, content.size) ?? new Blob();
                 metaData64 = await readFile(new File([content], key));
-                metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
+                metaData = Buffer.from(metaData64, 'base64');
+                const packageNameLength = metaData[0];
+                packageName = metaData.slice(1, packageNameLength + 1).toString();
+                metaDataHex = metaData.toString('hex');
                 log.debug(`metadataFile_Base64=${metaData64}`);
                 try {
                   await client?.fileManager.writeFile(
@@ -308,14 +339,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 const moduleBase64 = await readFile(new File([content], filepath));
                 log.debug(`moduleBase64=${moduleBase64}`);
 
+                const moduleName = Buffer.from(
+                  FileUtil.extractFilenameWithoutExtension(filepath),
+                ).toString();
                 const moduleNameHex = Buffer.from(
                   FileUtil.extractFilenameWithoutExtension(filepath),
                 ).toString('hex');
                 const order = metaDataHex.indexOf(moduleNameHex);
 
                 moduleWrappers.push({
+                  packageName: packageName,
                   path: filepath,
                   module: moduleBase64,
+                  moduleName: moduleName,
                   moduleNameHex: moduleNameHex,
                   order: order,
                 });
@@ -336,6 +372,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
           log.info('@@@ moduleWrappers', moduleWrappers);
 
+          setPackageName(packageName);
+          setModuleWrappers([...moduleWrappers]);
           setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
@@ -346,12 +384,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       );
 
       const formData = new FormData();
-      formData.append('address', address || 'noaddress');
+      formData.append('chainName', CHAIN_NAME.aptos);
+      formData.append('chainId', dapp.networks.aptos.chain);
+      formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
       formData.append('zipFile', blob || '');
 
-      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src', formData, {
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Accept: 'application/json',
@@ -365,16 +405,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixAptosCompileRequestedV1: RemixAptosCompileRequestedV1 = {
-        compileId: compileId(address, timestamp),
+      const remixAptosCompileRequestedV2: RemixAptosCompileRequestedV2 = {
+        compileId: (CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp),
+        chainName: CHAIN_NAME.aptos,
+        chainId: dapp.networks.aptos.chain,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_APTOS_COMPILE_REQUESTED_V1, remixAptosCompileRequestedV1);
+      socket.emit(REMIX_APTOS_COMPILE_REQUESTED_V2, remixAptosCompileRequestedV2);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_COMPILE_REQUESTED_V1} data=${stringify(
-          remixAptosCompileRequestedV1,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_COMPILE_REQUESTED_V2} data=${stringify(
+          remixAptosCompileRequestedV2,
         )}`,
       );
     } catch (e) {
@@ -407,15 +449,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1,
-        async (data: CompilerAptosProveErrorOccurredV1) => {
+        COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2,
+        async (data: CompilerAptosProveErrorOccurredV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_ERROR_OCCURRED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2} data=${stringify(
               data,
             )}`,
           );
 
-          if (data.id !== reqId(address, timestamp)) {
+          if (
+            data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+          ) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -425,22 +469,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       );
 
-      socket.on(COMPILER_APTOS_PROVE_LOGGED_V1, async (data: CompilerAptosProveLoggedV1) => {
+      socket.on(COMPILER_APTOS_PROVE_LOGGED_V2, async (data: CompilerAptosProveLoggedV2) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_LOGGED_V1} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_LOGGED_V2} data=${stringify(data)}`,
         );
-        if (data.id !== reqId(address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
           return;
         }
 
         await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
-      socket.on(COMPILER_APTOS_PROVE_COMPLETED_V1, async (data: CompilerAptosProveCompletedV1) => {
+      socket.on(COMPILER_APTOS_PROVE_COMPLETED_V2, async (data: CompilerAptosProveCompletedV2) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_COMPLETED_V1} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_COMPLETED_V2} data=${stringify(data)}`,
         );
-        if (data.id !== reqId(address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
           return;
         }
         socket.disconnect();
@@ -448,7 +492,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       const formData = new FormData();
-      formData.append('address', address || 'noaddress');
+      formData.append('chainName', CHAIN_NAME.aptos);
+      formData.append('chainId', dapp.networks.aptos.chain);
+      formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
       formData.append('zipFile', blob || '');
@@ -467,16 +513,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixAptosProveRequestedV1: RemixAptosProveRequestedV1 = {
-        id: compileId(address, timestamp),
+      const remixAptosProveRequestedV2: RemixAptosProveRequestedV2 = {
+        id: compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp),
+        chainName: CHAIN_NAME.aptos,
+        chainId: dapp.networks.aptos.chain,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_APTOS_PROVE_REQUESTED_V1, remixAptosProveRequestedV1);
+      socket.emit(REMIX_APTOS_PROVE_REQUESTED_V2, remixAptosProveRequestedV2);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_PROVE_REQUESTED_V1} data=${stringify(
-          remixAptosProveRequestedV1,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_PROVE_REQUESTED_V2} data=${stringify(
+          remixAptosProveRequestedV2,
         )}`,
       );
     } catch (e) {
@@ -644,6 +692,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const prepareModules = async () => {
     const artifactPaths = await findArtifacts();
 
+    setPackageName('');
+    setCompileTimestamp('');
+    setModuleWrappers([]);
     setMetaDataBase64('');
     setModuleBase64s([]);
     setFileNames([]);
@@ -653,6 +704,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     let metaData64 = '';
+    let metaData: Buffer;
     let metaDataHex = '';
     let filenames: string[] = [];
     let moduleWrappers: ModuleWrapper[] = [];
@@ -665,20 +717,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
       }),
     );
+    metaData = Buffer.from(metaData64, 'base64');
+    const packageNameLength = metaData[0];
+    const packageName = metaData.slice(1, packageNameLength + 1).toString();
 
     await Promise.all(
       artifactPaths.map(async (path) => {
         if (getExtensionOfFilename(path) === '.mv') {
           let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
           if (moduleBase64) {
+            const moduleName = Buffer.from(
+              FileUtil.extractFilenameWithoutExtension(path),
+            ).toString();
             const moduleNameHex = Buffer.from(
               FileUtil.extractFilenameWithoutExtension(path),
             ).toString('hex');
             const order = metaDataHex.indexOf(moduleNameHex);
 
             moduleWrappers.push({
+              packageName: packageName,
               path: path,
               module: moduleBase64,
+              moduleName: moduleName,
               moduleNameHex: moduleNameHex,
               order: order,
             });
@@ -691,7 +751,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
     log.debug('@@@ moduleWrappers', moduleWrappers);
 
+    setPackageName(packageName);
     setFileNames([...filenames]);
+    setModuleWrappers([...moduleWrappers]);
     setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
     setMetaDataBase64(metaData64);
 
@@ -789,6 +851,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <Deploy
           wallet={'Dsrv'}
           accountID={accountID}
+          compileTimestamp={compileTimestamp}
+          packageName={packageName}
+          moduleWrappers={moduleWrappers}
           metaData64={metaData64}
           moduleBase64s={moduleBase64s}
           dapp={dapp}
