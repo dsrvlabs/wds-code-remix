@@ -15393,10 +15393,10 @@
   dependencies:
     "defaults" "^1.0.3"
 
-"wds-event@^1.0.22":
-  "integrity" "sha512-dPNTPZeyMRsEsUDbxxEQdukjC87AVsJ6It/IUi2AnkCyb41u4L7UirJSFQlO/eINZZ/F7EU8LeDv2B7wBcE+OA=="
-  "resolved" "https://registry.npmjs.org/wds-event/-/wds-event-1.0.22.tgz"
-  "version" "1.0.22"
+"wds-event@^1.0.24":
+  "integrity" "sha512-+YCfNGLwzlfbQPmzklf33rtnCVl44qOUJwAZ44La/E42ZgyuT6k5nYcTEC4hTFlG0RGY3Z6yZEEBGkbqHcoNiA=="
+  "resolved" "https://registry.npmjs.org/wds-event/-/wds-event-1.0.24.tgz"
+  "version" "1.0.24"
 
 "wds-near-contract-parser@^0.1.5":
   "integrity" "sha512-Q2NC3drSSohvw1DplE9bMmMoIJtYP+SEa6Jhcisom1Xa7uKiRqH4Ve7cpvXxhqz7dt5PcyTWPuiL1NFTAChGKw=="

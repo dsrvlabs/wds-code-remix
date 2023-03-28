@@ -15,10 +15,25 @@ import {
 
 import copy from 'copy-to-clipboard';
 import { isNotEmptyList } from '../../utils/ListUtil';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { ModuleWrapper } from './Compiler';
+export interface AptosDeployHistoryCreateDto {
+  chainId: string;
+  account: string;
+  package: string;
+  compileTimestamp: number;
+  deployTimestamp: number;
+  txHash: string;
+  modules: string[];
+}
 
 interface InterfaceProps {
   wallet: string;
   accountID: string;
+  compileTimestamp: string;
+  packageName: string;
+  moduleWrappers: ModuleWrapper[];
   metaData64: string;
   moduleBase64s: string[];
   dapp: any;
@@ -34,6 +49,9 @@ interface InterfaceProps {
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   client,
   accountID,
+  compileTimestamp,
+  packageName,
+  moduleWrappers,
   metaData64,
   moduleBase64s,
   wallet,
@@ -103,7 +121,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         txnHash,
         dapp.networks.aptos.chain,
       )) as any;
-      log.debug(result);
+      log.info('tx result', result);
       if (result.success) {
         await client.terminal.log({
           type: 'info',
@@ -118,6 +136,25 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             vm_status: result.vm_status,
           },
         });
+        const aptosDeployHistoryCreateDto: AptosDeployHistoryCreateDto = {
+          chainId: dapp.networks.aptos.chain,
+          account: accountID,
+          package: packageName,
+          compileTimestamp: Number(compileTimestamp),
+          deployTimestamp: Number(result.timestamp),
+          txHash: result.hash,
+          modules: moduleWrappers.map((m) => m.moduleName),
+        };
+
+        log.info('aptosDeployHistoryCreateDto', aptosDeployHistoryCreateDto);
+
+        const res = await axios.post(
+          COMPILER_API_ENDPOINT + '/aptos-deploy-histories',
+          aptosDeployHistoryCreateDto,
+        );
+
+        log.info(`aptos-deploy-histories api res`, res);
+
         setDeployedContract(accountID);
         setAtAddress('');
         const moveResources = await getAccountResources(accountID, dapp.networks.aptos.chain);

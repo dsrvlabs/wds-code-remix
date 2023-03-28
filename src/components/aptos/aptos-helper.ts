@@ -27,7 +27,7 @@ export async function dappTxn(
     genPayload(module, func, type_args, args),
   );
   log.info(`rawTransaction`, rawTransaction);
-  log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
+  // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
 
   const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
   return (
