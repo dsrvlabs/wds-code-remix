@@ -4,6 +4,7 @@ import { Connect as NearConnect } from './near/Connect';
 import { Connect as CeloConnect } from './celo/Connect';
 import { Connect as KlayConnect } from './klaytn/Connect';
 import { Connect as AptosConnect } from './aptos/Connect';
+import { Connect as SuiConnect } from './sui/Connect';
 import { Connect as JunoConnect } from './juno/Connect';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
@@ -73,6 +74,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <KlayConnect client={client} />;
       case 'Aptos':
         return <AptosConnect client={client} />;
+      case 'Sui':
+        return <SuiConnect client={client} />;
       case 'Juno':
         return <JunoConnect client={client} />;
       default:

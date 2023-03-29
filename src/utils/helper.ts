@@ -76,3 +76,4 @@ export const stringify = (data: any) => {
 
 export const enableAptosProve = () => STAGE !== PROD;
 export const enableJuno = () => STAGE !== PROD;
+export const enableSui = () => STAGE !== PROD;
