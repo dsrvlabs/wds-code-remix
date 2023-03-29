@@ -29,3 +29,11 @@ const APTOS_COMPILER_CONSUMER_ENDPOINT_POOL = {
   prod: 'wss://prod.near.compiler.welldonestudio.io',
 };
 export const APTOS_COMPILER_CONSUMER_ENDPOINT = APTOS_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
+
+const SUI_COMPILER_CONSUMER_ENDPOINT_POOL = {
+  local: 'ws://localhost:8000',
+  dev: 'wss://dev.compiler.welldonestudio.io',
+  // prod: 'wss://prod.aptos.compiler.welldonestudio.io',
+  prod: 'wss://prod.near.compiler.welldonestudio.io',
+};
+export const SUI_COMPILER_CONSUMER_ENDPOINT = SUI_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];

@@ -3,7 +3,7 @@
  */
 
 type CustomEvent = 'deploy' | 'compile' | 'create_template' | 'new_project' | 'at_address' | 'test';
-type EventCategory = 'near' | 'celo' | 'klaytn' | 'aptos';
+type EventCategory = 'near' | 'celo' | 'klaytn' | 'aptos' | 'sui';
 
 interface EventOptions {
   event_category: EventCategory;

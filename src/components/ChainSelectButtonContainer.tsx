@@ -1,6 +1,7 @@
 import { Badge, Form, ListGroup } from 'react-bootstrap';
 
 import Aptos from '../assets/Aptos-Big.png';
+import Sui from '../assets/Sui-Big.png';
 import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
 import Juno from '../assets/Juno-Big.png';
@@ -11,7 +12,7 @@ import { EditorClient } from '../utils/editor';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
-import { enableJuno } from '../utils/helper';
+import { enableSui } from '../utils/helper';
 
 interface InterfaceProps {
   setChain: Function;
@@ -53,6 +54,24 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
               Beta
             </Badge>
           </ListGroup.Item>
+          {enableSui() ? (
+            <ListGroup.Item
+              as="li"
+              action
+              onClick={() => {
+                setChain('Sui');
+              }}
+            >
+              <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
+              <b>SUI (MoveVM)</b>
+              <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+                Beta
+              </Badge>
+            </ListGroup.Item>
+          ) : (
+            false
+          )}
+
           <ListGroup.Item
             as="li"
             action
