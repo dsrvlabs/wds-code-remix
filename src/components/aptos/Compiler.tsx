@@ -57,6 +57,7 @@ import {
   CompilerAptosProveLoggedV2,
 } from 'wds-event/dist/event/compiler/aptos/v2/aptos';
 import { CHAIN_NAME } from '../../const/chain';
+import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -262,6 +263,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 dapp.networks.aptos.chain,
                 accountID,
                 timestamp,
+                BUILD_FILE_TYPE.move,
               ),
             },
             responseType: 'arraybuffer',
