@@ -10,16 +10,7 @@ import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import stripAnsi from 'strip-ansi';
 
 import * as _ from 'lodash';
-import {
-  compileIdV2,
-  REMIX_APTOS_COMPILE_REQUESTED_V2,
-  REMIX_APTOS_PROVE_REQUESTED_V2,
-  RemixAptosCompileRequestedV2,
-  RemixAptosProveRequestedV2,
-  reqIdV2,
-} from 'wds-event';
-
-import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { COMPILER_API_ENDPOINT, SUI_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
 import { readFile, stringify } from '../../utils/helper';
@@ -34,7 +25,7 @@ import {
   getAccountResources,
   serializedArgs,
   viewFunction,
-} from './aptos-helper';
+} from './sui-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
@@ -43,19 +34,25 @@ import { TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
-  COMPILER_APTOS_COMPILE_COMPLETED_V2,
-  COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2,
-  COMPILER_APTOS_COMPILE_LOGGED_V2,
-  COMPILER_APTOS_PROVE_COMPLETED_V2,
-  COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2,
-  COMPILER_APTOS_PROVE_LOGGED_V2,
-  CompilerAptosCompileCompletedV2,
-  CompilerAptosCompileErrorOccurredV2,
-  CompilerAptosCompileLoggedV2,
-  CompilerAptosProveCompletedV2,
-  CompilerAptosProveErrorOccurredV2,
-  CompilerAptosProveLoggedV2,
-} from 'wds-event/dist/event/compiler/aptos/v2/aptos';
+  compileIdV2,
+  COMPILER_SUI_COMPILE_COMPLETED_V1,
+  COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1,
+  COMPILER_SUI_COMPILE_LOGGED_V1,
+  COMPILER_SUI_PROVE_COMPLETED_V1,
+  COMPILER_SUI_PROVE_ERROR_OCCURRED_V1,
+  COMPILER_SUI_PROVE_LOGGED_V1,
+  CompilerSuiCompileCompletedV1,
+  CompilerSuiCompileErrorOccurredV1,
+  CompilerSuiCompileLoggedV1,
+  CompilerSuiProveCompletedV1,
+  CompilerSuiProveErrorOccurredV1,
+  CompilerSuiProveLoggedV1,
+  REMIX_SUI_COMPILE_REQUESTED_V1,
+  REMIX_SUI_PROVE_REQUESTED_V1,
+  RemixSuiCompileRequestedV1,
+  RemixSuiProveRequestedV1,
+  reqIdV2,
+} from 'wds-event';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 
@@ -177,7 +174,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const sendCompileReq = async (blob: Blob) => {
     setCompileError(null);
     sendCustomEvent('compile', {
-      event_category: 'aptos',
+      event_category: 'sui',
       method: 'compile',
     });
     setLoading(true);
@@ -189,9 +186,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       // socket connect
       let socket: Socket;
       if (STAGE === PROD) {
-        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT);
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT);
       } else {
-        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT, {
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT, {
           transports: ['websocket'],
         });
       }
@@ -204,16 +201,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2,
-        async (data: CompilerAptosCompileErrorOccurredV2) => {
+        COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1,
+        async (data: CompilerSuiCompileErrorOccurredV1) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_ERROR_OCCURRED_V2} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
               data,
             )}`,
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+            compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
           ) {
             return;
           }
@@ -224,13 +221,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       );
 
-      socket.on(COMPILER_APTOS_COMPILE_LOGGED_V2, async (data: CompilerAptosCompileLoggedV2) => {
+      socket.on(COMPILER_SUI_COMPILE_LOGGED_V1, async (data: CompilerSuiCompileLoggedV1) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_LOGGED_V2} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_COMPILE_LOGGED_V1} data=${stringify(data)}`,
         );
         if (
           data.compileId !==
-          compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
         ) {
           return;
         }
@@ -238,156 +235,151 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
-      socket.on(
-        COMPILER_APTOS_COMPILE_COMPLETED_V2,
-        async (data: CompilerAptosCompileCompletedV2) => {
-          log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V2} data=${stringify(
-              data,
-            )}`,
-          );
-          if (
-            data.compileId !==
-            compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
-          ) {
-            return;
-          }
+      socket.on(COMPILER_SUI_COMPILE_COMPLETED_V1, async (data: CompilerSuiCompileCompletedV1) => {
+        log.debug(
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_COMPILE_COMPLETED_V1} data=${stringify(data)}`,
+        );
+        if (
+          data.compileId !==
+          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+        ) {
+          return;
+        }
 
-          const res = await axios.request({
-            method: 'GET',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-            params: {
-              bucket: S3Path.bucket(),
-              fileKey: S3Path.outKey(
-                CHAIN_NAME.aptos,
-                dapp.networks.aptos.chain,
-                accountID,
-                timestamp,
-                BUILD_FILE_TYPE.move,
-              ),
-            },
-            responseType: 'arraybuffer',
-            responseEncoding: 'null',
-          });
-          //
-          // const zip = await new JSZip().loadAsync(res.data);
-          // let content: any;
+        const res = await axios.request({
+          method: 'GET',
+          url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+          params: {
+            bucket: S3Path.bucket(),
+            fileKey: S3Path.outKey(
+              CHAIN_NAME.sui,
+              dapp.networks.sui.chain,
+              accountID,
+              timestamp,
+              BUILD_FILE_TYPE.move,
+            ),
+          },
+          responseType: 'arraybuffer',
+          responseEncoding: 'null',
+        });
+        //
+        // const zip = await new JSZip().loadAsync(res.data);
+        // let content: any;
 
-          const zip = await new JSZip().loadAsync(res.data);
-          try {
-            await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
-          } catch (e) {
-            log.error(e);
-            setLoading(false);
-            return;
-          }
-
-          let packageName = '';
-          let metaData64 = '';
-          let metaData: Buffer;
-          let metaDataHex = '';
-          let filenames: string[] = [];
-          let moduleWrappers: ModuleWrapper[] = [];
-
-          log.debug(zip.files);
-
-          // ABI
-          // await Promise.all(
-          //   Object.keys(zip.files).map(async (key) => {
-          //     if (key.includes('.abi')) {
-          //       let content = await zip.file(key)?.async('arraybuffer');
-          //       log.debug(content)
-          //       log.debug((new TextDecoder().decode(content)))
-
-          //       await client?.fileManager.writeFile(
-          //         'browser/' + compileTarget + '/out/abi/' + FileUtil.extractFilename(key),
-          //         (new TextDecoder().decode(content))
-          //       );
-          //     }
-          //   }),
-          // );
-
-          await Promise.all(
-            Object.keys(zip.files).map(async (key) => {
-              if (key.includes('package-metadata.bcs')) {
-                let content = await zip.file(key)?.async('blob');
-                content = content?.slice(0, content.size) ?? new Blob();
-                metaData64 = await readFile(new File([content], key));
-                metaData = Buffer.from(metaData64, 'base64');
-                const packageNameLength = metaData[0];
-                packageName = metaData.slice(1, packageNameLength + 1).toString();
-                metaDataHex = metaData.toString('hex');
-                log.debug(`metadataFile_Base64=${metaData64}`);
-                try {
-                  await client?.fileManager.writeFile(
-                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                    metaData64,
-                  );
-                } catch (e) {
-                  log.error(e);
-                  setLoading(false);
-                }
-              }
-            }),
-          );
-
-          await Promise.all(
-            Object.keys(zip.files).map(async (filepath) => {
-              if (filepath.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
-                const moduleDataBuf = await zip.file(filepath)?.async('nodebuffer');
-                log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
-                let content = await zip.file(filepath)?.async('blob');
-                content = content?.slice(0, content.size) ?? new Blob();
-                const moduleBase64 = await readFile(new File([content], filepath));
-                log.debug(`moduleBase64=${moduleBase64}`);
-
-                const moduleName = Buffer.from(
-                  FileUtil.extractFilenameWithoutExtension(filepath),
-                ).toString();
-                const moduleNameHex = Buffer.from(
-                  FileUtil.extractFilenameWithoutExtension(filepath),
-                ).toString('hex');
-                const order = metaDataHex.indexOf(moduleNameHex);
-
-                moduleWrappers.push({
-                  packageName: packageName,
-                  path: filepath,
-                  module: moduleBase64,
-                  moduleName: moduleName,
-                  moduleNameHex: moduleNameHex,
-                  order: order,
-                });
-
-                try {
-                  await client?.fileManager.writeFile(
-                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(filepath),
-                    moduleBase64,
-                  );
-                  filenames.push(compileTarget + '/out/' + FileUtil.extractFilename(filepath));
-                } catch (e) {
-                  log.error(e);
-                  setLoading(false);
-                }
-              }
-            }),
-          );
-          moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-          log.info('@@@ moduleWrappers', moduleWrappers);
-
-          setPackageName(packageName);
-          setModuleWrappers([...moduleWrappers]);
-          setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
-          setFileNames([...filenames]);
-          setMetaDataBase64(metaData64);
-
-          socket.disconnect();
+        const zip = await new JSZip().loadAsync(res.data);
+        try {
+          await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
+        } catch (e) {
+          log.error(e);
           setLoading(false);
-        },
-      );
+          return;
+        }
+
+        let packageName = '';
+        let metaData64 = '';
+        let metaData: Buffer;
+        let metaDataHex = '';
+        let filenames: string[] = [];
+        let moduleWrappers: ModuleWrapper[] = [];
+
+        log.debug(zip.files);
+
+        // ABI
+        // await Promise.all(
+        //   Object.keys(zip.files).map(async (key) => {
+        //     if (key.includes('.abi')) {
+        //       let content = await zip.file(key)?.async('arraybuffer');
+        //       log.debug(content)
+        //       log.debug((new TextDecoder().decode(content)))
+
+        //       await client?.fileManager.writeFile(
+        //         'browser/' + compileTarget + '/out/abi/' + FileUtil.extractFilename(key),
+        //         (new TextDecoder().decode(content))
+        //       );
+        //     }
+        //   }),
+        // );
+
+        await Promise.all(
+          Object.keys(zip.files).map(async (key) => {
+            if (key.includes('package-metadata.bcs')) {
+              let content = await zip.file(key)?.async('blob');
+              content = content?.slice(0, content.size) ?? new Blob();
+              metaData64 = await readFile(new File([content], key));
+              metaData = Buffer.from(metaData64, 'base64');
+              const packageNameLength = metaData[0];
+              packageName = metaData.slice(1, packageNameLength + 1).toString();
+              metaDataHex = metaData.toString('hex');
+              log.debug(`metadataFile_Base64=${metaData64}`);
+              try {
+                await client?.fileManager.writeFile(
+                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                  metaData64,
+                );
+              } catch (e) {
+                log.error(e);
+                setLoading(false);
+              }
+            }
+          }),
+        );
+
+        await Promise.all(
+          Object.keys(zip.files).map(async (filepath) => {
+            if (filepath.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
+              const moduleDataBuf = await zip.file(filepath)?.async('nodebuffer');
+              log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
+              let content = await zip.file(filepath)?.async('blob');
+              content = content?.slice(0, content.size) ?? new Blob();
+              const moduleBase64 = await readFile(new File([content], filepath));
+              log.debug(`moduleBase64=${moduleBase64}`);
+
+              const moduleName = Buffer.from(
+                FileUtil.extractFilenameWithoutExtension(filepath),
+              ).toString();
+              const moduleNameHex = Buffer.from(
+                FileUtil.extractFilenameWithoutExtension(filepath),
+              ).toString('hex');
+              const order = metaDataHex.indexOf(moduleNameHex);
+
+              moduleWrappers.push({
+                packageName: packageName,
+                path: filepath,
+                module: moduleBase64,
+                moduleName: moduleName,
+                moduleNameHex: moduleNameHex,
+                order: order,
+              });
+
+              try {
+                await client?.fileManager.writeFile(
+                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(filepath),
+                  moduleBase64,
+                );
+                filenames.push(compileTarget + '/out/' + FileUtil.extractFilename(filepath));
+              } catch (e) {
+                log.error(e);
+                setLoading(false);
+              }
+            }
+          }),
+        );
+        moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+        log.info('@@@ moduleWrappers', moduleWrappers);
+
+        setPackageName(packageName);
+        setModuleWrappers([...moduleWrappers]);
+        setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
+        setFileNames([...filenames]);
+        setMetaDataBase64(metaData64);
+
+        socket.disconnect();
+        setLoading(false);
+      });
 
       const formData = new FormData();
-      formData.append('chainName', CHAIN_NAME.aptos);
-      formData.append('chainId', dapp.networks.aptos.chain);
+      formData.append('chainName', CHAIN_NAME.sui);
+      formData.append('chainId', dapp.networks.sui.chain);
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -407,18 +399,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixAptosCompileRequestedV2: RemixAptosCompileRequestedV2 = {
-        compileId: (CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp),
-        chainName: CHAIN_NAME.aptos,
-        chainId: dapp.networks.aptos.chain,
+      const remixSuiCompileRequestedV1: RemixSuiCompileRequestedV1 = {
+        compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        chainName: CHAIN_NAME.sui,
+        chainId: dapp.networks.sui.chain,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_APTOS_COMPILE_REQUESTED_V2, remixAptosCompileRequestedV2);
+      socket.emit(REMIX_SUI_COMPILE_REQUESTED_V1, remixSuiCompileRequestedV1);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_COMPILE_REQUESTED_V2} data=${stringify(
-          remixAptosCompileRequestedV2,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_SUI_COMPILE_REQUESTED_V1} data=${stringify(
+          remixSuiCompileRequestedV1,
         )}`,
       );
     } catch (e) {
@@ -436,9 +428,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       // socket connect
       let socket: Socket;
       if (STAGE === PROD) {
-        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT);
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT);
       } else {
-        socket = io(APTOS_COMPILER_CONSUMER_ENDPOINT, {
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT, {
           transports: ['websocket'],
         });
       }
@@ -451,17 +443,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2,
-        async (data: CompilerAptosProveErrorOccurredV2) => {
+        COMPILER_SUI_PROVE_ERROR_OCCURRED_V1,
+        async (data: CompilerSuiProveErrorOccurredV1) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_ERROR_OCCURRED_V2} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_ERROR_OCCURRED_V1} data=${stringify(
               data,
             )}`,
           );
 
-          if (
-            data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
-          ) {
+          if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -471,22 +461,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       );
 
-      socket.on(COMPILER_APTOS_PROVE_LOGGED_V2, async (data: CompilerAptosProveLoggedV2) => {
+      socket.on(COMPILER_SUI_PROVE_LOGGED_V1, async (data: CompilerSuiProveLoggedV1) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_LOGGED_V2} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_LOGGED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
           return;
         }
 
         await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
-      socket.on(COMPILER_APTOS_PROVE_COMPLETED_V2, async (data: CompilerAptosProveCompletedV2) => {
+      socket.on(COMPILER_SUI_PROVE_COMPLETED_V1, async (data: CompilerSuiProveCompletedV1) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_COMPLETED_V2} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_COMPLETED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
           return;
         }
         socket.disconnect();
@@ -494,14 +484,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       const formData = new FormData();
-      formData.append('chainName', CHAIN_NAME.aptos);
-      formData.append('chainId', dapp.networks.aptos.chain);
+      formData.append('chainName', CHAIN_NAME.sui);
+      formData.append('chainId', dapp.networks.sui.chain);
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
       formData.append('zipFile', blob || '');
 
-      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Accept: 'application/json',
@@ -515,18 +505,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixAptosProveRequestedV2: RemixAptosProveRequestedV2 = {
-        id: compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp),
-        chainName: CHAIN_NAME.aptos,
-        chainId: dapp.networks.aptos.chain,
+      const remixSuiProveRequestedV1: RemixSuiProveRequestedV1 = {
+        id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        chainName: CHAIN_NAME.sui,
+        chainId: dapp.networks.sui.chain,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_APTOS_PROVE_REQUESTED_V2, remixAptosProveRequestedV2);
+      socket.emit(REMIX_SUI_PROVE_REQUESTED_V1, remixSuiProveRequestedV1);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_APTOS_PROVE_REQUESTED_V2} data=${stringify(
-          remixAptosProveRequestedV2,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_SUI_PROVE_REQUESTED_V1} data=${stringify(
+          remixSuiProveRequestedV1,
         )}`,
       );
     } catch (e) {
@@ -566,13 +556,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const getContractAtAddress = async () => {
     sendCustomEvent('at_address', {
-      event_category: 'aptos',
+      event_category: 'sui',
       method: 'at_address',
     });
     setDeployedContract(atAddress);
-    getAccountModulesFromAccount(atAddress, dapp.networks.aptos.chain);
+    getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain);
 
-    const moveResources = await getAccountResources(atAddress, dapp.networks.aptos.chain);
+    const moveResources = await getAccountResources(atAddress, dapp.networks.sui.chain);
     log.info(`@@@ moveResources`, moveResources);
     setAccountResources([...moveResources]);
     if (isNotEmptyList(moveResources)) {
@@ -642,14 +632,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.info('parameters', JSON.stringify(parameters, null, 2));
     const dappTxn_ = await dappTxn(
       accountID,
-      dapp.networks.aptos.chain,
+      dapp.networks.sui.chain,
       deployedContract + '::' + targetModule,
       moveFunction?.name || '',
       genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
       serializedArgs(parameters),
     );
 
-    const txHash = await dapp.request('aptos', {
+    const txHash = await dapp.request('sui', {
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
@@ -663,7 +653,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       deployedContract,
       targetModule,
       moveFunction?.name || '',
-      dapp.networks.aptos.chain,
+      dapp.networks.sui.chain,
       genericParameters, // typeArgs
       parameters,
     );
@@ -831,7 +821,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </Button>
 
         {fileNames.map((filename, i) => (
-          <small key={`aptos-module-file-${i}`}>
+          <small key={`sui-module-file-${i}`}>
             {filename}
             {i < filename.length - 1 ? <br /> : false}
           </small>
