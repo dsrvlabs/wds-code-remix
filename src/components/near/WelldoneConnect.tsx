@@ -99,7 +99,19 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control
               type="text"
               placeholder="Account"
-              value={account.address !== '' ? account.address + ' (' + balance + ' near)' : ''}
+              value={account.address !== '' ? account.address : ''}
+              size="sm"
+              readOnly
+            />
+          </InputGroup>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>BALANCE</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control
+              type="text"
+              placeholder="Balance"
+              value={account.address !== '' ? balance + ' near' : ''}
               size="sm"
               readOnly
             />
