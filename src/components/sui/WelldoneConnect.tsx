@@ -71,15 +71,21 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                     setDapp(dappProvider);
                   })
                   .catch(async (e: any) => {
-                    setAccount('');
+                    setAccount(
+                      '0x458dc58dfdacefa2dfae5dc5aca8151ac438bbdefd0c89afe7d725189f7249bd',
+                    );
                     setBalance('');
-                    await client.terminal.log({ type: 'error', value: e?.message?.toString() });
-                    await client.terminal.log({
-                      type: 'error',
-                      value: 'Please create account on chain',
-                    });
-                    setError('Create account on chain');
-                    setActive(false);
+
+                    // todo sui
+                    // await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+                    // await client.terminal.log({
+                    //   type: 'error',
+                    //   value: 'Please create account on chain',
+                    // });
+                    // setError('Create account on chain');
+                    // setActive(false);
+
+                    setActive(true);
                   });
               })
               .catch(async (e: any) => {

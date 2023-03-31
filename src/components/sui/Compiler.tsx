@@ -210,7 +210,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+            // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+            compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
           ) {
             return;
           }
@@ -227,7 +228,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -241,7 +243,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -253,7 +256,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             bucket: S3Path.bucket(),
             fileKey: S3Path.outKey(
               CHAIN_NAME.sui,
-              dapp.networks.sui.chain,
+              // dapp.networks.sui.chain, // todo sui
+              'devnet',
               accountID,
               timestamp,
               BUILD_FILE_TYPE.move,
@@ -379,7 +383,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      formData.append('chainId', dapp.networks.sui.chain);
+      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -400,9 +405,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiCompileRequestedV1: RemixSuiCompileRequestedV1 = {
-        compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        // compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        compileId: (CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        chainId: dapp.networks.sui.chain,
+        // chainId: dapp.networks.sui.chain, // todo sui
+        chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
@@ -451,7 +458,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             )}`,
           );
 
-          if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+          if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -465,7 +473,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_LOGGED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
 
@@ -476,7 +485,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_COMPLETED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
         socket.disconnect();
@@ -485,7 +495,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      formData.append('chainId', dapp.networks.sui.chain);
+      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -506,9 +517,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiProveRequestedV1: RemixSuiProveRequestedV1 = {
-        id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        // id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        id: compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        chainId: dapp.networks.sui.chain,
+        // chainId: dapp.networks.sui.chain, // todo sui
+        chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
