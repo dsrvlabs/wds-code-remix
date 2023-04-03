@@ -23,6 +23,7 @@ import {
   dappTxn,
   getAccountModules,
   getAccountResources,
+  parseYaml,
   serializedArgs,
   viewFunction,
 } from './sui-helper';
@@ -34,6 +35,7 @@ import { TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
+  CompiledModulesAndDeps,
   compileIdV2,
   COMPILER_SUI_COMPILE_COMPLETED_V1,
   COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1,
@@ -65,6 +67,28 @@ export interface ModuleWrapper {
   order: number;
 }
 
+export interface BuildInfo {
+  compiled_package_info: {
+    address_alias_instantiation: { [key: string]: string };
+    build_flags: {
+      additional_named_addresses: { [key: string]: string };
+      architecture: any;
+      dev_mode: boolean;
+      fetch_deps_only: boolean;
+      force_recompilation: boolean;
+      generate_abis: boolean;
+      generate_docs: boolean;
+      install_dir: any;
+      lock_file: string;
+      skip_fetch_latest_git_deps: boolean;
+      test_mode: boolean;
+    };
+    package_name: string;
+    source_digest: string;
+  };
+  dependencies: string[];
+}
+
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
 
@@ -89,11 +113,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
 
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | undefined>();
   const [packageName, setPackageName] = useState<string>('');
   const [compileTimestamp, setCompileTimestamp] = useState<string>('');
-  const [moduleWrappers, setModuleWrappers] = useState<ModuleWrapper[]>([]);
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
-  const [metaData64, setMetaDataBase64] = useState<string>('');
+  const [compiledModulesAndDeps, setCompiledModulesAndDeps] = useState<
+    CompiledModulesAndDeps | undefined
+  >();
 
   const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
   const [targetModule, setTargetModule] = useState<string>('');
@@ -280,6 +306,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
 
         let packageName = '';
+        let buildInfo: BuildInfo | undefined;
         let metaData64 = '';
         let metaData: Buffer;
         let metaDataHex = '';
@@ -306,19 +333,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         await Promise.all(
           Object.keys(zip.files).map(async (key) => {
-            if (key.includes('package-metadata.bcs')) {
-              let content = await zip.file(key)?.async('blob');
-              content = content?.slice(0, content.size) ?? new Blob();
-              metaData64 = await readFile(new File([content], key));
-              metaData = Buffer.from(metaData64, 'base64');
-              const packageNameLength = metaData[0];
-              packageName = metaData.slice(1, packageNameLength + 1).toString();
-              metaDataHex = metaData.toString('hex');
-              log.debug(`metadataFile_Base64=${metaData64}`);
+            if (key.includes('compiledModulesAndDeps.json')) {
+              let content = (await zip.file(key)?.async('blob')) ?? new Blob();
+              const arrayBuffer = await content.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              log.debug(`compiledModulesAndDeps=${buffer.toString()}`);
               try {
                 await client?.fileManager.writeFile(
                   'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  metaData64,
+                  buffer.toString(),
+                );
+              } catch (e) {
+                log.error(e);
+                setLoading(false);
+              }
+            }
+
+            if (key.includes('BuildInfo.yaml')) {
+              let content = (await zip.file(key)?.async('blob')) ?? new Blob();
+              const arrayBuffer = await content.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              buildInfo = parseYaml(buffer.toString());
+              packageName = buildInfo?.compiled_package_info.package_name || '';
+
+              try {
+                await client?.fileManager.writeFile(
+                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                  buffer.toString(),
                 );
               } catch (e) {
                 log.error(e);
@@ -372,10 +413,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.info('@@@ moduleWrappers', moduleWrappers);
 
         setPackageName(packageName);
-        setModuleWrappers([...moduleWrappers]);
+        setBuildInfo(buildInfo);
         setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
         setFileNames([...filenames]);
-        setMetaDataBase64(metaData64);
+        setCompiledModulesAndDeps(data.compiledModulesAndDeps);
 
         socket.disconnect();
         setLoading(false);
@@ -698,33 +739,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const artifactPaths = await findArtifacts();
 
     setPackageName('');
+    setBuildInfo(undefined);
     setCompileTimestamp('');
-    setModuleWrappers([]);
-    setMetaDataBase64('');
     setModuleBase64s([]);
     setFileNames([]);
+    setCompiledModulesAndDeps(undefined);
 
     if (isEmptyList(artifactPaths)) {
       return [];
     }
 
-    let metaData64 = '';
-    let metaData: Buffer;
-    let metaDataHex = '';
+    let packageName = '';
+    let buildInfo: BuildInfo | undefined = undefined;
     let filenames: string[] = [];
     let moduleWrappers: ModuleWrapper[] = [];
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (path.includes('package-metadata.bcs')) {
-          metaData64 = await client?.fileManager.readFile('browser/' + path);
-          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
-        }
-      }),
-    );
-    metaData = Buffer.from(metaData64, 'base64');
-    const packageNameLength = metaData[0];
-    const packageName = metaData.slice(1, packageNameLength + 1).toString();
 
     await Promise.all(
       artifactPaths.map(async (path) => {
@@ -737,7 +765,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             const moduleNameHex = Buffer.from(
               FileUtil.extractFilenameWithoutExtension(path),
             ).toString('hex');
-            const order = metaDataHex.indexOf(moduleNameHex);
 
             moduleWrappers.push({
               packageName: packageName,
@@ -745,10 +772,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               module: moduleBase64,
               moduleName: moduleName,
               moduleNameHex: moduleNameHex,
-              order: order,
+              order: 0,
             });
           }
           filenames.push(path);
+        }
+
+        if (path.includes('compiledModulesAndDeps.json')) {
+          const compiledModulesAndDepsStr = await client?.fileManager.readFile('browser/' + path);
+          const compiledModulesAndDeps = JSON.parse(compiledModulesAndDepsStr);
+          console.log('compiledModulesAndDeps', compiledModulesAndDeps);
+          setCompiledModulesAndDeps(compiledModulesAndDeps);
+        }
+
+        if (path.includes('BuildInfo.yaml')) {
+          const buildinfoStr = await client?.fileManager.readFile('browser/' + path);
+          buildInfo = parseYaml(buildinfoStr);
+          packageName = buildInfo?.compiled_package_info.package_name || '';
+          log.info('buildinfo', buildInfo);
         }
       }),
     );
@@ -757,10 +798,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.debug('@@@ moduleWrappers', moduleWrappers);
 
     setPackageName(packageName);
+    setBuildInfo(buildInfo);
     setFileNames([...filenames]);
-    setModuleWrappers([...moduleWrappers]);
     setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
-    setMetaDataBase64(metaData64);
 
     return filenames;
   };
@@ -810,7 +850,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !packageName}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -823,7 +863,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !packageName}
           onClick={async () => {
             await wrappedRequestProve();
           }}
@@ -852,15 +892,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {metaData64 ? (
+      {compiledModulesAndDeps ? (
         <Deploy
           wallet={'Dsrv'}
           accountID={accountID}
           compileTimestamp={compileTimestamp}
           packageName={packageName}
-          moduleWrappers={moduleWrappers}
-          metaData64={metaData64}
-          moduleBase64s={moduleBase64s}
+          compiledModulesAndDeps={compiledModulesAndDeps}
           dapp={dapp}
           client={client}
           setDeployedContract={setDeployedContract}

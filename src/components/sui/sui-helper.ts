@@ -2,6 +2,16 @@ import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } fr
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 import { ensureBigInt, ensureNumber, serializeArg } from './transaction_builder/builder_utils';
+import { CompiledModulesAndDeps } from 'wds-event';
+import {
+  Connection,
+  fromB64,
+  JsonRpcProvider,
+  normalizeSuiObjectId,
+  TransactionBlock,
+} from '@mysten/sui.js';
+const yaml = require('js-yaml');
+export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -11,6 +21,67 @@ export interface ViewResult {
 export interface ArgTypeValuePair {
   type: string;
   val: any;
+}
+
+export async function dappPublishTxn(
+  accountId: string,
+  chainId: SuiChainId,
+  compiledModulesAndDeps: CompiledModulesAndDeps,
+) {
+  const tx = new TransactionBlock();
+  // TODO: Publish dry runs fail currently, so we need to set a gas budget:
+  tx.setGasBudget(10000);
+  const cap = tx.publish(
+    compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
+    compiledModulesAndDeps.dependencies.map((addr: string) => normalizeSuiObjectId(addr)),
+  );
+  tx.transferObjects([cap], tx.pure(accountId));
+  tx.setSender(accountId);
+  const bcsTx = await tx.build({ provider: getProvider(chainId) });
+  log.info(`bcsTx`, bcsTx);
+
+  const header = Buffer.from(sha3_256(Buffer.from('SUI::RawTransaction', 'ascii')), 'hex');
+  return '0x' + header.toString('hex') + Buffer.from(bcsTx).toString('hex');
+}
+
+export function getProvider(chainId: SuiChainId): JsonRpcProvider {
+  if (chainId === 'mainnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.mainnet.sui.io:443/',
+        faucet: 'https://faucet.mainnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
+
+  if (chainId === 'testnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.testnet.sui.io:443/',
+        faucet: 'https://faucet.testnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
+
+  if (chainId === 'devnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.devnet.sui.io:443/',
+        faucet: 'https://faucet.devnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
+
+  throw new Error(`Invalid ChainId=${chainId}`);
 }
 
 export async function dappTxn(
@@ -318,4 +389,8 @@ export function aptosNodeUrl(chainId: string) {
   }
 
   throw new Error(`Invalid chainId=${chainId}`);
+}
+
+export function parseYaml(str: string) {
+  return yaml.load(str);
 }
