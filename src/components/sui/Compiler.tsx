@@ -21,11 +21,13 @@ import { log } from '../../utils/logger';
 import {
   ArgTypeValuePair,
   dappTxn,
-  getAccountModules,
-  getAccountResources,
+  getPackageIds,
+  getOwnedObjects,
   parseYaml,
   serializedArgs,
   viewFunction,
+  getModules,
+  SuiChainId,
 } from './sui-helper';
 
 import { PROD, STAGE } from '../../const/stage';
@@ -57,6 +59,8 @@ import {
 } from 'wds-event';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
+import { SuiFunc, SuiModule } from './sui-types';
+import { SuiObjectData } from '@mysten/sui.js';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -109,6 +113,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
+  const [inputAddress, setInputAddress] = useState<string>('');
   const [atAddress, setAtAddress] = useState<string>('');
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
@@ -121,15 +126,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     CompiledModulesAndDeps | undefined
   >();
 
-  const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
-  const [targetModule, setTargetModule] = useState<string>('');
-  const [moveFunction, setMoveFunction] = useState<Types.MoveFunction | undefined>();
+  const [suiObjects, setSuiObjects] = useState<SuiObjectData[]>([]);
+  const [targetObjectId, setTargetObjectId] = useState<string>('');
 
-  const [genericParameters, setGenericParameters] = useState<string[]>([]);
-  const [parameters, setParameters] = useState<ArgTypeValuePair[]>([]);
+  const [packageIds, setPackageIds] = useState<string[]>([]);
+  const [targetPackageId, setTargetPackageId] = useState('');
 
-  const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
-  const [targetResource, setTargetResource] = useState<string>('');
+  const [modules, setModules] = useState<SuiModule[]>([]);
+  const [targetModuleName, setTargetModuleName] = useState<string>('');
+  const [funcs, setFuncs] = useState<SuiFunc[]>([]);
+  const [targetFuncName, setTargetFuncName] = useState<string>('');
+  const [parameters, setParameters] = useState<string[]>([]);
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -588,150 +595,150 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return filename.substring(_lastDot, _fileLen).toLowerCase();
   };
 
-  const getAccountModulesFromAccount = async (account: string, chainId: string) => {
+  function clearPackageCtx() {
+    setModules([]);
+    setSuiObjects([]);
+    setTargetObjectId('');
+    setFuncs([]);
+    setTargetFuncName('');
+  }
+
+  const initPackageCtx = async (account: string, chainId: SuiChainId) => {
     try {
-      const accountModules = await getAccountModules(account, chainId);
-      log.info('@@@ accountModules', accountModules);
-      if (isEmptyList(accountModules)) {
-        setModules([]);
-        setTargetModule('');
-        setMoveFunction(undefined);
+      const packageIds = await getPackageIds(account, chainId);
+      log.info('@@@ packageIds', packageIds);
+      if (isEmptyList(packageIds)) {
+        clearPackageCtx();
         return;
       }
-      setModules(accountModules);
-      const firstAccountModule = accountModules[0];
-      setTargetModule(firstAccountModule.abi!.name);
-      setMoveFunction(firstAccountModule.abi!.exposed_functions[0]);
+      setPackageIds([...packageIds]);
+      setTargetPackageId(packageIds[0]);
+      const modules = await getModules('devnet', packageIds[0]);
+      if (isEmptyList(modules)) {
+        setModules([]);
+        setTargetModuleName('');
+        setFuncs([]);
+        setTargetFuncName('');
+        return;
+      }
+      setModules([...modules]);
+      const firstModule = modules[0];
+
+      if (isEmptyList(firstModule.exposedFunctions)) {
+        setFuncs([]);
+        setTargetFuncName('');
+        return;
+      }
+
+      setFuncs([...firstModule.exposedFunctions]);
+      setTargetFuncName(firstModule.exposedFunctions[0].name);
+      setParameters([]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
     }
   };
 
-  const getContractAtAddress = async () => {
+  async function initObjectsCtx(account: string, chainId: SuiChainId) {
+    // const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
+    const objects = await getOwnedObjects(account, chainId);
+    log.info(`@@@ sui objects`, objects);
+    setSuiObjects([...objects]);
+    if (isNotEmptyList(objects)) {
+      setTargetObjectId(objects[0].objectId);
+    }
+  }
+
+  const initContract = async () => {
+    setAtAddress(inputAddress);
     sendCustomEvent('at_address', {
       event_category: 'sui',
       method: 'at_address',
     });
-    setDeployedContract(atAddress);
-    getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain);
+    setDeployedContract(inputAddress);
 
-    const moveResources = await getAccountResources(atAddress, dapp.networks.sui.chain);
-    log.info(`@@@ moveResources`, moveResources);
-    setAccountResources([...moveResources]);
-    if (isNotEmptyList(moveResources)) {
-      setTargetResource(moveResources[0].type);
-    } else {
-      setTargetResource('');
-    }
-    setParameters([]);
+    // getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain); // todo sui
+    await initObjectsCtx(inputAddress, 'devnet');
+    await initPackageCtx(inputAddress, 'devnet');
   };
 
-  const setModuleAndABI = (e: any) => {
-    setTargetModule(e.target.value);
-    if (modules.length) {
-      modules.map((mod, idx) => {
-        if (mod.abi?.name === e.target.value) {
-          setMoveFunction(mod.abi?.exposed_functions[0]);
-          setParameters([]);
-        }
-      });
+  const onChangePackageId = async (e: any) => {
+    const packageId = e.target.value;
+    setTargetPackageId(packageId);
+    const modules = await getModules('devnet', packageId);
+    setModules([...modules]);
+    if (isEmptyList(modules)) {
+      setFuncs([]);
+      setTargetFuncName('');
+      setParameters([]);
+      return;
     }
+
+    const exposedFunctions = modules[0].exposedFunctions;
+    setFuncs([...exposedFunctions]);
+    if (isEmptyList(exposedFunctions)) {
+      setTargetFuncName('');
+      setParameters([]);
+      return;
+    }
+
+    setTargetFuncName(exposedFunctions[0].name);
+    setParameters([]);
+    return;
   };
 
-  const handleFunction = (e: any) => {
-    setParameters([]);
-    setGenericParameters([]);
-    setMoveFunction(undefined);
-
-    const module = modules.find((m) => m.abi?.name === targetModule);
+  const onChangeModuleName = async (e: any) => {
+    const moduleName = e.target.value;
+    setTargetModuleName(moduleName);
+    const module = modules.find((m) => m.name === moduleName);
     if (!module) {
+      throw new Error(`Not Found Module ${moduleName}`);
+    }
+
+    const funcs = module.exposedFunctions;
+    setFuncs([...funcs]);
+    if (isEmptyList(funcs)) {
+      setTargetFuncName('');
+      setParameters([]);
       return;
     }
 
-    const matchFunc = module.abi?.exposed_functions.find((f) => {
-      return f.name === e.target.value;
-    });
-    if (!matchFunc) {
-      return;
+    setTargetFuncName(funcs[0].name);
+    setParameters([]);
+  };
+
+  const onChangeFuncName = (e: any) => {
+    const funcName = e.target.value;
+
+    const func = funcs.find((f) => f.name === funcName);
+    if (!func) {
+      throw new Error(`Not Found Function ${funcName}`);
     }
-    setMoveFunction(matchFunc);
+
+    setTargetFuncName(func.name);
+    setParameters([]);
   };
 
-  const onChangeResource = (e: any) => {
-    const resourceType = e.target.value;
-    log.info('###', resourceType);
-    setTargetResource(resourceType);
+  const onChangeObjectId = (e: any) => {
+    const objectId = e.target.value;
+    log.info('###', objectId);
+    setTargetObjectId(objectId);
   };
 
-  const queryResource = () => {
-    log.info(`targetResource`, targetResource);
-    log.info(`accountResources`, accountResources);
-    const selectedResource = accountResources.find((r) => r.type === targetResource);
-    if (!selectedResource) {
+  const queryObject = () => {
+    log.info(`targetObjectId`, targetObjectId);
+    const selectedObject = suiObjects.find((object) => object.objectId === targetObjectId);
+    if (!selectedObject) {
       client.terminal.log({
         type: 'error',
-        value: `Resource Not Found For Type ${targetResource}`,
+        value: `Resource Not Found For Object ID ${targetObjectId}`,
       });
       return;
     }
 
     client.terminal.log({
       type: 'info',
-      value: `\n${targetResource}\n${JSON.stringify(selectedResource.data, null, 2)}\n`,
-    });
-  };
-
-  const entry = async () => {
-    log.info('parameters', JSON.stringify(parameters, null, 2));
-    const dappTxn_ = await dappTxn(
-      accountID,
-      dapp.networks.sui.chain,
-      deployedContract + '::' + targetModule,
-      moveFunction?.name || '',
-      genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
-      serializedArgs(parameters),
-    );
-
-    const txHash = await dapp.request('sui', {
-      method: 'dapp:signAndSendTransaction',
-      params: [dappTxn_],
-    });
-    log.debug(`@@@ txHash=${txHash}`);
-  };
-
-  const view = async () => {
-    console.log(parameters);
-
-    const view = await viewFunction(
-      deployedContract,
-      targetModule,
-      moveFunction?.name || '',
-      dapp.networks.sui.chain,
-      genericParameters, // typeArgs
-      parameters,
-    );
-
-    log.debug(view);
-    if (view.error) {
-      await client.terminal.log({
-        type: 'error',
-        value: view.error.split('\\"').join(''),
-      });
-      return;
-    }
-
-    if (Array.isArray(view.result) && view.result.length === 1) {
-      await client.terminal.log({
-        type: 'info',
-        value: `${JSON.stringify(view.result[0], null, 2)}`,
-      });
-      return;
-    }
-
-    await client.terminal.log({
-      type: 'info',
-      value: `${JSON.stringify(view.result, null, 2)}`,
+      value: `\n${targetObjectId}\n${JSON.stringify(selectedObject, null, 2)}\n`,
     });
   };
 
@@ -850,7 +857,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === '' || proveLoading || loading || !packageName}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -863,7 +870,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || proveLoading || loading || !packageName}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestProve();
           }}
@@ -893,22 +900,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <hr />
       {compiledModulesAndDeps ? (
-        <Deploy
-          wallet={'Dsrv'}
-          accountID={accountID}
-          compileTimestamp={compileTimestamp}
-          packageName={packageName}
-          compiledModulesAndDeps={compiledModulesAndDeps}
-          dapp={dapp}
-          client={client}
-          setDeployedContract={setDeployedContract}
-          setAtAddress={setAtAddress}
-          setAccountResources={setAccountResources}
-          setTargetResource={setTargetResource}
-          setParameters={setParameters}
-          getAccountModulesFromAccount={getAccountModulesFromAccount}
-        />
+        <></>
       ) : (
+        // <Deploy
+        //   wallet={'Dsrv'}
+        //   accountID={accountID}
+        //   compileTimestamp={compileTimestamp}
+        //   packageName={packageName}
+        //   compiledModulesAndDeps={compiledModulesAndDeps}
+        //   dapp={dapp}
+        //   client={client}
+        //   setDeployedContract={setDeployedContract}
+        //   setAtAddress={setAtAddress}
+        //   setAccountResources={setAccountResources}
+        //   setTargetResource={setTargetResource}
+        //   setParameters={setParameters}
+        //   getAccountModulesFromAccount={initPackageCtx}
+        // />
         <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
           <small>NO COMPILED CONTRACT</small>
         </p>
@@ -923,9 +931,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             placeholder="account"
             size="sm"
             onChange={(e) => {
-              setAtAddress(e.target.value.trim());
+              setInputAddress(e.target.value.trim());
             }}
-            value={atAddress}
+            value={inputAddress}
           />
           <OverlayTrigger
             placement="left"
@@ -935,7 +943,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               variant="info"
               size="sm"
               disabled={accountID === '' || isProgress}
-              onClick={getContractAtAddress}
+              onClick={initContract}
             >
               <small>At Address</small>
             </Button>
@@ -943,24 +951,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </InputGroup>
       </Form.Group>
       <hr />
-
       {atAddress || deployedContract ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
-            <small>Resources</small>
+            <small>Objects</small>
           </Form.Text>
           <InputGroup>
             <Form.Control
               style={{ width: '80%', marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={targetResource}
-              onChange={onChangeResource}
+              value={targetObjectId}
+              onChange={onChangeObjectId}
             >
-              {accountResources.map((accountResource, idx) => {
+              {suiObjects.map((object, idx) => {
                 return (
-                  <option value={accountResource.type} key={`accountResources-${idx}`}>
-                    {accountResource.type}
+                  <option value={object.objectId} key={`sui-object-${idx}`}>
+                    {object.objectId}
                   </option>
                 );
               })}
@@ -970,17 +977,38 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             style={{ marginTop: '10px', minWidth: '70px' }}
             variant="warning"
             size="sm"
-            onClick={queryResource}
+            onClick={queryObject}
           >
-            <small>Query Resource</small>
+            <small>Query Object</small>
           </Button>
         </Form.Group>
       ) : (
         false
       )}
 
-      {modules.length > 0 ? (
+      {packageIds.length > 0 ? (
         <>
+          <Form.Group>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Packages</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={targetPackageId}
+                onChange={onChangePackageId}
+              >
+                {packageIds.map((packageId, idx) => {
+                  return (
+                    <option value={packageId} key={`packageId-${packageId}}`}>
+                      {packageId}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
           <Form.Group>
             <Form.Text className="text-muted" style={mb4}>
               <small>Modules</small>
@@ -989,13 +1017,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               <Form.Control
                 className="custom-select"
                 as="select"
-                value={targetModule}
-                onChange={setModuleAndABI}
+                value={targetModuleName}
+                onChange={onChangeModuleName}
               >
-                {modules.map((mod, idx) => {
+                {modules.map((module) => {
                   return (
-                    <option value={mod.abi?.name} key={idx + 1}>
-                      {mod.abi?.name}
+                    <option value={module.name} key={`${targetPackageId}-${module.name}`}>
+                      {module.name}
                     </option>
                   );
                 })}
@@ -1010,59 +1038,58 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               style={{ marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={moveFunction?.name}
-              onChange={handleFunction}
+              value={targetFuncName}
+              onChange={onChangeFuncName}
             >
-              {modules.map((mod, idx) => {
-                if (mod.abi?.name === targetModule) {
-                  return mod.abi.exposed_functions.map((func: any, idx: any) => {
-                    return (
-                      <option value={func.name} key={idx}>
-                        {func.name}
-                      </option>
-                    );
-                  });
-                }
+              {funcs.map((func) => {
+                return (
+                  <option
+                    value={func.name}
+                    key={`${targetPackageId}-${targetModuleName}-${func.name}`}
+                  >
+                    {func.name}
+                  </option>
+                );
               })}
             </Form.Control>
           </Form.Group>
-          {moveFunction ? (
-            <Form.Group>
-              <InputGroup>
-                <Parameters
-                  func={moveFunction}
-                  setGenericParameters={setGenericParameters}
-                  setParameters={setParameters}
-                />
-                <div>
-                  {moveFunction.is_entry ? (
-                    <Button
-                      style={{ marginTop: '10px', minWidth: '70px' }}
-                      variant="primary"
-                      size="sm"
-                      onClick={entry}
-                    >
-                      <small>{moveFunction.name}</small>
-                    </Button>
-                  ) : (
-                    <div>
-                      <Button
-                        style={{ marginTop: '10px', minWidth: '70px' }}
-                        variant="warning"
-                        size="sm"
-                        onClick={view}
-                      >
-                        <small>{moveFunction.name}</small>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </InputGroup>
-              <hr />
-            </Form.Group>
-          ) : (
-            false
-          )}
+          {/*{targetFuncName ? (*/}
+          {/*  <Form.Group>*/}
+          {/*    <InputGroup>*/}
+          {/*      <Parameters*/}
+          {/*        func={moveFunction}*/}
+          {/*        setGenericParameters={setGenericParameters}*/}
+          {/*        setParameters={setParameters}*/}
+          {/*      />*/}
+          {/*      <div>*/}
+          {/*        {moveFunction.is_entry ? (*/}
+          {/*          <Button*/}
+          {/*            style={{ marginTop: '10px', minWidth: '70px' }}*/}
+          {/*            variant="primary"*/}
+          {/*            size="sm"*/}
+          {/*            onClick={entry}*/}
+          {/*          >*/}
+          {/*            <small>{moveFunction.name}</small>*/}
+          {/*          </Button>*/}
+          {/*        ) : (*/}
+          {/*          <div>*/}
+          {/*            <Button*/}
+          {/*              style={{ marginTop: '10px', minWidth: '70px' }}*/}
+          {/*              variant="warning"*/}
+          {/*              size="sm"*/}
+          {/*              onClick={view}*/}
+          {/*            >*/}
+          {/*              <small>{moveFunction.name}</small>*/}
+          {/*            </Button>*/}
+          {/*          </div>*/}
+          {/*        )}*/}
+          {/*      </div>*/}
+          {/*    </InputGroup>*/}
+          {/*    <hr />*/}
+          {/*  </Form.Group>*/}
+          {/*) : (*/}
+          {/*  false*/}
+          {/*)}*/}
         </>
       ) : (
         false

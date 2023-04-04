@@ -7,7 +7,7 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
   dappPublishTxn,
-  getAccountResources,
+  getOwnedObjects,
   SuiChainId,
   waitForTransactionWithResult,
 } from './sui-helper';
@@ -148,7 +148,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
         setDeployedContract(accountID);
         setAtAddress('');
-        const moveResources = await getAccountResources(accountID, dapp.networks.sui.chain);
+        const moveResources = await getOwnedObjects(accountID, dapp.networks.sui.chain);
         log.info(`@@@ moveResources`, moveResources);
         setAccountResources([...moveResources]);
         if (isNotEmptyList(moveResources)) {

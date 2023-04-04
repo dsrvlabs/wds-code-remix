@@ -8,8 +8,14 @@ import {
   fromB64,
   JsonRpcProvider,
   normalizeSuiObjectId,
+  SuiMoveNormalizedFunction,
+  SuiMoveNormalizedStruct,
   TransactionBlock,
 } from '@mysten/sui.js';
+import { SuiMoveNormalizedModules } from '@mysten/sui.js/src/types';
+import { SuiModule } from './sui-types';
+import { SuiMoveModuleId, SuiMoveNormalizedModule } from '@mysten/sui.js/src/types/normalized';
+import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
@@ -310,14 +316,77 @@ export function wordCount(str: string, word: string): number {
   return depth;
 }
 
-export async function getAccountModules(account: string, chainId: string) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  return await aptosClient.getAccountModules(account);
+export async function getModules(chainId: SuiChainId, packageId: string): Promise<SuiModule[]> {
+  const suiMoveNormalizedModules = await getProvider(chainId).getNormalizedMoveModulesByPackage({
+    package: packageId,
+  });
+
+  return Object.keys(suiMoveNormalizedModules).map((moduleName) => {
+    const module = suiMoveNormalizedModules[moduleName];
+    const suiFuncs = Object.keys(module.exposedFunctions).map((funcName) => {
+      const func = module.exposedFunctions[funcName];
+      return {
+        name: funcName,
+        ...func,
+      };
+    });
+
+    const suiStructs = Object.keys(module.structs).map((structName) => {
+      const struct = module.structs[structName];
+      return {
+        name: structName,
+        ...struct,
+      };
+    });
+    return {
+      fileFormatVersion: module.fileFormatVersion,
+      address: module.address,
+      name: module.name,
+      friends: module.friends,
+      exposedFunctions: suiFuncs,
+      structs: suiStructs,
+    };
+  });
 }
 
-export async function getAccountResources(account: string, chainId: string) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  return await aptosClient.getAccountResources(account);
+export async function getPackageIds(account: string, chainId: string): Promise<string[]> {
+  const provider = getProvider(chainId as SuiChainId);
+  const { data } = await provider.getOwnedObjects({
+    owner: account,
+    filter: {
+      StructType: '0x2::package::UpgradeCap',
+    },
+    options: {
+      showType: true,
+      showContent: true,
+      showOwner: true,
+      showDisplay: true,
+    },
+  });
+
+  if (!data) {
+    return [];
+  }
+
+  return data.map((d: any) => d.data?.content?.fields?.package).filter((p) => p !== undefined);
+}
+
+export async function getOwnedObjects(
+  account: string,
+  chainId: SuiChainId,
+): Promise<SuiObjectData[]> {
+  const provider = await getProvider(chainId);
+  const { data } = await provider.getOwnedObjects({
+    owner: account,
+    options: {
+      showType: true,
+      showContent: true,
+      showOwner: true,
+      showDisplay: true,
+    },
+  });
+
+  return data.map((d) => d.data) as SuiObjectData[];
 }
 
 export async function viewFunction(
