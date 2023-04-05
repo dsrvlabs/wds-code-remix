@@ -2,6 +2,22 @@ import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } fr
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 import { ensureBigInt, ensureNumber, serializeArg } from './transaction_builder/builder_utils';
+import { CompiledModulesAndDeps } from 'wds-event';
+import {
+  Connection,
+  fromB64,
+  JsonRpcProvider,
+  normalizeSuiObjectId,
+  SuiMoveNormalizedFunction,
+  SuiMoveNormalizedStruct,
+  TransactionBlock,
+} from '@mysten/sui.js';
+import { SuiMoveNormalizedModules } from '@mysten/sui.js/src/types';
+import { SuiModule } from './sui-types';
+import { SuiMoveModuleId, SuiMoveNormalizedModule } from '@mysten/sui.js/src/types/normalized';
+import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
+const yaml = require('js-yaml');
+export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -13,53 +29,89 @@ export interface ArgTypeValuePair {
   val: any;
 }
 
-export async function dappTxn(
+export async function dappPublishTxn(
   accountId: string,
-  chainId: string,
-  module: string,
-  func: string,
-  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
-  args: BCS.Seq<BCS.Bytes>,
+  chainId: SuiChainId,
+  compiledModulesAndDeps: CompiledModulesAndDeps,
 ) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const rawTransaction = await aptosClient.generateRawTransaction(
-    new HexString(accountId),
-    genPayload(module, func, type_args, args),
+  const tx = new TransactionBlock();
+  // TODO: Publish dry runs fail currently, so we need to set a gas budget:
+  tx.setGasBudget(10000);
+  const cap = tx.publish(
+    compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
+    compiledModulesAndDeps.dependencies.map((addr: string) => normalizeSuiObjectId(addr)),
   );
-  log.info(`rawTransaction`, rawTransaction);
-  // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
+  tx.transferObjects([cap], tx.pure(accountId));
+  tx.setSender(accountId);
+  const bcsTx = await tx.build({ provider: getProvider(chainId) });
+  log.info(`bcsTx`, bcsTx);
 
-  const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
-  return (
-    '0x' + header.toString('hex') + Buffer.from(BCS.bcsToBytes(rawTransaction)).toString('hex')
-  );
+  const header = Buffer.from(sha3_256(Buffer.from('SUI::RawTransaction', 'ascii')), 'hex');
+  return '0x' + header.toString('hex') + Buffer.from(bcsTx).toString('hex');
 }
 
-function genPayload(
-  module: string,
-  func: string,
-  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
-  args: BCS.Seq<BCS.Bytes>,
+export async function moveCallTxn(
+  accountId: string,
+  chainId: SuiChainId,
+  packageId: string,
+  moduleName: string,
+  funcName: string,
+  args: string[],
 ) {
-  return new TxnBuilderTypes.TransactionPayloadEntryFunction(
-    TxnBuilderTypes.EntryFunction.natural(module, func, type_args, args),
-  );
+  const tx = new TransactionBlock();
+  // TODO: Publish dry runs fail currently, so we need to set a gas budget:
+  tx.setGasBudget(10000);
+  tx.moveCall({
+    target: `${packageId}::${moduleName}::${funcName}`,
+    arguments: args.map((arg) => tx.pure(arg)),
+  });
+  tx.setSender(accountId);
+
+  const bcsTx = await tx.build({ provider: getProvider(chainId) });
+  log.info(`bcsTx`, bcsTx);
+
+  const header = Buffer.from(sha3_256(Buffer.from('SUI::RawTransaction', 'ascii')), 'hex');
+  return '0x' + header.toString('hex') + Buffer.from(bcsTx).toString('hex');
 }
 
-export function metadataSerializedBytes(base64EncodedMetadata: string) {
-  return BCS.bcsSerializeBytes(
-    new HexString(Buffer.from(base64EncodedMetadata, 'base64').toString('hex')).toUint8Array(),
-  );
-}
+export function getProvider(chainId: SuiChainId): JsonRpcProvider {
+  if (chainId === 'mainnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.mainnet.sui.io:443/',
+        faucet: 'https://faucet.mainnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
 
-export function codeBytes(base64EncodedModules: string[]): BCS.Bytes {
-  const modules = base64EncodedModules
-    .map((module) => Buffer.from(module, 'base64'))
-    .map((buf) => new TxnBuilderTypes.Module(new HexString(buf.toString('hex')).toUint8Array()));
+  if (chainId === 'testnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.testnet.sui.io:443/',
+        faucet: 'https://faucet.testnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
 
-  const codeSerializer = new BCS.Serializer();
-  BCS.serializeVector(modules, codeSerializer);
-  return codeSerializer.getBytes();
+  if (chainId === 'devnet') {
+    return new JsonRpcProvider(
+      new Connection({
+        fullnode: 'https://fullnode.devnet.sui.io:443/',
+        faucet: 'https://faucet.devnet.sui.io/gas',
+      }),
+      {
+        skipDataValidation: false,
+      },
+    );
+  }
+
+  throw new Error(`Invalid ChainId=${chainId}`);
 }
 
 export async function waitForTransactionWithResult(txnHash: string, chainId: string) {
@@ -239,14 +291,77 @@ export function wordCount(str: string, word: string): number {
   return depth;
 }
 
-export async function getAccountModules(account: string, chainId: string) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  return await aptosClient.getAccountModules(account);
+export async function getModules(chainId: SuiChainId, packageId: string): Promise<SuiModule[]> {
+  const suiMoveNormalizedModules = await getProvider(chainId).getNormalizedMoveModulesByPackage({
+    package: packageId,
+  });
+
+  return Object.keys(suiMoveNormalizedModules).map((moduleName) => {
+    const module = suiMoveNormalizedModules[moduleName];
+    const suiFuncs = Object.keys(module.exposedFunctions).map((funcName) => {
+      const func = module.exposedFunctions[funcName];
+      return {
+        name: funcName,
+        ...func,
+      };
+    });
+
+    const suiStructs = Object.keys(module.structs).map((structName) => {
+      const struct = module.structs[structName];
+      return {
+        name: structName,
+        ...struct,
+      };
+    });
+    return {
+      fileFormatVersion: module.fileFormatVersion,
+      address: module.address,
+      name: module.name,
+      friends: module.friends,
+      exposedFunctions: suiFuncs,
+      structs: suiStructs,
+    };
+  });
 }
 
-export async function getAccountResources(account: string, chainId: string) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  return await aptosClient.getAccountResources(account);
+export async function getPackageIds(account: string, chainId: string): Promise<string[]> {
+  const provider = getProvider(chainId as SuiChainId);
+  const { data } = await provider.getOwnedObjects({
+    owner: account,
+    filter: {
+      StructType: '0x2::package::UpgradeCap',
+    },
+    options: {
+      showType: true,
+      showContent: true,
+      showOwner: true,
+      showDisplay: true,
+    },
+  });
+
+  if (!data) {
+    return [];
+  }
+
+  return data.map((d: any) => d.data?.content?.fields?.package).filter((p) => p !== undefined);
+}
+
+export async function getOwnedObjects(
+  account: string,
+  chainId: SuiChainId,
+): Promise<SuiObjectData[]> {
+  const provider = await getProvider(chainId);
+  const { data } = await provider.getOwnedObjects({
+    owner: account,
+    options: {
+      showType: true,
+      showContent: true,
+      showOwner: true,
+      showDisplay: true,
+    },
+  });
+
+  return data.map((d) => d.data) as SuiObjectData[];
 }
 
 export async function viewFunction(
@@ -318,4 +433,8 @@ export function aptosNodeUrl(chainId: string) {
   }
 
   throw new Error(`Invalid chainId=${chainId}`);
+}
+
+export function parseYaml(str: string) {
+  return yaml.load(str);
 }

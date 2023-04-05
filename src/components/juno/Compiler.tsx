@@ -24,6 +24,7 @@ import AlertCloseButton from '../common/AlertCloseButton';
 import { DisconnectDescription, Socket } from 'socket.io-client/build/esm/socket';
 import { cleanupSocketJuno } from '../../socket';
 import { io } from 'socket.io-client';
+import { PROD, STAGE } from '../../const/stage';
 
 interface InterfaceProps {
   fileName: string;
@@ -156,10 +157,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const address = account;
     const timestamp = Date.now().toString();
-    const socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
-      timeout: 40_000,
-      ackTimeout: 300_000,
-    });
+    // const socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
+    //   timeout: 40_000,
+    //   ackTimeout: 300_000,
+    //   reconnection: false,
+    //   transports: ['websocket'],
+    // });
+
+    let socketJuno: Socket;
+
+    if (STAGE === PROD) {
+      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT);
+    } else {
+      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
+        transports: ['websocket'],
+      });
+    }
 
     try {
       socketJuno.on('connect', async () => {

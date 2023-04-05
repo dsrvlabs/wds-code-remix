@@ -1,94 +1,79 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Form } from 'react-bootstrap';
-
-import { Types } from 'aptos';
-import { ArgTypeValuePair, getVectorArgTypeStr } from './sui-helper';
-import VectorArgForm from './VectorArgForm';
+import { SuiFunc } from './sui-types';
+import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { log } from '../../utils/logger';
 
 interface InterfaceProps {
-  func: Types.MoveFunction;
-  setGenericParameters: Function;
+  func: SuiFunc;
   setParameters: Function;
 }
 
-export const Parameters: React.FunctionComponent<InterfaceProps> = ({
-  func,
-  setGenericParameters,
-  setParameters,
-}) => {
-  useEffect(() => {
-    const parameterBoxes = document.getElementsByClassName('aptos-parameter');
-    for (let i = 0; i < parameterBoxes.length; i++) {
-      (parameterBoxes[i] as any).value = '';
-    }
-  }, [func]);
-  const singerRemovedParams = func.params.filter((para, i) => {
-    return !(i === 0 && (para === 'signer' || para === '&signer'));
-  });
-
-  const updateParam = (value: any, idx: number, parameterType: string) => {
+export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
+  const updateParam = (value: any, idx: number, parameterType: SuiMoveNormalizedType) => {
     console.log(`@@@ updateParam`, value, idx, parameterType);
-    setParameters((existingParams: ArgTypeValuePair[]) => {
-      existingParams[idx] = {
-        type: parameterType,
-        val: value,
-      };
+    setParameters((existingParams: string[]) => {
+      existingParams[idx] = value;
       console.log('existingParams', existingParams);
       return existingParams;
     });
   };
-  const updateGenericParam = (e: any, idx: any) => {
-    setGenericParameters((existingGenericParams: string[]) => {
-      existingGenericParams[idx] = e.target.value;
-      return existingGenericParams;
-    });
-  };
+
+  function typeName(parameterType: SuiMoveNormalizedType) {
+    log.info(`parameterType`, parameterType);
+    if (typeof parameterType === 'string') {
+      return parameterType;
+    }
+
+    if (typeof parameterType === 'number') {
+      return parameterType;
+    }
+    const t: any = parameterType;
+
+    if (t.Struct) {
+      return `${t.Struct.address}::${t.Struct.module}::${t.Struct.name}`;
+    }
+
+    if (t.Reference) {
+      return `${t.Reference.Struct.address}::${t.Reference.Struct.module}::${t.Reference.Struct.name}`;
+    }
+
+    if (t.MutableReference) {
+      return `${t.MutableReference.Struct.address}::${t.MutableReference.Struct.module}::${t.MutableReference.Struct.name}`;
+    }
+
+    if (t.Vector) {
+      return `${t.Vector.Struct.address}::${t.Vector.Struct.module}::${t.Vector.Struct.name}`;
+    }
+  }
 
   return (
     <div style={{ width: '100%' }}>
-      <div>
-        <div>{func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></>}</div>
-        {func.generic_type_params.map((param: any, idx: number) => {
+      <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
+      {func.parameters
+        .filter(
+          (p: any, index: number) =>
+            !(
+              index === func.parameters.length - 1 &&
+              p.MutableReference?.Struct?.address === '0x2' &&
+              p.MutableReference?.Struct?.module === 'tx_context' &&
+              p.MutableReference?.Struct?.name === 'TxContext'
+            ),
+        )
+        .map((parameterType: SuiMoveNormalizedType, idx: number) => {
           return (
             <Form.Control
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
-              placeholder={`Type Arg ${idx + 1}`}
+              placeholder={typeName(parameterType)}
               size="sm"
+              key={`sui-parameterType-${idx}`}
               onChange={(e) => {
-                updateGenericParam(e, idx);
+                updateParam(e.target.value, idx, parameterType);
               }}
-              key={idx}
             />
           );
         })}
-      </div>
-      <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
-      {singerRemovedParams.map((parameterType: string, idx: number) => {
-        if (parameterType.startsWith('vector')) {
-          return (
-            <VectorArgForm
-              func={func}
-              typeName={parameterType}
-              vectorElType={getVectorArgTypeStr(parameterType)}
-              updateParam={updateParam}
-              parentIdx={idx}
-            />
-          );
-        }
-        return (
-          <Form.Control
-            className={'aptos-parameter'}
-            style={{ width: '100%', marginBottom: '5px' }}
-            type="text"
-            placeholder={parameterType}
-            size="sm"
-            onChange={(e) => {
-              updateParam(e.target.value, idx, parameterType);
-            }}
-          />
-        );
-      })}
     </div>
   );
 };

@@ -6,10 +6,9 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
-  codeBytes,
-  dappTxn,
-  getAccountResources,
-  metadataSerializedBytes,
+  dappPublishTxn,
+  getOwnedObjects,
+  SuiChainId,
   waitForTransactionWithResult,
 } from './sui-helper';
 
@@ -17,7 +16,8 @@ import copy from 'copy-to-clipboard';
 import { isNotEmptyList } from '../../utils/ListUtil';
 import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
-import { ModuleWrapper } from './Compiler';
+import { CompiledModulesAndDeps } from 'wds-event';
+
 export interface SuiDeployHistoryCreateDto {
   chainId: string;
   account: string;
@@ -33,9 +33,7 @@ interface InterfaceProps {
   accountID: string;
   compileTimestamp: string;
   packageName: string;
-  moduleWrappers: ModuleWrapper[];
-  metaData64: string;
-  moduleBase64s: string[];
+  compiledModulesAndDeps: CompiledModulesAndDeps;
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
   setDeployedContract: Function;
@@ -51,9 +49,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   accountID,
   compileTimestamp,
   packageName,
-  moduleWrappers,
-  metaData64,
-  moduleBase64s,
+  compiledModulesAndDeps,
   wallet,
   dapp,
   setDeployedContract,
@@ -71,6 +67,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
   const checkExistContract = async () => {
     if (!dapp) {
+      // todo uncomment
       throw new Error('Wallet is not installed');
     }
 
@@ -82,7 +79,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       throw new Error('Wallet is not Dsrv');
     }
 
-    if (!(metaData64 && moduleBase64s.length > 0)) {
+    if (!compiledModulesAndDeps) {
       throw new Error('Not prepared metadata and module');
     }
 
@@ -102,13 +99,10 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
     try {
       setDeployIconSpin('fa-spin');
-      const rawTx_ = await dappTxn(
+      const rawTx_ = await dappPublishTxn(
         accountID,
-        dapp.networks.sui.chain,
-        '0x1::code',
-        'publish_package_txn',
-        [],
-        [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
+        dapp.networks.sui.chain as SuiChainId,
+        compiledModulesAndDeps,
       );
 
       const txnHash = await dapp.request('sui', {
@@ -140,7 +134,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           compileTimestamp: Number(compileTimestamp),
           deployTimestamp: Number(result.timestamp),
           txHash: result.hash,
-          modules: moduleWrappers.map((m) => m.moduleName),
+          modules: ['abc'].map((m) => m), // todo
         };
 
         log.info('suiDeployHistoryCreateDto', suiDeployHistoryCreateDto);
@@ -154,7 +148,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
         setDeployedContract(accountID);
         setAtAddress('');
-        const moveResources = await getAccountResources(accountID, dapp.networks.sui.chain);
+        const moveResources = await getOwnedObjects(accountID, dapp.networks.sui.chain);
         log.info(`@@@ moveResources`, moveResources);
         setAccountResources([...moveResources]);
         if (isNotEmptyList(moveResources)) {
@@ -196,7 +190,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="warning"
-          disabled={inProgress || !metaData64}
+          disabled={inProgress || !compiledModulesAndDeps}
           onClick={async () => {
             try {
               await checkExistContract();

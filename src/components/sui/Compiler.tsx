@@ -3,7 +3,6 @@ import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
-import { Deploy } from './Deploy';
 import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
@@ -19,21 +18,21 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
-  ArgTypeValuePair,
-  dappTxn,
-  getAccountModules,
-  getAccountResources,
-  serializedArgs,
-  viewFunction,
+  getModules,
+  getOwnedObjects,
+  getPackageIds,
+  moveCallTxn,
+  parseYaml,
+  SuiChainId,
 } from './sui-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
+  CompiledModulesAndDeps,
   compileIdV2,
   COMPILER_SUI_COMPILE_COMPLETED_V1,
   COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1,
@@ -55,6 +54,8 @@ import {
 } from 'wds-event';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
+import { SuiFunc, SuiModule } from './sui-types';
+import { SuiObjectData } from '@mysten/sui.js';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -63,6 +64,28 @@ export interface ModuleWrapper {
   moduleName: string;
   moduleNameHex: string;
   order: number;
+}
+
+export interface BuildInfo {
+  compiled_package_info: {
+    address_alias_instantiation: { [key: string]: string };
+    build_flags: {
+      additional_named_addresses: { [key: string]: string };
+      architecture: any;
+      dev_mode: boolean;
+      fetch_deps_only: boolean;
+      force_recompilation: boolean;
+      generate_abis: boolean;
+      generate_docs: boolean;
+      install_dir: any;
+      lock_file: string;
+      skip_fetch_latest_git_deps: boolean;
+      test_mode: boolean;
+    };
+    package_name: string;
+    source_digest: string;
+  };
+  dependencies: string[];
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -85,25 +108,30 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
+  const [inputAddress, setInputAddress] = useState<string>('');
   const [atAddress, setAtAddress] = useState<string>('');
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
 
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | undefined>();
   const [packageName, setPackageName] = useState<string>('');
   const [compileTimestamp, setCompileTimestamp] = useState<string>('');
-  const [moduleWrappers, setModuleWrappers] = useState<ModuleWrapper[]>([]);
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
-  const [metaData64, setMetaDataBase64] = useState<string>('');
+  const [compiledModulesAndDeps, setCompiledModulesAndDeps] = useState<
+    CompiledModulesAndDeps | undefined
+  >();
 
-  const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
-  const [targetModule, setTargetModule] = useState<string>('');
-  const [moveFunction, setMoveFunction] = useState<Types.MoveFunction | undefined>();
+  const [suiObjects, setSuiObjects] = useState<SuiObjectData[]>([]);
+  const [targetObjectId, setTargetObjectId] = useState<string>('');
 
-  const [genericParameters, setGenericParameters] = useState<string[]>([]);
-  const [parameters, setParameters] = useState<ArgTypeValuePair[]>([]);
+  const [packageIds, setPackageIds] = useState<string[]>([]);
+  const [targetPackageId, setTargetPackageId] = useState('');
 
-  const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
-  const [targetResource, setTargetResource] = useState<string>('');
+  const [modules, setModules] = useState<SuiModule[]>([]);
+  const [targetModuleName, setTargetModuleName] = useState<string>('');
+  const [funcs, setFuncs] = useState<SuiFunc[]>([]);
+  const [targetFunc, setTargetFunc] = useState<SuiFunc>();
+  const [parameters, setParameters] = useState<string[]>([]);
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -210,7 +238,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+            // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+            compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
           ) {
             return;
           }
@@ -227,7 +256,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -241,7 +271,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)
+          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -253,7 +284,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             bucket: S3Path.bucket(),
             fileKey: S3Path.outKey(
               CHAIN_NAME.sui,
-              dapp.networks.sui.chain,
+              // dapp.networks.sui.chain, // todo sui
+              'devnet',
               accountID,
               timestamp,
               BUILD_FILE_TYPE.move,
@@ -276,6 +308,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
 
         let packageName = '';
+        let buildInfo: BuildInfo | undefined;
         let metaData64 = '';
         let metaData: Buffer;
         let metaDataHex = '';
@@ -302,19 +335,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         await Promise.all(
           Object.keys(zip.files).map(async (key) => {
-            if (key.includes('package-metadata.bcs')) {
-              let content = await zip.file(key)?.async('blob');
-              content = content?.slice(0, content.size) ?? new Blob();
-              metaData64 = await readFile(new File([content], key));
-              metaData = Buffer.from(metaData64, 'base64');
-              const packageNameLength = metaData[0];
-              packageName = metaData.slice(1, packageNameLength + 1).toString();
-              metaDataHex = metaData.toString('hex');
-              log.debug(`metadataFile_Base64=${metaData64}`);
+            if (key.includes('compiledModulesAndDeps.json')) {
+              let content = (await zip.file(key)?.async('blob')) ?? new Blob();
+              const arrayBuffer = await content.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              log.debug(`compiledModulesAndDeps=${buffer.toString()}`);
               try {
                 await client?.fileManager.writeFile(
                   'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                  metaData64,
+                  buffer.toString(),
+                );
+              } catch (e) {
+                log.error(e);
+                setLoading(false);
+              }
+            }
+
+            if (key.includes('BuildInfo.yaml')) {
+              let content = (await zip.file(key)?.async('blob')) ?? new Blob();
+              const arrayBuffer = await content.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              buildInfo = parseYaml(buffer.toString());
+              packageName = buildInfo?.compiled_package_info.package_name || '';
+
+              try {
+                await client?.fileManager.writeFile(
+                  'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                  buffer.toString(),
                 );
               } catch (e) {
                 log.error(e);
@@ -368,10 +415,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.info('@@@ moduleWrappers', moduleWrappers);
 
         setPackageName(packageName);
-        setModuleWrappers([...moduleWrappers]);
+        setBuildInfo(buildInfo);
         setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
         setFileNames([...filenames]);
-        setMetaDataBase64(metaData64);
+        setCompiledModulesAndDeps(data.compiledModulesAndDeps);
 
         socket.disconnect();
         setLoading(false);
@@ -379,7 +426,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      formData.append('chainId', dapp.networks.sui.chain);
+      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -400,9 +448,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiCompileRequestedV1: RemixSuiCompileRequestedV1 = {
-        compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        // compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        compileId: (CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        chainId: dapp.networks.sui.chain,
+        // chainId: dapp.networks.sui.chain, // todo sui
+        chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
@@ -451,7 +501,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             )}`,
           );
 
-          if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+          if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -465,7 +516,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_LOGGED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
 
@@ -476,7 +528,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_COMPLETED_V1} data=${stringify(data)}`,
         );
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
         socket.disconnect();
@@ -485,7 +538,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      formData.append('chainId', dapp.networks.sui.chain);
+      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -506,9 +560,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiProveRequestedV1: RemixSuiProveRequestedV1 = {
-        id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp),
+        // id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        id: compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        chainId: dapp.networks.sui.chain,
+        // chainId: dapp.networks.sui.chain, // todo sui
+        chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
@@ -534,150 +590,188 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return filename.substring(_lastDot, _fileLen).toLowerCase();
   };
 
-  const getAccountModulesFromAccount = async (account: string, chainId: string) => {
+  function clearAccountCtx() {
+    clearObjectCtx();
+    clearPackageCtx();
+  }
+
+  function clearObjectCtx() {
+    setSuiObjects([]);
+    setTargetObjectId('');
+  }
+
+  function clearPackageCtx() {
+    setPackageIds([]);
+    setTargetPackageId('');
+
+    setModules([]);
+    setTargetModuleName('');
+
+    setFuncs([]);
+    setTargetFunc(undefined);
+  }
+
+  const initPackageCtx = async (account: string, chainId: SuiChainId) => {
     try {
-      const accountModules = await getAccountModules(account, chainId);
-      log.info('@@@ accountModules', accountModules);
-      if (isEmptyList(accountModules)) {
-        setModules([]);
-        setTargetModule('');
-        setMoveFunction(undefined);
+      const packageIds = await getPackageIds(account, chainId);
+      log.info('@@@ packageIds', packageIds);
+      if (isEmptyList(packageIds)) {
         return;
       }
-      setModules(accountModules);
-      const firstAccountModule = accountModules[0];
-      setTargetModule(firstAccountModule.abi!.name);
-      setMoveFunction(firstAccountModule.abi!.exposed_functions[0]);
+      setPackageIds([...packageIds]);
+      setTargetPackageId(packageIds[0]);
+      const modules = await getModules('devnet', packageIds[0]);
+      if (isEmptyList(modules)) {
+        setModules([]);
+        setTargetModuleName('');
+        setFuncs([]);
+        setTargetFunc(undefined);
+        return;
+      }
+      setModules([...modules]);
+      const firstModule = modules[0];
+      const entryFuncs = firstModule.exposedFunctions.filter((f) => f.isEntry);
+
+      if (isEmptyList(entryFuncs)) {
+        setFuncs([]);
+        setTargetFunc(undefined);
+        return;
+      }
+
+      setFuncs([...entryFuncs]);
+      setTargetFunc(entryFuncs[0]);
+      setParameters([]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
     }
   };
 
-  const getContractAtAddress = async () => {
+  async function initObjectsCtx(account: string, chainId: SuiChainId) {
+    // const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
+    try {
+      const objects = await getOwnedObjects(account, chainId);
+      log.info(`@@@ sui objects`, objects);
+      setSuiObjects([...objects]);
+      if (isNotEmptyList(objects)) {
+        setTargetObjectId(objects[0].objectId);
+      }
+    } catch (e) {
+      log.error(e);
+      client.terminal.log({ type: 'error', value: `Object Fetch Fail. account ${account}` });
+    }
+  }
+
+  const initContract = async () => {
+    clearAccountCtx();
+    setAtAddress(inputAddress);
     sendCustomEvent('at_address', {
       event_category: 'sui',
       method: 'at_address',
     });
-    setDeployedContract(atAddress);
-    getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain);
+    setDeployedContract(inputAddress);
 
-    const moveResources = await getAccountResources(atAddress, dapp.networks.sui.chain);
-    log.info(`@@@ moveResources`, moveResources);
-    setAccountResources([...moveResources]);
-    if (isNotEmptyList(moveResources)) {
-      setTargetResource(moveResources[0].type);
-    } else {
-      setTargetResource('');
-    }
-    setParameters([]);
+    // getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain); // todo sui
+    await initObjectsCtx(inputAddress, 'devnet');
+    await initPackageCtx(inputAddress, 'devnet');
   };
 
-  const setModuleAndABI = (e: any) => {
-    setTargetModule(e.target.value);
-    if (modules.length) {
-      modules.map((mod, idx) => {
-        if (mod.abi?.name === e.target.value) {
-          setMoveFunction(mod.abi?.exposed_functions[0]);
-          setParameters([]);
-        }
-      });
+  const onChangePackageId = async (e: any) => {
+    const packageId = e.target.value;
+    setTargetPackageId(packageId);
+    const modules = await getModules('devnet', packageId);
+    setModules([...modules]);
+    if (isEmptyList(modules)) {
+      setFuncs([]);
+      setTargetFunc(undefined);
+      setParameters([]);
+      return;
     }
+
+    const entryFuncs = modules[0].exposedFunctions.filter((f) => f.isEntry);
+
+    setFuncs([...entryFuncs]);
+    if (isEmptyList(entryFuncs)) {
+      setTargetFunc(undefined);
+      setParameters([]);
+      return;
+    }
+
+    setTargetFunc(entryFuncs[0]);
+    setParameters([]);
+    return;
   };
 
-  const handleFunction = (e: any) => {
-    setParameters([]);
-    setGenericParameters([]);
-    setMoveFunction(undefined);
-
-    const module = modules.find((m) => m.abi?.name === targetModule);
+  const onChangeModuleName = async (e: any) => {
+    const moduleName = e.target.value;
+    setTargetModuleName(moduleName);
+    const module = modules.find((m) => m.name === moduleName);
     if (!module) {
+      throw new Error(`Not Found Module ${moduleName}`);
+    }
+
+    const entryFuncs = module.exposedFunctions.filter((f) => f.isEntry);
+    setFuncs([...entryFuncs]);
+    if (isEmptyList(entryFuncs)) {
+      setTargetFunc(undefined);
+      setParameters([]);
       return;
     }
 
-    const matchFunc = module.abi?.exposed_functions.find((f) => {
-      return f.name === e.target.value;
-    });
-    if (!matchFunc) {
-      return;
-    }
-    setMoveFunction(matchFunc);
+    setTargetFunc(entryFuncs[0]);
+    setParameters([]);
   };
 
-  const onChangeResource = (e: any) => {
-    const resourceType = e.target.value;
-    log.info('###', resourceType);
-    setTargetResource(resourceType);
-  };
+  const onChangeFuncName = (e: any) => {
+    const funcName = e.target.value;
 
-  const queryResource = () => {
-    log.info(`targetResource`, targetResource);
-    log.info(`accountResources`, accountResources);
-    const selectedResource = accountResources.find((r) => r.type === targetResource);
-    if (!selectedResource) {
-      client.terminal.log({
-        type: 'error',
-        value: `Resource Not Found For Type ${targetResource}`,
-      });
-      return;
+    const func = funcs.find((f) => f.name === funcName);
+    if (!func) {
+      throw new Error(`Not Found Function ${funcName}`);
     }
 
-    client.terminal.log({
-      type: 'info',
-      value: `\n${targetResource}\n${JSON.stringify(selectedResource.data, null, 2)}\n`,
-    });
+    setTargetFunc(func);
+    setParameters([]);
   };
 
-  const entry = async () => {
+  const onChangeObjectId = (e: any) => {
+    const objectId = e.target.value;
+    log.info('###', objectId);
+    setTargetObjectId(objectId);
+  };
+
+  const moveCall = async () => {
     log.info('parameters', JSON.stringify(parameters, null, 2));
-    const dappTxn_ = await dappTxn(
+    const dappTxn_ = await moveCallTxn(
       accountID,
-      dapp.networks.sui.chain,
-      deployedContract + '::' + targetModule,
-      moveFunction?.name || '',
-      genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
-      serializedArgs(parameters),
+      'devnet',
+      targetPackageId,
+      targetModuleName,
+      targetFunc!.name,
+      parameters,
     );
 
-    const txHash = await dapp.request('sui', {
+    const txHash = await dapp.request('aptos', {
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
     log.debug(`@@@ txHash=${txHash}`);
   };
 
-  const view = async () => {
-    console.log(parameters);
-
-    const view = await viewFunction(
-      deployedContract,
-      targetModule,
-      moveFunction?.name || '',
-      dapp.networks.sui.chain,
-      genericParameters, // typeArgs
-      parameters,
-    );
-
-    log.debug(view);
-    if (view.error) {
-      await client.terminal.log({
+  const queryObject = () => {
+    log.info(`targetObjectId`, targetObjectId);
+    const selectedObject = suiObjects.find((object) => object.objectId === targetObjectId);
+    if (!selectedObject) {
+      client.terminal.log({
         type: 'error',
-        value: view.error.split('\\"').join(''),
+        value: `Resource Not Found For Object ID ${targetObjectId}`,
       });
       return;
     }
 
-    if (Array.isArray(view.result) && view.result.length === 1) {
-      await client.terminal.log({
-        type: 'info',
-        value: `${JSON.stringify(view.result[0], null, 2)}`,
-      });
-      return;
-    }
-
-    await client.terminal.log({
+    client.terminal.log({
       type: 'info',
-      value: `${JSON.stringify(view.result, null, 2)}`,
+      value: `\n${targetObjectId}\n${JSON.stringify(selectedObject, null, 2)}\n`,
     });
   };
 
@@ -685,33 +779,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const artifactPaths = await findArtifacts();
 
     setPackageName('');
+    setBuildInfo(undefined);
     setCompileTimestamp('');
-    setModuleWrappers([]);
-    setMetaDataBase64('');
     setModuleBase64s([]);
     setFileNames([]);
+    setCompiledModulesAndDeps(undefined);
 
     if (isEmptyList(artifactPaths)) {
       return [];
     }
 
-    let metaData64 = '';
-    let metaData: Buffer;
-    let metaDataHex = '';
+    let packageName = '';
+    let buildInfo: BuildInfo | undefined = undefined;
     let filenames: string[] = [];
     let moduleWrappers: ModuleWrapper[] = [];
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (path.includes('package-metadata.bcs')) {
-          metaData64 = await client?.fileManager.readFile('browser/' + path);
-          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
-        }
-      }),
-    );
-    metaData = Buffer.from(metaData64, 'base64');
-    const packageNameLength = metaData[0];
-    const packageName = metaData.slice(1, packageNameLength + 1).toString();
 
     await Promise.all(
       artifactPaths.map(async (path) => {
@@ -724,7 +805,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             const moduleNameHex = Buffer.from(
               FileUtil.extractFilenameWithoutExtension(path),
             ).toString('hex');
-            const order = metaDataHex.indexOf(moduleNameHex);
 
             moduleWrappers.push({
               packageName: packageName,
@@ -732,10 +812,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               module: moduleBase64,
               moduleName: moduleName,
               moduleNameHex: moduleNameHex,
-              order: order,
+              order: 0,
             });
           }
           filenames.push(path);
+        }
+
+        if (path.includes('compiledModulesAndDeps.json')) {
+          const compiledModulesAndDepsStr = await client?.fileManager.readFile('browser/' + path);
+          const compiledModulesAndDeps = JSON.parse(compiledModulesAndDepsStr);
+          console.log('compiledModulesAndDeps', compiledModulesAndDeps);
+          setCompiledModulesAndDeps(compiledModulesAndDeps);
+        }
+
+        if (path.includes('BuildInfo.yaml')) {
+          const buildinfoStr = await client?.fileManager.readFile('browser/' + path);
+          buildInfo = parseYaml(buildinfoStr);
+          packageName = buildInfo?.compiled_package_info.package_name || '';
+          log.info('buildinfo', buildInfo);
         }
       }),
     );
@@ -744,10 +838,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.debug('@@@ moduleWrappers', moduleWrappers);
 
     setPackageName(packageName);
+    setBuildInfo(buildInfo);
     setFileNames([...filenames]);
-    setModuleWrappers([...moduleWrappers]);
     setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
-    setMetaDataBase64(metaData64);
 
     return filenames;
   };
@@ -797,7 +890,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -810,7 +903,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestProve();
           }}
@@ -839,25 +932,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {metaData64 ? (
-        <Deploy
-          wallet={'Dsrv'}
-          accountID={accountID}
-          compileTimestamp={compileTimestamp}
-          packageName={packageName}
-          moduleWrappers={moduleWrappers}
-          metaData64={metaData64}
-          moduleBase64s={moduleBase64s}
-          dapp={dapp}
-          client={client}
-          setDeployedContract={setDeployedContract}
-          setAtAddress={setAtAddress}
-          setAccountResources={setAccountResources}
-          setTargetResource={setTargetResource}
-          setParameters={setParameters}
-          getAccountModulesFromAccount={getAccountModulesFromAccount}
-        />
+      {compiledModulesAndDeps ? (
+        <></>
       ) : (
+        // <Deploy
+        //   wallet={'Dsrv'}
+        //   accountID={accountID}
+        //   compileTimestamp={compileTimestamp}
+        //   packageName={packageName}
+        //   compiledModulesAndDeps={compiledModulesAndDeps}
+        //   dapp={dapp}
+        //   client={client}
+        //   setDeployedContract={setDeployedContract}
+        //   setAtAddress={setAtAddress}
+        //   setAccountResources={setAccountResources}
+        //   setTargetResource={setTargetResource}
+        //   setParameters={setParameters}
+        //   getAccountModulesFromAccount={initPackageCtx}
+        // />
         <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
           <small>NO COMPILED CONTRACT</small>
         </p>
@@ -872,9 +964,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             placeholder="account"
             size="sm"
             onChange={(e) => {
-              setAtAddress(e.target.value.trim());
+              setInputAddress(e.target.value.trim());
             }}
-            value={atAddress}
+            value={inputAddress}
           />
           <OverlayTrigger
             placement="left"
@@ -884,7 +976,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               variant="info"
               size="sm"
               disabled={accountID === '' || isProgress}
-              onClick={getContractAtAddress}
+              onClick={initContract}
             >
               <small>At Address</small>
             </Button>
@@ -892,24 +984,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </InputGroup>
       </Form.Group>
       <hr />
-
-      {atAddress || deployedContract ? (
+      {suiObjects.length > 0 ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
-            <small>Resources</small>
+            <small>Objects</small>
           </Form.Text>
           <InputGroup>
             <Form.Control
               style={{ width: '80%', marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={targetResource}
-              onChange={onChangeResource}
+              value={targetObjectId}
+              onChange={onChangeObjectId}
             >
-              {accountResources.map((accountResource, idx) => {
+              {suiObjects.map((object, idx) => {
                 return (
-                  <option value={accountResource.type} key={`accountResources-${idx}`}>
-                    {accountResource.type}
+                  <option value={object.objectId} key={`sui-object-${idx}`}>
+                    {object.objectId}
                   </option>
                 );
               })}
@@ -919,17 +1010,38 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             style={{ marginTop: '10px', minWidth: '70px' }}
             variant="warning"
             size="sm"
-            onClick={queryResource}
+            onClick={queryObject}
           >
-            <small>Query Resource</small>
+            <small>Query Object</small>
           </Button>
         </Form.Group>
       ) : (
         false
       )}
 
-      {modules.length > 0 ? (
+      {packageIds.length > 0 ? (
         <>
+          <Form.Group>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Packages</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={targetPackageId}
+                onChange={onChangePackageId}
+              >
+                {packageIds.map((packageId, idx) => {
+                  return (
+                    <option value={packageId} key={`packageId-${packageId}}`}>
+                      {packageId}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
           <Form.Group>
             <Form.Text className="text-muted" style={mb4}>
               <small>Modules</small>
@@ -938,13 +1050,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               <Form.Control
                 className="custom-select"
                 as="select"
-                value={targetModule}
-                onChange={setModuleAndABI}
+                value={targetModuleName}
+                onChange={onChangeModuleName}
               >
-                {modules.map((mod, idx) => {
+                {modules.map((module) => {
                   return (
-                    <option value={mod.abi?.name} key={idx + 1}>
-                      {mod.abi?.name}
+                    <option value={module.name} key={`${targetPackageId}-${module.name}`}>
+                      {module.name}
                     </option>
                   );
                 })}
@@ -959,52 +1071,34 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               style={{ marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={moveFunction?.name}
-              onChange={handleFunction}
+              value={targetFunc?.name}
+              onChange={onChangeFuncName}
             >
-              {modules.map((mod, idx) => {
-                if (mod.abi?.name === targetModule) {
-                  return mod.abi.exposed_functions.map((func: any, idx: any) => {
-                    return (
-                      <option value={func.name} key={idx}>
-                        {func.name}
-                      </option>
-                    );
-                  });
-                }
+              {funcs.map((func) => {
+                return (
+                  <option
+                    value={func.name}
+                    key={`${targetPackageId}-${targetModuleName}-${func.name}`}
+                  >
+                    {func.name}
+                  </option>
+                );
               })}
             </Form.Control>
           </Form.Group>
-          {moveFunction ? (
+          {targetFunc ? (
             <Form.Group>
               <InputGroup>
-                <Parameters
-                  func={moveFunction}
-                  setGenericParameters={setGenericParameters}
-                  setParameters={setParameters}
-                />
+                <Parameters func={targetFunc} setParameters={setParameters} />
                 <div>
-                  {moveFunction.is_entry ? (
-                    <Button
-                      style={{ marginTop: '10px', minWidth: '70px' }}
-                      variant="primary"
-                      size="sm"
-                      onClick={entry}
-                    >
-                      <small>{moveFunction.name}</small>
-                    </Button>
-                  ) : (
-                    <div>
-                      <Button
-                        style={{ marginTop: '10px', minWidth: '70px' }}
-                        variant="warning"
-                        size="sm"
-                        onClick={view}
-                      >
-                        <small>{moveFunction.name}</small>
-                      </Button>
-                    </div>
-                  )}
+                  <Button
+                    style={{ marginTop: '10px', minWidth: '70px' }}
+                    variant="primary"
+                    size="sm"
+                    onClick={moveCall}
+                  >
+                    <small>{targetFunc.name}</small>
+                  </Button>
                 </div>
               </InputGroup>
               <hr />
