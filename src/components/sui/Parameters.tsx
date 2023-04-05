@@ -4,6 +4,7 @@ import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
 import { txCtxRemovedParameters } from './sui-helper';
+import { parseSuiVectorType } from './sui-parser';
 
 interface InterfaceProps {
   func: SuiFunc;
@@ -11,6 +12,7 @@ interface InterfaceProps {
 }
 
 export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
+  log.info('parameters', JSON.stringify(func.parameters, null, 2));
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('sui-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
@@ -51,7 +53,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
     }
 
     if (t.Vector) {
-      return `${t.Vector.Struct.address}::${t.Vector.Struct.module}::${t.Vector.Struct.name}`;
+      return parseSuiVectorType(t);
     }
   }
 
