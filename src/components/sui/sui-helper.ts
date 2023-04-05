@@ -8,14 +8,12 @@ import {
   fromB64,
   JsonRpcProvider,
   normalizeSuiObjectId,
-  SuiMoveNormalizedFunction,
-  SuiMoveNormalizedStruct,
   TransactionBlock,
 } from '@mysten/sui.js';
-import { SuiMoveNormalizedModules } from '@mysten/sui.js/src/types';
 import { SuiModule } from './sui-types';
-import { SuiMoveModuleId, SuiMoveNormalizedModule } from '@mysten/sui.js/src/types/normalized';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
+import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
@@ -66,6 +64,7 @@ export async function moveCallTxn(
     arguments: args.map((arg) => tx.pure(arg)),
   });
   tx.setSender(accountId);
+  log.info('tx', tx);
 
   const bcsTx = await tx.build({ provider: getProvider(chainId) });
   log.info(`bcsTx`, bcsTx);
@@ -437,4 +436,28 @@ export function aptosNodeUrl(chainId: string) {
 
 export function parseYaml(str: string) {
   return yaml.load(str);
+}
+
+export function initParameters(parameters: SuiMoveNormalizedType[]) {
+  return new Array(txCtxRemovedParametersLen(parameters));
+}
+
+export function txCtxRemovedParametersLen(parameters: SuiMoveNormalizedType[]) {
+  return parameters.filter(
+    (p: any, index: number) => !(index === parameters.length - 1 && isTxCtx(p)),
+  ).length;
+}
+
+export function txCtxRemovedParameters(parameters: SuiMoveNormalizedType[]) {
+  return parameters.filter(
+    (p: any, index: number) => !(index === parameters.length - 1 && isTxCtx(p)),
+  );
+}
+
+function isTxCtx(p: any) {
+  return (
+    p.MutableReference?.Struct?.address === '0x2' &&
+    p.MutableReference?.Struct?.module === 'tx_context' &&
+    p.MutableReference?.Struct?.name === 'TxContext'
+  );
 }

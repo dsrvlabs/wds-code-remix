@@ -3,6 +3,7 @@ import { Form } from 'react-bootstrap';
 import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
+import {txCtxRemovedParameters} from "./sui-helper";
 
 interface InterfaceProps {
   func: SuiFunc;
@@ -50,17 +51,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
   return (
     <div style={{ width: '100%' }}>
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
-      {func.parameters
-        .filter(
-          (p: any, index: number) =>
-            !(
-              index === func.parameters.length - 1 &&
-              p.MutableReference?.Struct?.address === '0x2' &&
-              p.MutableReference?.Struct?.module === 'tx_context' &&
-              p.MutableReference?.Struct?.name === 'TxContext'
-            ),
-        )
-        .map((parameterType: SuiMoveNormalizedType, idx: number) => {
+      {txCtxRemovedParameters(func.parameters).map((parameterType: SuiMoveNormalizedType, idx: number) => {
           return (
             <Form.Control
               style={{ width: '100%', marginBottom: '5px' }}

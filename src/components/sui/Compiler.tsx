@@ -21,6 +21,7 @@ import {
   getModules,
   getOwnedObjects,
   getPackageIds,
+  initParameters,
   moveCallTxn,
   parseYaml,
   SuiChainId,
@@ -637,10 +638,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setTargetFunc(undefined);
         return;
       }
-
       setFuncs([...entryFuncs]);
-      setTargetFunc(entryFuncs[0]);
-      setParameters([]);
+
+      const func = entryFuncs[0];
+      setTargetFunc(func);
+      setParameters([...initParameters(func.parameters)]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
@@ -697,8 +699,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    setTargetFunc(entryFuncs[0]);
-    setParameters([]);
+    const func = entryFuncs[0];
+    setTargetFunc(func);
+    setParameters([...initParameters(func.parameters)]);
     return;
   };
 
@@ -718,8 +721,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    setTargetFunc(entryFuncs[0]);
-    setParameters([]);
+    const func = entryFuncs[0];
+    setTargetFunc(func);
+
+    setParameters([...initParameters(func.parameters)]);
   };
 
   const onChangeFuncName = (e: any) => {
@@ -731,7 +736,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     setTargetFunc(func);
-    setParameters([]);
+
+    setParameters([...initParameters(func.parameters)]);
   };
 
   const onChangeObjectId = (e: any) => {
