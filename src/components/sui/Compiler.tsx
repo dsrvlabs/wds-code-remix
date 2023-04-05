@@ -3,7 +3,6 @@ import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
-import { Deploy } from './Deploy';
 import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
@@ -19,21 +18,17 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
-  ArgTypeValuePair,
-  dappTxn,
-  getPackageIds,
-  getOwnedObjects,
-  parseYaml,
-  serializedArgs,
-  viewFunction,
   getModules,
+  getOwnedObjects,
+  getPackageIds,
+  moveCallTxn,
+  parseYaml,
   SuiChainId,
 } from './sui-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
@@ -135,7 +130,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [modules, setModules] = useState<SuiModule[]>([]);
   const [targetModuleName, setTargetModuleName] = useState<string>('');
   const [funcs, setFuncs] = useState<SuiFunc[]>([]);
-  const [targetFuncName, setTargetFuncName] = useState<string>('');
+  const [targetFunc, setTargetFunc] = useState<SuiFunc>();
   const [parameters, setParameters] = useState<string[]>([]);
 
   const findArtifacts = async () => {
@@ -595,12 +590,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return filename.substring(_lastDot, _fileLen).toLowerCase();
   };
 
-  function clearPackageCtx() {
-    setModules([]);
+  function clearAccountCtx() {
+    clearObjectCtx();
+    clearPackageCtx();
+  }
+
+  function clearObjectCtx() {
     setSuiObjects([]);
     setTargetObjectId('');
+  }
+
+  function clearPackageCtx() {
+    setPackageIds([]);
+    setTargetPackageId('');
+
+    setModules([]);
+    setTargetModuleName('');
+
     setFuncs([]);
-    setTargetFuncName('');
+    setTargetFunc(undefined);
   }
 
   const initPackageCtx = async (account: string, chainId: SuiChainId) => {
@@ -608,7 +616,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       const packageIds = await getPackageIds(account, chainId);
       log.info('@@@ packageIds', packageIds);
       if (isEmptyList(packageIds)) {
-        clearPackageCtx();
         return;
       }
       setPackageIds([...packageIds]);
@@ -618,20 +625,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setModules([]);
         setTargetModuleName('');
         setFuncs([]);
-        setTargetFuncName('');
+        setTargetFunc(undefined);
         return;
       }
       setModules([...modules]);
       const firstModule = modules[0];
+      const entryFuncs = firstModule.exposedFunctions.filter((f) => f.isEntry);
 
-      if (isEmptyList(firstModule.exposedFunctions)) {
+      if (isEmptyList(entryFuncs)) {
         setFuncs([]);
-        setTargetFuncName('');
+        setTargetFunc(undefined);
         return;
       }
 
-      setFuncs([...firstModule.exposedFunctions]);
-      setTargetFuncName(firstModule.exposedFunctions[0].name);
+      setFuncs([...entryFuncs]);
+      setTargetFunc(entryFuncs[0]);
       setParameters([]);
     } catch (e) {
       log.error(e);
@@ -641,15 +649,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   async function initObjectsCtx(account: string, chainId: SuiChainId) {
     // const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
-    const objects = await getOwnedObjects(account, chainId);
-    log.info(`@@@ sui objects`, objects);
-    setSuiObjects([...objects]);
-    if (isNotEmptyList(objects)) {
-      setTargetObjectId(objects[0].objectId);
+    try {
+      const objects = await getOwnedObjects(account, chainId);
+      log.info(`@@@ sui objects`, objects);
+      setSuiObjects([...objects]);
+      if (isNotEmptyList(objects)) {
+        setTargetObjectId(objects[0].objectId);
+      }
+    } catch (e) {
+      log.error(e);
+      client.terminal.log({ type: 'error', value: `Object Fetch Fail. account ${account}` });
     }
   }
 
   const initContract = async () => {
+    clearAccountCtx();
     setAtAddress(inputAddress);
     sendCustomEvent('at_address', {
       event_category: 'sui',
@@ -669,20 +683,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setModules([...modules]);
     if (isEmptyList(modules)) {
       setFuncs([]);
-      setTargetFuncName('');
+      setTargetFunc(undefined);
       setParameters([]);
       return;
     }
 
-    const exposedFunctions = modules[0].exposedFunctions;
-    setFuncs([...exposedFunctions]);
-    if (isEmptyList(exposedFunctions)) {
-      setTargetFuncName('');
+    const entryFuncs = modules[0].exposedFunctions.filter((f) => f.isEntry);
+
+    setFuncs([...entryFuncs]);
+    if (isEmptyList(entryFuncs)) {
+      setTargetFunc(undefined);
       setParameters([]);
       return;
     }
 
-    setTargetFuncName(exposedFunctions[0].name);
+    setTargetFunc(entryFuncs[0]);
     setParameters([]);
     return;
   };
@@ -695,15 +710,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       throw new Error(`Not Found Module ${moduleName}`);
     }
 
-    const funcs = module.exposedFunctions;
-    setFuncs([...funcs]);
-    if (isEmptyList(funcs)) {
-      setTargetFuncName('');
+    const entryFuncs = module.exposedFunctions.filter((f) => f.isEntry);
+    setFuncs([...entryFuncs]);
+    if (isEmptyList(entryFuncs)) {
+      setTargetFunc(undefined);
       setParameters([]);
       return;
     }
 
-    setTargetFuncName(funcs[0].name);
+    setTargetFunc(entryFuncs[0]);
     setParameters([]);
   };
 
@@ -715,7 +730,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       throw new Error(`Not Found Function ${funcName}`);
     }
 
-    setTargetFuncName(func.name);
+    setTargetFunc(func);
     setParameters([]);
   };
 
@@ -723,6 +738,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const objectId = e.target.value;
     log.info('###', objectId);
     setTargetObjectId(objectId);
+  };
+
+  const moveCall = async () => {
+    log.info('parameters', JSON.stringify(parameters, null, 2));
+    const dappTxn_ = await moveCallTxn(
+      accountID,
+      'devnet',
+      targetPackageId,
+      targetModuleName,
+      targetFunc!.name,
+      parameters,
+    );
+
+    const txHash = await dapp.request('aptos', {
+      method: 'dapp:signAndSendTransaction',
+      params: [dappTxn_],
+    });
+    log.debug(`@@@ txHash=${txHash}`);
   };
 
   const queryObject = () => {
@@ -951,7 +984,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </InputGroup>
       </Form.Group>
       <hr />
-      {atAddress || deployedContract ? (
+      {suiObjects.length > 0 ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
             <small>Objects</small>
@@ -1038,7 +1071,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               style={{ marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={targetFuncName}
+              value={targetFunc?.name}
               onChange={onChangeFuncName}
             >
               {funcs.map((func) => {
@@ -1053,43 +1086,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               })}
             </Form.Control>
           </Form.Group>
-          {/*{targetFuncName ? (*/}
-          {/*  <Form.Group>*/}
-          {/*    <InputGroup>*/}
-          {/*      <Parameters*/}
-          {/*        func={moveFunction}*/}
-          {/*        setGenericParameters={setGenericParameters}*/}
-          {/*        setParameters={setParameters}*/}
-          {/*      />*/}
-          {/*      <div>*/}
-          {/*        {moveFunction.is_entry ? (*/}
-          {/*          <Button*/}
-          {/*            style={{ marginTop: '10px', minWidth: '70px' }}*/}
-          {/*            variant="primary"*/}
-          {/*            size="sm"*/}
-          {/*            onClick={entry}*/}
-          {/*          >*/}
-          {/*            <small>{moveFunction.name}</small>*/}
-          {/*          </Button>*/}
-          {/*        ) : (*/}
-          {/*          <div>*/}
-          {/*            <Button*/}
-          {/*              style={{ marginTop: '10px', minWidth: '70px' }}*/}
-          {/*              variant="warning"*/}
-          {/*              size="sm"*/}
-          {/*              onClick={view}*/}
-          {/*            >*/}
-          {/*              <small>{moveFunction.name}</small>*/}
-          {/*            </Button>*/}
-          {/*          </div>*/}
-          {/*        )}*/}
-          {/*      </div>*/}
-          {/*    </InputGroup>*/}
-          {/*    <hr />*/}
-          {/*  </Form.Group>*/}
-          {/*) : (*/}
-          {/*  false*/}
-          {/*)}*/}
+          {targetFunc ? (
+            <Form.Group>
+              <InputGroup>
+                <Parameters func={targetFunc} setParameters={setParameters} />
+                <div>
+                  <Button
+                    style={{ marginTop: '10px', minWidth: '70px' }}
+                    variant="primary"
+                    size="sm"
+                    onClick={moveCall}
+                  >
+                    <small>{targetFunc.name}</small>
+                  </Button>
+                </div>
+              </InputGroup>
+              <hr />
+            </Form.Group>
+          ) : (
+            false
+          )}
         </>
       ) : (
         false

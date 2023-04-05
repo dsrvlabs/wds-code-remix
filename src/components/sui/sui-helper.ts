@@ -50,6 +50,30 @@ export async function dappPublishTxn(
   return '0x' + header.toString('hex') + Buffer.from(bcsTx).toString('hex');
 }
 
+export async function moveCallTxn(
+  accountId: string,
+  chainId: SuiChainId,
+  packageId: string,
+  moduleName: string,
+  funcName: string,
+  args: string[],
+) {
+  const tx = new TransactionBlock();
+  // TODO: Publish dry runs fail currently, so we need to set a gas budget:
+  tx.setGasBudget(10000);
+  tx.moveCall({
+    target: `${packageId}::${moduleName}::${funcName}`,
+    arguments: args.map((arg) => tx.pure(arg)),
+  });
+  tx.setSender(accountId);
+
+  const bcsTx = await tx.build({ provider: getProvider(chainId) });
+  log.info(`bcsTx`, bcsTx);
+
+  const header = Buffer.from(sha3_256(Buffer.from('SUI::RawTransaction', 'ascii')), 'hex');
+  return '0x' + header.toString('hex') + Buffer.from(bcsTx).toString('hex');
+}
+
 export function getProvider(chainId: SuiChainId): JsonRpcProvider {
   if (chainId === 'mainnet') {
     return new JsonRpcProvider(
@@ -88,55 +112,6 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
   }
 
   throw new Error(`Invalid ChainId=${chainId}`);
-}
-
-export async function dappTxn(
-  accountId: string,
-  chainId: string,
-  module: string,
-  func: string,
-  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
-  args: BCS.Seq<BCS.Bytes>,
-) {
-  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
-  const rawTransaction = await aptosClient.generateRawTransaction(
-    new HexString(accountId),
-    genPayload(module, func, type_args, args),
-  );
-  log.info(`rawTransaction`, rawTransaction);
-  // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
-
-  const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
-  return (
-    '0x' + header.toString('hex') + Buffer.from(BCS.bcsToBytes(rawTransaction)).toString('hex')
-  );
-}
-
-function genPayload(
-  module: string,
-  func: string,
-  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
-  args: BCS.Seq<BCS.Bytes>,
-) {
-  return new TxnBuilderTypes.TransactionPayloadEntryFunction(
-    TxnBuilderTypes.EntryFunction.natural(module, func, type_args, args),
-  );
-}
-
-export function metadataSerializedBytes(base64EncodedMetadata: string) {
-  return BCS.bcsSerializeBytes(
-    new HexString(Buffer.from(base64EncodedMetadata, 'base64').toString('hex')).toUint8Array(),
-  );
-}
-
-export function codeBytes(base64EncodedModules: string[]): BCS.Bytes {
-  const modules = base64EncodedModules
-    .map((module) => Buffer.from(module, 'base64'))
-    .map((buf) => new TxnBuilderTypes.Module(new HexString(buf.toString('hex')).toUint8Array()));
-
-  const codeSerializer = new BCS.Serializer();
-  BCS.serializeVector(modules, codeSerializer);
-  return codeSerializer.getBytes();
 }
 
 export async function waitForTransactionWithResult(txnHash: string, chainId: string) {
