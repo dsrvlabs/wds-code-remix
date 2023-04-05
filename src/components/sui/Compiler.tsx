@@ -631,6 +631,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
       setModules([...modules]);
       const firstModule = modules[0];
+      setTargetModuleName(firstModule.name);
+
       const entryFuncs = firstModule.exposedFunctions.filter((f) => f.isEntry);
 
       if (isEmptyList(entryFuncs)) {
@@ -728,6 +730,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const onChangeFuncName = (e: any) => {
+    log.info('onChangeFuncName', e.target.value);
     const funcName = e.target.value;
 
     const func = funcs.find((f) => f.name === funcName);

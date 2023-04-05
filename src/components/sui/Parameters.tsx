@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Form } from 'react-bootstrap';
 import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
-import {txCtxRemovedParameters} from "./sui-helper";
+import { txCtxRemovedParameters } from './sui-helper';
 
 interface InterfaceProps {
   func: SuiFunc;
@@ -11,6 +11,13 @@ interface InterfaceProps {
 }
 
 export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
+  useEffect(() => {
+    const parameterBoxes = document.getElementsByClassName('sui-parameter');
+    for (let i = 0; i < parameterBoxes.length; i++) {
+      (parameterBoxes[i] as any).value = '';
+    }
+  }, [func]);
+
   const updateParam = (value: any, idx: number, parameterType: SuiMoveNormalizedType) => {
     console.log(`@@@ updateParam`, value, idx, parameterType);
     setParameters((existingParams: string[]) => {
@@ -51,9 +58,11 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
   return (
     <div style={{ width: '100%' }}>
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
-      {txCtxRemovedParameters(func.parameters).map((parameterType: SuiMoveNormalizedType, idx: number) => {
+      {txCtxRemovedParameters(func.parameters).map(
+        (parameterType: SuiMoveNormalizedType, idx: number) => {
           return (
             <Form.Control
+              className={`sui-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
               placeholder={typeName(parameterType)}
@@ -64,7 +73,8 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               }}
             />
           );
-        })}
+        },
+      )}
     </div>
   );
 };

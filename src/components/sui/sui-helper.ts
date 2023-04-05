@@ -56,14 +56,33 @@ export async function moveCallTxn(
   funcName: string,
   args: string[],
 ) {
+  console.log('moduleName', moduleName);
+
+  console.log('args', args);
   const tx = new TransactionBlock();
+  tx.setSender(accountId);
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
   tx.setGasBudget(10000);
   tx.moveCall({
     target: `${packageId}::${moduleName}::${funcName}`,
     arguments: args.map((arg) => tx.pure(arg)),
   });
-  tx.setSender(accountId);
+
+  // myTokensObject1Vec = tx.makeMoveVec({
+  //   objects: [tx.pure(myTokenObjects1[0]), tx.pure(myTokenObjects1[1])],
+  // });
+  // const myTokensObject2Vec = tx.makeMoveVec({
+  //   objects: [tx.pure(myTokenObjects2[0]), tx.pure(myTokenObjects2[1])],
+  // });
+  // tx.moveCall({
+  //   typeArguments: [typeInfo1, typeInfo2],
+  //   target: some_target,
+  //   arguments: [
+  //     myTokensObject1Vec, // here are the vec params
+  //     myTokensObject2Vec, // here are the vec params
+  //   ],
+  // });
+
   log.info('tx', tx);
 
   const bcsTx = await tx.build({ provider: getProvider(chainId) });
@@ -101,7 +120,8 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
   if (chainId === 'devnet') {
     return new JsonRpcProvider(
       new Connection({
-        fullnode: 'https://fullnode.devnet.sui.io:443/',
+        // fullnode: 'https://fullnode.devnet.sui.io:443/',
+        fullnode: 'https://wallet-rpc.devnet.sui.io/',
         faucet: 'https://faucet.devnet.sui.io/gas',
       }),
       {
