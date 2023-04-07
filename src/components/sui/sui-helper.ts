@@ -13,6 +13,7 @@ import {
 import { SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { delay } from '../near/utils/waitForTransaction';
 
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
@@ -119,7 +120,7 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
         faucet: 'https://faucet.devnet.sui.io/gas',
       }),
       {
-        skipDataValidation: false,
+        skipDataValidation: true,
       },
     );
   }
@@ -129,8 +130,9 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
 
 export async function waitForTransactionWithResult(txnHash: string, chainId: SuiChainId) {
   const client = getProvider(chainId);
+  log.info(`getTransactionBlock txHash`, txnHash);
   const result = await client.getTransactionBlock({
-    digest: txnHash,
+    digest: txnHash[0],
     options: {
       showInput: true,
       showEffects: true,
@@ -352,6 +354,7 @@ export async function getOwnedObjects(
   chainId: SuiChainId,
 ): Promise<SuiObjectData[]> {
   const provider = await getProvider(chainId);
+  log.info('getOwnedObjects account', account);
   const { data } = await provider.getOwnedObjects({
     owner: account,
     options: {

@@ -671,19 +671,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   }
 
-  const initContract = async () => {
+  const initContract = async (address: string) => {
     clearAccountCtx();
-    setAtAddress(inputAddress);
+    setAtAddress(address);
     sendCustomEvent('at_address', {
       event_category: 'sui',
       method: 'at_address',
     });
-    setDeployedContract(inputAddress);
+    setDeployedContract(address);
 
     await initObjectsCtx(atAddress, dapp.networks.sui.chain); // todo sui
     // await initObjectsCtx(inputAddress, 'devnet');
 
-    await initPackageCtx(inputAddress, dapp.networks.sui.chain);
+    await initPackageCtx(address, dapp.networks.sui.chain);
     // await initPackageCtx(inputAddress, 'devnet');
   };
 
@@ -771,7 +771,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       parameters,
     );
 
-    const txHash = await dapp.request('aptos', {
+    const txHash = await dapp.request('sui', {
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
@@ -995,7 +995,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               variant="info"
               size="sm"
               disabled={accountID === '' || isProgress}
-              onClick={initContract}
+              onClick={() => initContract(inputAddress)}
             >
               <small>At Address</small>
             </Button>

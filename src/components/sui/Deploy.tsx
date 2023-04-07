@@ -153,7 +153,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       setDeployedContract(accountID);
       setAtAddress('');
 
-      initContract(accountID, dapp.networks.sui.chain);
+      initContract(accountID);
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
