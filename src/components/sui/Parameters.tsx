@@ -4,7 +4,8 @@ import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
 import { txCtxRemovedParameters } from './sui-helper';
-import { parseSuiVectorType } from './sui-parser';
+import { parseSuiVectorInnerType, parseSuiVectorType } from './sui-parser';
+import VectorArgForm from '../sui/VectorArgForm';
 
 interface InterfaceProps {
   func: SuiFunc;
@@ -62,6 +63,17 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
       {txCtxRemovedParameters(func.parameters).map(
         (parameterType: SuiMoveNormalizedType, idx: number) => {
+          if (typeof parameterType !== 'string' && (parameterType as any).Vector) {
+            return (
+              <VectorArgForm
+                func={func}
+                typeName={parseSuiVectorType(parameterType)}
+                vectorElType={parseSuiVectorInnerType(parameterType)}
+                updateParam={updateParam}
+                parentIdx={idx}
+              />
+            );
+          }
           return (
             <Form.Control
               className={`sui-parameter`}

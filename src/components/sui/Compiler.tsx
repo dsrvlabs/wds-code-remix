@@ -57,6 +57,7 @@ import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js';
+import { Deploy } from './Deploy';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -239,8 +240,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
-            compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
+            compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+            // compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
           ) {
             return;
           }
@@ -257,8 +258,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
-          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
+          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          // compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -272,8 +273,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
         if (
           data.compileId !==
-          // compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
-          compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
+          compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
+          // compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)
         ) {
           return;
         }
@@ -285,8 +286,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             bucket: S3Path.bucket(),
             fileKey: S3Path.outKey(
               CHAIN_NAME.sui,
-              // dapp.networks.sui.chain, // todo sui
-              'devnet',
+              dapp.networks.sui.chain, // todo sui
+              // 'devnet',
               accountID,
               timestamp,
               BUILD_FILE_TYPE.move,
@@ -427,8 +428,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
-      formData.append('chainId', 'devnet');
+      formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      // formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -449,11 +450,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiCompileRequestedV1: RemixSuiCompileRequestedV1 = {
-        // compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
-        compileId: (CHAIN_NAME.sui, 'devnet', address, timestamp),
+        compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        // compileId: (CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        // chainId: dapp.networks.sui.chain, // todo sui
-        chainId: 'devnet',
+        chainId: dapp.networks.sui.chain, // todo sui
+        // chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
@@ -502,8 +503,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             )}`,
           );
 
-          // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
-          if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+          if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+            // todo sui
+            // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
             return;
           }
           await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
@@ -517,8 +519,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_LOGGED_V1} data=${stringify(data)}`,
         );
-        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // todo sui
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
 
@@ -529,8 +532,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_COMPLETED_V1} data=${stringify(data)}`,
         );
-        // if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) { // todo sui
-        if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // todo sui
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
           return;
         }
         socket.disconnect();
@@ -539,8 +543,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.sui);
-      // formData.append('chainId', dapp.networks.sui.chain); // todo sui
-      formData.append('chainId', 'devnet');
+      formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      // formData.append('chainId', 'devnet');
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'move');
@@ -561,11 +565,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixSuiProveRequestedV1: RemixSuiProveRequestedV1 = {
-        // id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
-        id: compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp),
+        id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        // id: compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp),
         chainName: CHAIN_NAME.sui,
-        // chainId: dapp.networks.sui.chain, // todo sui
-        chainId: 'devnet',
+        chainId: dapp.networks.sui.chain, // todo sui
+        // chainId: 'devnet',
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
@@ -621,7 +625,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
       setPackageIds([...packageIds]);
       setTargetPackageId(packageIds[0]);
-      const modules = await getModules('devnet', packageIds[0]);
+      const modules = await getModules(dapp.networks.sui.chain, packageIds[0]); // todo sui
+      // const modules = await getModules('devnet', packageIds[0]);
       if (isEmptyList(modules)) {
         setModules([]);
         setTargetModuleName('');
@@ -652,9 +657,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   async function initObjectsCtx(account: string, chainId: SuiChainId) {
-    // const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
     try {
-      const objects = await getOwnedObjects(account, chainId);
+      const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
+      // const objects = await getOwnedObjects(account, chainId);
       log.info(`@@@ sui objects`, objects);
       setSuiObjects([...objects]);
       if (isNotEmptyList(objects)) {
@@ -675,15 +680,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
     setDeployedContract(inputAddress);
 
-    // getAccountModulesFromAccount(atAddress, dapp.networks.sui.chain); // todo sui
-    await initObjectsCtx(inputAddress, 'devnet');
-    await initPackageCtx(inputAddress, 'devnet');
+    await initObjectsCtx(atAddress, dapp.networks.sui.chain); // todo sui
+    // await initObjectsCtx(inputAddress, 'devnet');
+
+    await initPackageCtx(inputAddress, dapp.networks.sui.chain);
+    // await initPackageCtx(inputAddress, 'devnet');
   };
 
   const onChangePackageId = async (e: any) => {
     const packageId = e.target.value;
     setTargetPackageId(packageId);
-    const modules = await getModules('devnet', packageId);
+    const modules = await getModules(dapp.networks.sui.chain, packageId); // todo sui
+    // const modules = await getModules('devnet', packageId);
     setModules([...modules]);
     if (isEmptyList(modules)) {
       setFuncs([]);
@@ -691,6 +699,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setParameters([]);
       return;
     }
+
+    setTargetModuleName(modules[0].name);
 
     const entryFuncs = modules[0].exposedFunctions.filter((f) => f.isEntry);
 
@@ -708,6 +718,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const onChangeModuleName = async (e: any) => {
+    log.info('onChangeModuleName', e.target.value);
     const moduleName = e.target.value;
     setTargetModuleName(moduleName);
     const module = modules.find((m) => m.name === moduleName);
@@ -753,7 +764,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.info('parameters', JSON.stringify(parameters, null, 2));
     const dappTxn_ = await moveCallTxn(
       accountID,
-      'devnet',
+      dapp.networks.sui.chain,
       targetPackageId,
       targetModuleName,
       targetFunc!.name,
@@ -942,23 +953,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <hr />
       {compiledModulesAndDeps ? (
-        <></>
+        <Deploy
+          wallet={'Dsrv'}
+          accountID={accountID}
+          compileTimestamp={compileTimestamp}
+          packageName={packageName}
+          compiledModulesAndDeps={compiledModulesAndDeps}
+          dapp={dapp}
+          client={client}
+          setDeployedContract={setDeployedContract}
+          setAtAddress={setAtAddress}
+          setSuiObjects={setSuiObjects}
+          setTargetObjectId={setTargetObjectId}
+          setParameters={setParameters}
+          initContract={initContract}
+        />
       ) : (
-        // <Deploy
-        //   wallet={'Dsrv'}
-        //   accountID={accountID}
-        //   compileTimestamp={compileTimestamp}
-        //   packageName={packageName}
-        //   compiledModulesAndDeps={compiledModulesAndDeps}
-        //   dapp={dapp}
-        //   client={client}
-        //   setDeployedContract={setDeployedContract}
-        //   setAtAddress={setAtAddress}
-        //   setAccountResources={setAccountResources}
-        //   setTargetResource={setTargetResource}
-        //   setParameters={setParameters}
-        //   getAccountModulesFromAccount={initPackageCtx}
-        // />
         <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
           <small>NO COMPILED CONTRACT</small>
         </p>
