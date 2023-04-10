@@ -550,7 +550,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       formData.append('fileType', 'move');
       formData.append('zipFile', blob || '');
 
-      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src', formData, {
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Accept: 'application/json',
