@@ -926,6 +926,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       params: [dappTxn_],
     });
     log.debug(`@@@ txHash=${txHash}`);
+    await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txHash}` });
   };
 
   const queryObject = () => {
