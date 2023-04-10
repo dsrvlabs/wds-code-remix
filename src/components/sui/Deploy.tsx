@@ -15,7 +15,8 @@ import { CompiledModulesAndDeps } from 'wds-event';
 export interface SuiDeployHistoryCreateDto {
   chainId: string;
   account: string;
-  package: string;
+  packageId: string;
+  packageName: string;
   compileTimestamp: number;
   deployTimestamp: number;
   txHash: string;
@@ -131,12 +132,24 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             modules: string[];
           }
         | undefined;
-      const modules = publishedChange?.modules || [];
+
+      if (!publishedChange) {
+        log.error(`no publishedChange`);
+        return;
+      }
+
+      if (!publishedChange.packageId) {
+        log.error(`no packageId`, publishedChange);
+        return;
+      }
+
+      const modules = publishedChange.modules || [];
 
       const suiDeployHistoryCreateDto: SuiDeployHistoryCreateDto = {
         chainId: dapp.networks.sui.chain,
         account: accountID,
-        package: packageName,
+        packageId: publishedChange.packageId,
+        packageName: packageName,
         compileTimestamp: Number(compileTimestamp),
         deployTimestamp: result.timestampMs || 0,
         txHash: result.digest,
@@ -145,18 +158,23 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
       log.info('suiDeployHistoryCreateDto', suiDeployHistoryCreateDto);
 
-      const res = await axios.post(
-        COMPILER_API_ENDPOINT + '/sui-deploy-histories',
-        suiDeployHistoryCreateDto,
-      );
+      try {
+        const res = await axios.post(
+          COMPILER_API_ENDPOINT + '/sui-deploy-histories',
+          suiDeployHistoryCreateDto,
+        );
 
-      log.info(`sui-deploy-histories api res`, res);
+        log.info(`sui-deploy-histories api res`, res);
+      } catch (e) {
+        log.error(`sui-deploy-histories api error`);
+      }
 
       log.info(`dsrvProceed accountID=${accountID}`);
       setDeployedContract(accountID);
       setAtAddress(accountID);
       setInputAddress(accountID);
       initContract(accountID, publishedChange?.packageId);
+      await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txnHash}` });
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
