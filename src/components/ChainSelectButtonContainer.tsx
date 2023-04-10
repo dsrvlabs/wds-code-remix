@@ -40,23 +40,19 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <span>Select a Chain</span>
           <RefreshButton handleRefresh={handleRefresh} />
         </Form.Text>
-        {enableSui() ? (
-          <ListGroup.Item
-            as="li"
-            action
-            onClick={() => {
-              setChain('Sui');
-            }}
-          >
-            <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
-            <b>SUI (MoveVM)</b>
-            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-              Beta
-            </Badge>
-          </ListGroup.Item>
-        ) : (
-          false
-        )}
+        <ListGroup.Item
+          as="li"
+          action
+          onClick={() => {
+            setChain('Sui');
+          }}
+        >
+          <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
+          <b>SUI (MoveVM)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+            Beta
+          </Badge>
+        </ListGroup.Item>
         <ListGroup>
           <ListGroup.Item
             as="li"
