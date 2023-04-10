@@ -41,16 +41,24 @@ import {
   COMPILER_SUI_PROVE_COMPLETED_V1,
   COMPILER_SUI_PROVE_ERROR_OCCURRED_V1,
   COMPILER_SUI_PROVE_LOGGED_V1,
+  COMPILER_SUI_TEST_COMPLETED_V1,
+  COMPILER_SUI_TEST_ERROR_OCCURRED_V1,
+  COMPILER_SUI_TEST_LOGGED_V1,
   CompilerSuiCompileCompletedV1,
   CompilerSuiCompileErrorOccurredV1,
   CompilerSuiCompileLoggedV1,
   CompilerSuiProveCompletedV1,
   CompilerSuiProveErrorOccurredV1,
   CompilerSuiProveLoggedV1,
+  CompilerSuiTestCompletedV1,
+  CompilerSuiTestErrorOccurredV1,
+  CompilerSuiTestLoggedV1,
   REMIX_SUI_COMPILE_REQUESTED_V1,
   REMIX_SUI_PROVE_REQUESTED_V1,
+  REMIX_SUI_TEST_REQUESTED_V1,
   RemixSuiCompileRequestedV1,
   RemixSuiProveRequestedV1,
+  RemixSuiTestRequestedV1,
   reqIdV2,
 } from 'wds-event';
 import { CHAIN_NAME } from '../../const/chain';
@@ -107,6 +115,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   dapp,
 }) => {
   const [fileNames, setFileNames] = useState<string[]>([]);
+  const [testLoading, setTestLoading] = useState<boolean>(false);
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
@@ -152,6 +161,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     client.call('editor', 'clearAnnotations');
   };
 
+  const requestTest = async () => {
+    if (testLoading) {
+      await client.terminal.log({ value: 'Server is working...', type: 'log' });
+      return;
+    }
+    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+    log.debug(`@@@ test projFiles`, projFiles);
+    const buildFileExcluded = projFiles.filter((f) => !f.path.startsWith(`${compileTarget}/out`));
+    log.debug(`@@@ test buildFileExcluded`, buildFileExcluded);
+    if (isEmptyList(buildFileExcluded)) {
+      return;
+    }
+
+    const blob = await generateZip(buildFileExcluded);
+
+    await wrappedTest(blob);
+  };
+
   const requestProve = async () => {
     if (proveLoading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
@@ -171,6 +198,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const wrappedRequestCompile = () => wrapPromise(requestCompile(), client);
+  const wrappedRequestTest = () => wrapPromise(requestTest(), client);
   const wrappedRequestProve = () => wrapPromise(requestProve(), client);
 
   const createFile = (code: string, name: string) => {
@@ -471,6 +499,119 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const sendTestReq = async (blob: Blob) => {
+    setTestLoading(true);
+
+    const address = accountID;
+    const timestamp = Date.now().toString();
+    try {
+      // socket connect
+      let socket: Socket;
+      if (STAGE === PROD) {
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT);
+      } else {
+        socket = io(SUI_COMPILER_CONSUMER_ENDPOINT, {
+          transports: ['websocket'],
+        });
+      }
+
+      socket.on('connect_error', function (err) {
+        // handle server error here
+        log.debug('Error connecting to server');
+        setTestLoading(false);
+        socket.disconnect();
+      });
+
+      socket.on(
+        COMPILER_SUI_TEST_ERROR_OCCURRED_V1,
+        async (data: CompilerSuiTestErrorOccurredV1) => {
+          log.debug(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_TEST_ERROR_OCCURRED_V1} data=${stringify(
+              data,
+            )}`,
+          );
+
+          if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+            // todo sui
+            // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+            return;
+          }
+          await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
+
+          setTestLoading(false);
+          socket.disconnect();
+        },
+      );
+
+      socket.on(COMPILER_SUI_TEST_LOGGED_V1, async (data: CompilerSuiTestLoggedV1) => {
+        log.debug(`${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_TEST_LOGGED_V1} data=${stringify(data)}`);
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // todo sui
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+          return;
+        }
+
+        await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
+      });
+
+      socket.on(COMPILER_SUI_TEST_COMPLETED_V1, async (data: CompilerSuiTestCompletedV1) => {
+        log.debug(
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_TEST_COMPLETED_V1} data=${stringify(data)}`,
+        );
+        if (data.id !== reqIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp)) {
+          // todo sui
+          // if (data.id !== reqIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp)) {
+          return;
+        }
+        socket.disconnect();
+        setTestLoading(false);
+      });
+
+      const formData = new FormData();
+      formData.append('chainName', CHAIN_NAME.sui);
+      formData.append('chainId', dapp.networks.sui.chain); // todo sui
+      // formData.append('chainId', 'devnet');
+      formData.append('account', address || 'noaddress');
+      formData.append('timestamp', timestamp.toString() || '0');
+      formData.append('fileType', 'move');
+      formData.append('zipFile', blob || '');
+
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.status !== 201) {
+        log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
+        socket.disconnect();
+        setLoading(false);
+        return;
+      }
+
+      const remixSuiTestRequestedV1: RemixSuiTestRequestedV1 = {
+        id: compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
+        // id: compileIdV2(CHAIN_NAME.sui, 'devnet', address, timestamp),
+        chainName: CHAIN_NAME.sui,
+        chainId: dapp.networks.sui.chain, // todo sui
+        // chainId: 'devnet',
+        address: address || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        fileType: 'move',
+      };
+      socket.emit(REMIX_SUI_TEST_REQUESTED_V1, remixSuiTestRequestedV1);
+      log.debug(
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_SUI_TEST_REQUESTED_V1} data=${stringify(
+          remixSuiTestRequestedV1,
+        )}`,
+      );
+    } catch (e) {
+      setTestLoading(false);
+      log.error(e);
+    }
+  };
+
   const sendProveReq = async (blob: Blob) => {
     setProveLoading(true);
 
@@ -587,6 +728,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const wrappedCompile = (blob: Blob) => wrapPromise(sendCompileReq(blob), client);
+  const wrappedTest = (blob: Blob) => wrapPromise(sendTestReq(blob), client);
   const wrappedProve = (blob: Blob) => wrapPromise(sendProveReq(blob), client);
 
   const getExtensionOfFilename = (filename: string) => {
@@ -918,7 +1060,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === '' || proveLoading || loading || !compileTarget}
+          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -931,7 +1073,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || proveLoading || loading || !compileTarget}
+          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
+          onClick={async () => {
+            await wrappedRequestTest();
+          }}
+          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+        >
+          <FaSyncAlt className={testLoading ? 'fa-spin' : ''} />
+          <span> Test</span>
+        </Button>
+
+        <Button
+          variant="warning"
+          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestProve();
           }}
