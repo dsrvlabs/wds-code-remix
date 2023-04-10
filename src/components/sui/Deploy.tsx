@@ -35,6 +35,7 @@ interface InterfaceProps {
   setSuiObjects: Function;
   setTargetObjectId: Function;
   setParameters: Function;
+  setInputAddress: Function;
   initContract: Function;
 }
 
@@ -51,6 +52,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setSuiObjects,
   setTargetObjectId,
   setParameters,
+  setInputAddress,
   initContract,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
@@ -150,10 +152,11 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
       log.info(`sui-deploy-histories api res`, res);
 
+      log.info(`dsrvProceed accountID=${accountID}`);
       setDeployedContract(accountID);
-      setAtAddress('');
-
-      initContract(accountID);
+      setAtAddress(accountID);
+      setInputAddress(accountID);
+      initContract(accountID, publishedChange?.packageId);
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });

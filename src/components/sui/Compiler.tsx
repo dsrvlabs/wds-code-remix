@@ -616,7 +616,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTargetFunc(undefined);
   }
 
-  const initPackageCtx = async (account: string, chainId: SuiChainId) => {
+  const initPackageCtx = async (account: string, chainId: SuiChainId, packageId?: string) => {
     try {
       const packageIds = await getPackageIds(account, chainId);
       log.info('@@@ packageIds', packageIds);
@@ -624,8 +624,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
       setPackageIds([...packageIds]);
-      setTargetPackageId(packageIds[0]);
-      const modules = await getModules(dapp.networks.sui.chain, packageIds[0]); // todo sui
+
+      let targetInitPackageId;
+      if (packageId) {
+        setTargetPackageId(packageId);
+        targetInitPackageId = packageId;
+      } else {
+        setTargetPackageId(packageIds[0]);
+        targetInitPackageId = packageIds[0];
+      }
+      const modules = await getModules(dapp.networks.sui.chain, targetInitPackageId); // todo sui
       // const modules = await getModules('devnet', packageIds[0]);
       if (isEmptyList(modules)) {
         setModules([]);
@@ -671,7 +679,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   }
 
-  const initContract = async (address: string) => {
+  const initContract = async (address: string, packageId?: string) => {
     clearAccountCtx();
     setAtAddress(address);
     sendCustomEvent('at_address', {
@@ -680,10 +688,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
     setDeployedContract(address);
 
-    await initObjectsCtx(atAddress, dapp.networks.sui.chain); // todo sui
+    await initObjectsCtx(address, dapp.networks.sui.chain); // todo sui
     // await initObjectsCtx(inputAddress, 'devnet');
 
-    await initPackageCtx(address, dapp.networks.sui.chain);
+    await initPackageCtx(address, dapp.networks.sui.chain, packageId);
     // await initPackageCtx(inputAddress, 'devnet');
   };
 
@@ -966,6 +974,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setSuiObjects={setSuiObjects}
           setTargetObjectId={setTargetObjectId}
           setParameters={setParameters}
+          setInputAddress={setInputAddress}
           initContract={initContract}
         />
       ) : (
