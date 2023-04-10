@@ -1,7 +1,7 @@
 import { STAGE } from './stage';
 
 const COMPILER_API_ENDPOINT_POOL = {
-  local: 'https://dev.compiler.welldonestudio.io',
+  local: 'http://localhost:8000',
   dev: 'https://dev.compiler.welldonestudio.io',
   prod: 'https://api.welldonestudio.io/compiler',
 };

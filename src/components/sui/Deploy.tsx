@@ -5,15 +5,9 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import {
-  dappPublishTxn,
-  getOwnedObjects,
-  SuiChainId,
-  waitForTransactionWithResult,
-} from './sui-helper';
+import { dappPublishTxn, SuiChainId, waitForTransactionWithResult } from './sui-helper';
 
 import copy from 'copy-to-clipboard';
-import { isNotEmptyList } from '../../utils/ListUtil';
 import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { CompiledModulesAndDeps } from 'wds-event';
@@ -38,10 +32,11 @@ interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
   setDeployedContract: Function;
   setAtAddress: Function;
-  setAccountResources: Function;
-  setTargetResource: Function;
+  setSuiObjects: Function;
+  setTargetObjectId: Function;
   setParameters: Function;
-  getAccountModulesFromAccount: Function;
+  setInputAddress: Function;
+  initContract: Function;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -54,10 +49,11 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   dapp,
   setDeployedContract,
   setAtAddress,
-  setAccountResources,
-  setTargetResource,
+  setSuiObjects,
+  setTargetObjectId,
   setParameters,
-  getAccountModulesFromAccount,
+  setInputAddress,
+  initContract,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -111,58 +107,56 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       });
       log.debug(`@@@ txnHash=${txnHash}`);
 
-      const result = (await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain)) as any;
+      const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
       log.info('tx result', result);
-      if (result.success) {
-        await client.terminal.log({
-          type: 'info',
-          value: {
-            version: result.version,
-            hash: result.hash,
-            gas_unit_price: result.gas_unit_price,
-            gas_used: result.gas_used,
-            sender: result.sender,
-            sequence_number: result.sequence_number,
-            timestamp: result.timestamp,
-            vm_status: result.vm_status,
-          },
-        });
-        const suiDeployHistoryCreateDto: SuiDeployHistoryCreateDto = {
-          chainId: dapp.networks.sui.chain,
-          account: accountID,
-          package: packageName,
-          compileTimestamp: Number(compileTimestamp),
-          deployTimestamp: Number(result.timestamp),
-          txHash: result.hash,
-          modules: ['abc'].map((m) => m), // todo
-        };
-
-        log.info('suiDeployHistoryCreateDto', suiDeployHistoryCreateDto);
-
-        const res = await axios.post(
-          COMPILER_API_ENDPOINT + '/sui-deploy-histories',
-          suiDeployHistoryCreateDto,
-        );
-
-        log.info(`sui-deploy-histories api res`, res);
-
-        setDeployedContract(accountID);
-        setAtAddress('');
-        const moveResources = await getOwnedObjects(accountID, dapp.networks.sui.chain);
-        log.info(`@@@ moveResources`, moveResources);
-        setAccountResources([...moveResources]);
-        if (isNotEmptyList(moveResources)) {
-          setTargetResource(moveResources[0].type);
-        } else {
-          setTargetResource('');
-        }
-        setParameters([]);
-
-        getAccountModulesFromAccount(accountID, dapp.networks.sui.chain);
-      } else {
-        log.error((result as any).vm_status);
+      if (result?.effects?.status?.status !== 'success') {
+        log.error(result as any);
         await client.terminal.log({ type: 'error', value: (result as any).vm_status });
+        return;
       }
+
+      await client.terminal.log({
+        type: 'info',
+        value: JSON.stringify(result, null, 2),
+      });
+
+      const objectChanges = result.objectChanges || [];
+      log.info('objectChanges', objectChanges);
+      const publishedChange = objectChanges.find((oc) => oc.type === 'published') as
+        | {
+            packageId: string;
+            type: 'published';
+            version: number;
+            digest: string;
+            modules: string[];
+          }
+        | undefined;
+      const modules = publishedChange?.modules || [];
+
+      const suiDeployHistoryCreateDto: SuiDeployHistoryCreateDto = {
+        chainId: dapp.networks.sui.chain,
+        account: accountID,
+        package: packageName,
+        compileTimestamp: Number(compileTimestamp),
+        deployTimestamp: result.timestampMs || 0,
+        txHash: result.digest,
+        modules: modules,
+      };
+
+      log.info('suiDeployHistoryCreateDto', suiDeployHistoryCreateDto);
+
+      const res = await axios.post(
+        COMPILER_API_ENDPOINT + '/sui-deploy-histories',
+        suiDeployHistoryCreateDto,
+      );
+
+      log.info(`sui-deploy-histories api res`, res);
+
+      log.info(`dsrvProceed accountID=${accountID}`);
+      setDeployedContract(accountID);
+      setAtAddress(accountID);
+      setInputAddress(accountID);
+      initContract(accountID, publishedChange?.packageId);
     } catch (e: any) {
       log.error(e);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
