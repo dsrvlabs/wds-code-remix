@@ -808,7 +808,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   async function initObjectsCtx(account: string, chainId: SuiChainId) {
     try {
-      const objects = await getOwnedObjects(atAddress, dapp.networks.sui.chain); // todo sui
+      const objects = await getOwnedObjects(account, dapp.networks.sui.chain); // todo sui
       // const objects = await getOwnedObjects(account, chainId);
       log.info(`@@@ sui objects`, objects);
       setSuiObjects([...objects]);
