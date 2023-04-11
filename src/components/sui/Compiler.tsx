@@ -21,6 +21,7 @@ import {
   getModules,
   getOwnedObjects,
   getPackageIds,
+  getProvider,
   initParameters,
   moveCallTxn,
   parseYaml,
@@ -929,7 +930,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txHash}` });
   };
 
-  const queryObject = () => {
+  const queryObject = async () => {
     log.info(`targetObjectId`, targetObjectId);
     const selectedObject = suiObjects.find((object) => object.objectId === targetObjectId);
     if (!selectedObject) {
@@ -940,9 +941,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
+    const object = await getProvider(dapp.networks.sui.chain).getObject({
+      id: targetObjectId,
+      options: {
+        showType: true,
+        showContent: true,
+        // showBcs: true,
+        showOwner: true,
+        // showPreviousTransaction: true,
+        // showStorageRebate: true,
+        showDisplay: true,
+      },
+    });
+
     client.terminal.log({
       type: 'info',
-      value: `\n${targetObjectId}\n${JSON.stringify(selectedObject, null, 2)}\n`,
+      value: `\n${targetObjectId}\n${JSON.stringify(object, null, 2)}\n`,
     });
   };
 
