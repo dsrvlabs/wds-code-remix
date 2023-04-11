@@ -5,17 +5,14 @@ export function stringifySuiVectorType(t: any): string {
   let cnt = 0;
   while (curVal) {
     cnt++;
-    log.info(`cnt=${cnt}`);
 
     if (curVal.Struct) {
       curVal = curVal.Struct;
-      log.info(`break cnt=${cnt}`);
       break;
     }
 
     if (typeof curVal.Vector === 'string' || curVal === undefined) {
       curVal = curVal.Vector;
-      log.info(`break cnt=${cnt}`);
       break;
     }
     curVal = curVal.Vector;
@@ -43,17 +40,14 @@ export function stringifySuiVectorElementType(t: any): string {
   let cnt = 0;
   while (curVal) {
     cnt++;
-    log.info(`cnt=${cnt}`);
 
     if (curVal.Struct) {
       curVal = curVal.Struct;
-      log.info(`break cnt=${cnt}`);
       break;
     }
 
     if (typeof curVal.Vector === 'string' || curVal === undefined) {
       curVal = curVal.Vector;
-      log.info(`break cnt=${cnt}`);
       break;
     }
     curVal = curVal.Vector;
