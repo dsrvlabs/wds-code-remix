@@ -143,7 +143,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetModuleName, setTargetModuleName] = useState<string>('');
   const [funcs, setFuncs] = useState<SuiFunc[]>([]);
   const [targetFunc, setTargetFunc] = useState<SuiFunc>();
-  const [parameters, setParameters] = useState<string[]>([]);
+  const [parameters, setParameters] = useState<any[]>([]);
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -927,7 +927,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const moveCall = async () => {
-    log.info('parameters', JSON.stringify(parameters, null, 2));
+    const parameterTypes = targetFunc?.parameters;
+    if (parameterTypes) {
+      for (let i = 0; i < parameterTypes.length; i++) {
+        const parameterType = parameterTypes[i];
+        if (parameterType === 'Bool' && typeof parameters[i] !== 'boolean') {
+          parameters[i] = true;
+        }
+      }
+    }
+
     const dappTxn_ = await moveCallTxn(
       accountID,
       dapp.networks.sui.chain,
