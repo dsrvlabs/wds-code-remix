@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useEffect, useState } from 'react';
 import { parseArgVal, extractVectorElementTypeTag } from './sui-helper';
 import { SuiFunc } from './sui-types';
-import { parseSuiVectorInnerType } from './sui-parser';
+import { stringifySuiVectorElementType } from './sui-parser';
 import { log } from '../../utils/logger';
 
 interface Props {
@@ -72,11 +72,14 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       if (id.includes('bool')) {
         const el: any = document.getElementById(counterBoolElementId(id));
         el.checked = !el.checked;
+        log.info(`handleFormChange ${vectorElType}`);
+
         data[indices[0]] = parseArgVal(id.includes('true'), vectorElType);
       } else if (event.target.value === '') {
         data[indices[0]] = '';
       } else {
-        data[indices[0]] = parseArgVal(event.target.value, parseSuiVectorInnerType(typeName));
+        log.info(`@@@ handleFormChange typeName=${typeName}`);
+        data[indices[0]] = parseArgVal(event.target.value, vectorElType);
       }
 
       setArgs(data);
@@ -97,10 +100,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     if (event.target.value === '') {
       el[indices[indices.length - 1]] = '';
     } else {
-      el[indices[indices.length - 1]] = parseArgVal(
-        event.target.value,
-        parseSuiVectorInnerType(typeName),
-      );
+      el[indices[indices.length - 1]] = parseArgVal(event.target.value, vectorElType);
     }
     setArgs([...data]);
     updateParam(data, parentIdx, typeName);
@@ -122,7 +122,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
 
   const addRow = (event: any, vectorElType: string) => {
     log.info(`addRow event=${event}, vectorElType=${vectorElType}`);
-    const depth = wordCount(typeName, 'VECTOR');
+    const depth = wordCount(typeName, 'Vector');
     const id = event.target.id as string;
     console.log(`id`, id);
 

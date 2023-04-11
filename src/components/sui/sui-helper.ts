@@ -35,7 +35,7 @@ export async function dappPublishTxn(
 ) {
   const tx = new TransactionBlock();
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
-  tx.setGasBudget(10000);
+  tx.setGasBudget(13523880);
   const cap = tx.publish(
     compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
     compiledModulesAndDeps.dependencies.map((addr: string) => normalizeSuiObjectId(addr)),
@@ -59,7 +59,7 @@ export async function moveCallTxn(
   const tx = new TransactionBlock();
   tx.setSender(accountId);
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
-  tx.setGasBudget(10000);
+  tx.setGasBudget(13523880);
 
   const moveCallInput = {
     target: `${packageId}::${moduleName}::${funcName}`,
@@ -247,7 +247,7 @@ export function getVectorArgTypeStr(vectorTypeFullName: string): string {
 }
 
 export function extractVectorElementTypeTag(vectorType: string): TxnBuilderTypes.TypeTag {
-  const depth = wordCount(vectorType, 'vector');
+  const depth = wordCount(vectorType, 'Vector');
   const parser = new TypeTagParser(vectorType);
   let curTypeTag: TxnBuilderTypes.TypeTag = parser.parseTypeTag();
   for (let i = 0; i < depth; i++) {

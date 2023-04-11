@@ -110,6 +110,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
       const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
       log.info('tx result', result);
+      log.info('tx result json', JSON.stringify(result, null, 2));
       if (result?.effects?.status?.status !== 'success') {
         log.error(result as any);
         await client.terminal.log({ type: 'error', value: (result as any).vm_status });
