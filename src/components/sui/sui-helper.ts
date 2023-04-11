@@ -261,8 +261,8 @@ export function extractVectorElementTypeTag(vectorType: string): TxnBuilderTypes
 
 export function parseArgVal(argVal: any, argType: string) {
   log.info(`### parseArgVal argVal=${argVal} argType=${argType}`);
-  if (argType === 'BOOL') {
-    return argVal === 'true';
+  if (argType === 'Bool') {
+    return argVal;
   }
 
   if (argType === 'U8' || argType === 'U16' || argType === 'U32') {

@@ -137,7 +137,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     const data = [...args];
     console.log(`data_1`, data);
     if (depth === 1) {
-      if (vectorElType === 'bool') {
+      if (vectorElType === 'Bool') {
         data.push(true);
       } else {
         data.push('');
@@ -163,7 +163,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     console.log(`el`, el);
 
     if (indices.length === depth - 1) {
-      if (vectorElType === 'bool') {
+      if (vectorElType === 'Bool') {
         el.push(true);
       } else {
         el.push('');
@@ -211,10 +211,10 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
 
   const render: (val: any, i: number) => any = (val: any, i: number) => {
     if (!Array.isArray(val)) {
-      if (vectorElType === 'bool' && val === '') {
+      if (vectorElType === 'Bool' && val === '') {
         val = true;
       }
-      return vectorElType === 'bool' ? (
+      return vectorElType === 'Bool' ? (
         <div
           id={`vec-arg-input-bool-${parentIdx}-${i}`}
           style={{ display: 'flex', alignItems: 'center' }}
