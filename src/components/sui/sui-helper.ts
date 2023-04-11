@@ -51,7 +51,7 @@ export async function moveCallTxn(
   packageId: string,
   moduleName: string,
   funcName: string,
-  args: string[],
+  args: any[],
 ) {
   console.log('moduleName', moduleName);
 
