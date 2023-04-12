@@ -38,6 +38,7 @@ export async function moveCallTxn(
   packageId: string,
   moduleName: string,
   funcName: string,
+  typeArgs: string[],
   args: any[],
 ) {
   console.log('moduleName', moduleName);
@@ -50,6 +51,7 @@ export async function moveCallTxn(
 
   const moveCallInput = {
     target: `${packageId}::${moduleName}::${funcName}`,
+    typeArguments: typeArgs,
     arguments: args.map((arg) => tx.pure(arg)),
   };
   log.info('moveCallInput', moveCallInput);
@@ -229,6 +231,10 @@ export async function getOwnedObjects(
 
 export function parseYaml(str: string) {
   return yaml.load(str);
+}
+
+export function initGenericParameters(typeParameters: any[]) {
+  return new Array(typeParameters.length);
 }
 
 export function initParameters(parameters: SuiMoveNormalizedType[]) {

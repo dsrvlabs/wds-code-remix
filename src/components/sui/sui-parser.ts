@@ -1,6 +1,13 @@
 import { log } from '../../utils/logger';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
+export type SuiTypeParameter = {
+  abilities: string[];
+};
+
+export function suiTypeParameterName(idx: number, typeParameter: SuiTypeParameter) {
+  return `T${idx}: ${typeParameter.abilities.join(' + ')}`;
+}
 
 export function suiTypeName(
   parameterType: SuiMoveNormalizedType,

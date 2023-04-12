@@ -22,6 +22,7 @@ import {
   getOwnedObjects,
   getPackageIds,
   getProvider,
+  initGenericParameters,
   initParameters,
   moveCallTxn,
   parseYaml,
@@ -67,6 +68,7 @@ import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js';
 import { Deploy } from './Deploy';
+import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -143,6 +145,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetModuleName, setTargetModuleName] = useState<string>('');
   const [funcs, setFuncs] = useState<SuiFunc[]>([]);
   const [targetFunc, setTargetFunc] = useState<SuiFunc>();
+  const [genericParameters, setGenericParameters] = useState<string[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
   const findArtifacts = async () => {
@@ -815,6 +818,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const func = entryFuncs[0];
       setTargetFunc(func);
+      setGenericParameters([...initGenericParameters(func.typeParameters)]);
       setParameters([...initParameters(func.parameters)]);
     } catch (e) {
       log.error(e);
@@ -862,6 +866,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (isEmptyList(modules)) {
       setFuncs([]);
       setTargetFunc(undefined);
+      setGenericParameters([]);
       setParameters([]);
       return;
     }
@@ -873,12 +878,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setFuncs([...entryFuncs]);
     if (isEmptyList(entryFuncs)) {
       setTargetFunc(undefined);
+      setGenericParameters([]);
       setParameters([]);
       return;
     }
 
     const func = entryFuncs[0];
     setTargetFunc(func);
+    setGenericParameters([...initGenericParameters(func.typeParameters)]);
     setParameters([...initParameters(func.parameters)]);
     return;
   };
@@ -896,13 +903,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setFuncs([...entryFuncs]);
     if (isEmptyList(entryFuncs)) {
       setTargetFunc(undefined);
+      setGenericParameters([]);
       setParameters([]);
       return;
     }
 
     const func = entryFuncs[0];
     setTargetFunc(func);
-
+    setGenericParameters([...initGenericParameters(func.typeParameters)]);
     setParameters([...initParameters(func.parameters)]);
   };
 
@@ -916,7 +924,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     setTargetFunc(func);
-
+    setGenericParameters([...initGenericParameters(func.typeParameters)]);
     setParameters([...initParameters(func.parameters)]);
   };
 
@@ -943,6 +951,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       targetPackageId,
       targetModuleName,
       targetFunc!.name,
+      genericParameters,
       parameters,
     );
 
@@ -1168,6 +1177,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setAtAddress={setAtAddress}
           setSuiObjects={setSuiObjects}
           setTargetObjectId={setTargetObjectId}
+          setGenericParameters={setGenericParameters}
           setParameters={setParameters}
           setInputAddress={setInputAddress}
           initContract={initContract}
@@ -1312,7 +1322,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           {targetFunc ? (
             <Form.Group>
               <InputGroup>
-                <Parameters func={targetFunc} setParameters={setParameters} />
+                <Parameters
+                  func={targetFunc}
+                  setGenericParameters={setGenericParameters}
+                  setParameters={setParameters}
+                />
                 <div>
                   <Button
                     style={{ marginTop: '10px', minWidth: '70px' }}

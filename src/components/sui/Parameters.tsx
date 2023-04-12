@@ -4,15 +4,25 @@ import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
 import { parseArgVal, txCtxRemovedParameters } from './sui-helper';
-import { stringifySuiVectorElementType, stringifySuiVectorType, suiTypeName } from './sui-parser';
+import {
+  stringifySuiVectorElementType,
+  stringifySuiVectorType,
+  suiTypeName,
+  suiTypeParameterName,
+} from './sui-parser';
 import VectorArgForm from '../sui/VectorArgForm';
 
 interface InterfaceProps {
   func: SuiFunc;
   setParameters: Function;
+  setGenericParameters: Function;
 }
 
-export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
+export const Parameters: React.FunctionComponent<InterfaceProps> = ({
+  func,
+  setParameters,
+  setGenericParameters,
+}) => {
   log.info('func', JSON.stringify(func, null, 2));
   log.debug('parameters', JSON.stringify(func.parameters, null, 2));
   log.debug('typeParameters ', JSON.stringify(func.typeParameters, null, 2));
@@ -54,9 +64,31 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
       return existingParams;
     });
   };
-
+  const updateGenericParam = (e: any, idx: any) => {
+    setGenericParameters((existingGenericParams: string[]) => {
+      existingGenericParams[idx] = e.target.value;
+      return existingGenericParams;
+    });
+  };
   return (
     <div style={{ width: '100%' }}>
+      <div>
+        <div>{func.typeParameters.length > 0 ? <small>Type Parameters</small> : <></>}</div>
+        {func.typeParameters.map((param: any, idx: number) => {
+          return (
+            <Form.Control
+              style={{ width: '100%', marginBottom: '5px' }}
+              type="text"
+              placeholder={`${suiTypeParameterName(idx, param)}`}
+              size="sm"
+              onChange={(e) => {
+                updateGenericParam(e, idx);
+              }}
+              key={idx}
+            />
+          );
+        })}
+      </div>
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
       {txCtxRemovedParameters(func.parameters).map(
         (parameterType: SuiMoveNormalizedType, idx: number) => {

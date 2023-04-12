@@ -35,6 +35,7 @@ interface InterfaceProps {
   setAtAddress: Function;
   setSuiObjects: Function;
   setTargetObjectId: Function;
+  setGenericParameters: Function;
   setParameters: Function;
   setInputAddress: Function;
   initContract: Function;
@@ -52,6 +53,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setAtAddress,
   setSuiObjects,
   setTargetObjectId,
+  setGenericParameters,
   setParameters,
   setInputAddress,
   initContract,
