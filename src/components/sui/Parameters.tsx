@@ -4,7 +4,7 @@ import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
 import { parseArgVal, txCtxRemovedParameters } from './sui-helper';
-import { stringifySuiVectorElementType, stringifySuiVectorType } from './sui-parser';
+import { stringifySuiVectorElementType, stringifySuiVectorType, suiTypeName } from './sui-parser';
 import VectorArgForm from '../sui/VectorArgForm';
 
 interface InterfaceProps {
@@ -53,34 +53,6 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
     });
   };
 
-  function typeName(parameterType: SuiMoveNormalizedType) {
-    log.info(`parameterType`, parameterType);
-    if (typeof parameterType === 'string') {
-      return parameterType;
-    }
-
-    if (typeof parameterType === 'number') {
-      return parameterType;
-    }
-    const t: any = parameterType;
-
-    if (t.Struct) {
-      return `${t.Struct.address}::${t.Struct.module}::${t.Struct.name}`;
-    }
-
-    if (t.Reference) {
-      return `${t.Reference.Struct.address}::${t.Reference.Struct.module}::${t.Reference.Struct.name}`;
-    }
-
-    if (t.MutableReference) {
-      return `${t.MutableReference.Struct.address}::${t.MutableReference.Struct.module}::${t.MutableReference.Struct.name}`;
-    }
-
-    if (t.Vector) {
-      return stringifySuiVectorType(t);
-    }
-  }
-
   return (
     <div style={{ width: '100%' }}>
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
@@ -97,7 +69,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               />
             );
           }
-          if (typeName(parameterType) === 'Bool') {
+          if (suiTypeName(parameterType) === 'Bool') {
             return (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
@@ -105,7 +77,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-true-${idx}`}
                     type="radio"
-                    placeholder={typeName(parameterType)}
+                    placeholder={suiTypeName(parameterType)}
                     defaultChecked={true}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
@@ -120,7 +92,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-false-${idx}`}
                     type="radio"
-                    placeholder={typeName(parameterType)}
+                    placeholder={suiTypeName(parameterType)}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
                     }}
@@ -140,7 +112,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               className={`sui-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
-              placeholder={typeName(parameterType)}
+              placeholder={suiTypeName(parameterType)}
               size="sm"
               key={`sui-parameterType-${idx}`}
               onChange={(e) => {
