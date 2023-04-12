@@ -1,7 +1,6 @@
 import React, { ChangeEvent, useEffect, useState } from 'react';
-import { parseArgVal, extractVectorElementTypeTag } from './sui-helper';
+import { parseArgVal } from './sui-helper';
 import { SuiFunc } from './sui-types';
-import { stringifySuiVectorElementType } from './sui-parser';
 import { log } from '../../utils/logger';
 
 interface Props {

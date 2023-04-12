@@ -4,16 +4,28 @@ import { SuiFunc } from './sui-types';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { log } from '../../utils/logger';
 import { parseArgVal, txCtxRemovedParameters } from './sui-helper';
-import { stringifySuiVectorElementType, stringifySuiVectorType } from './sui-parser';
+import {
+  stringifySuiVectorElementType,
+  stringifySuiVectorType,
+  suiTypeName,
+  suiTypeParameterName,
+} from './sui-parser';
 import VectorArgForm from '../sui/VectorArgForm';
 
 interface InterfaceProps {
   func: SuiFunc;
   setParameters: Function;
+  setGenericParameters: Function;
 }
 
-export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
-  log.info('parameters', JSON.stringify(func.parameters, null, 2));
+export const Parameters: React.FunctionComponent<InterfaceProps> = ({
+  func,
+  setParameters,
+  setGenericParameters,
+}) => {
+  log.info('func', JSON.stringify(func, null, 2));
+  log.debug('parameters', JSON.stringify(func.parameters, null, 2));
+  log.debug('typeParameters ', JSON.stringify(func.typeParameters, null, 2));
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('sui-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
@@ -52,37 +64,31 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
       return existingParams;
     });
   };
-
-  function typeName(parameterType: SuiMoveNormalizedType) {
-    log.info(`parameterType`, parameterType);
-    if (typeof parameterType === 'string') {
-      return parameterType;
-    }
-
-    if (typeof parameterType === 'number') {
-      return parameterType;
-    }
-    const t: any = parameterType;
-
-    if (t.Struct) {
-      return `${t.Struct.address}::${t.Struct.module}::${t.Struct.name}`;
-    }
-
-    if (t.Reference) {
-      return `${t.Reference.Struct.address}::${t.Reference.Struct.module}::${t.Reference.Struct.name}`;
-    }
-
-    if (t.MutableReference) {
-      return `${t.MutableReference.Struct.address}::${t.MutableReference.Struct.module}::${t.MutableReference.Struct.name}`;
-    }
-
-    if (t.Vector) {
-      return stringifySuiVectorType(t);
-    }
-  }
-
+  const updateGenericParam = (e: any, idx: any) => {
+    setGenericParameters((existingGenericParams: string[]) => {
+      existingGenericParams[idx] = e.target.value;
+      return existingGenericParams;
+    });
+  };
   return (
     <div style={{ width: '100%' }}>
+      <div>
+        <div>{func.typeParameters.length > 0 ? <small>Type Parameters</small> : <></>}</div>
+        {func.typeParameters.map((param: any, idx: number) => {
+          return (
+            <Form.Control
+              style={{ width: '100%', marginBottom: '5px' }}
+              type="text"
+              placeholder={`${suiTypeParameterName(idx, param)}`}
+              size="sm"
+              onChange={(e) => {
+                updateGenericParam(e, idx);
+              }}
+              key={idx}
+            />
+          );
+        })}
+      </div>
       <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
       {txCtxRemovedParameters(func.parameters).map(
         (parameterType: SuiMoveNormalizedType, idx: number) => {
@@ -97,7 +103,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               />
             );
           }
-          if (typeName(parameterType) === 'Bool') {
+          if (suiTypeName(parameterType, func.typeParameters) === 'Bool') {
             return (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
@@ -105,7 +111,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-true-${idx}`}
                     type="radio"
-                    placeholder={typeName(parameterType)}
+                    placeholder={suiTypeName(parameterType, func.typeParameters)}
                     defaultChecked={true}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
@@ -120,7 +126,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-false-${idx}`}
                     type="radio"
-                    placeholder={typeName(parameterType)}
+                    placeholder={suiTypeName(parameterType, func.typeParameters)}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
                     }}
@@ -140,7 +146,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               className={`sui-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
-              placeholder={typeName(parameterType)}
+              placeholder={suiTypeName(parameterType, func.typeParameters)}
               size="sm"
               key={`sui-parameterType-${idx}`}
               onChange={(e) => {
