@@ -1,7 +1,11 @@
 import { log } from '../../utils/logger';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 
-export function suiTypeName(parameterType: SuiMoveNormalizedType): string {
+export function suiTypeName(
+  parameterType: SuiMoveNormalizedType,
+  typeParameters?: SuiMoveAbilitySet[],
+): string {
   log.info(`parameterType`, JSON.stringify(parameterType, null, 2));
   if (typeof parameterType === 'string') {
     return parameterType;
@@ -15,8 +19,14 @@ export function suiTypeName(parameterType: SuiMoveNormalizedType): string {
   if (t.Struct) {
     let typeArgsStr = '';
     if (t.Struct.typeArguments.length > 0) {
-      const typeArgs = t.Struct.typeArguments.map((targ: SuiMoveNormalizedType) => {
-        return suiTypeName(targ);
+      const typeArgs = t.Struct.typeArguments.map((targ: any) => {
+        if (typeof targ.TypeParameter === 'number') {
+          return `T${targ.TypeParameter}: ${typeParameters?.[targ.TypeParameter].abilities.join(
+            ' + ',
+          )}`;
+        }
+
+        return suiTypeName(targ, typeParameters);
       });
       typeArgsStr = `<${typeArgs.join(', ')}>`;
     }
@@ -31,8 +41,13 @@ export function suiTypeName(parameterType: SuiMoveNormalizedType): string {
   if (t.Reference) {
     let typeArgsStr = '';
     if (t.Reference.Struct.typeArguments.length > 0) {
-      const typeArgs = t.Reference.Struct.typeArguments.map((targ: SuiMoveNormalizedType) => {
-        return suiTypeName(targ);
+      const typeArgs = t.Reference.Struct.typeArguments.map((targ: any) => {
+        if (typeof targ.TypeParameter === 'number') {
+          return `T${targ.TypeParameter}: ${typeParameters?.[targ.TypeParameter].abilities.join(
+            ' + ',
+          )}`;
+        }
+        return suiTypeName(targ, typeParameters);
       });
       typeArgsStr = `<${typeArgs.join(', ')}>`;
     }
@@ -46,11 +61,14 @@ export function suiTypeName(parameterType: SuiMoveNormalizedType): string {
   if (t.MutableReference) {
     let typeArgsStr = '';
     if (t.MutableReference.Struct.typeArguments.length > 0) {
-      const typeArgs = t.MutableReference.Struct.typeArguments.map(
-        (targ: SuiMoveNormalizedType) => {
-          return suiTypeName(targ);
-        },
-      );
+      const typeArgs = t.MutableReference.Struct.typeArguments.map((targ: any) => {
+        if (typeof targ.TypeParameter === 'number') {
+          return `T${targ.TypeParameter}: ${typeParameters?.[targ.TypeParameter].abilities.join(
+            ' + ',
+          )}`;
+        }
+        return suiTypeName(targ, typeParameters);
+      });
       typeArgsStr = `<${typeArgs.join(', ')}>`;
     }
     let b = `${t.MutableReference.Struct.address}::${t.MutableReference.Struct.module}::${t.MutableReference.Struct.name}`;
@@ -67,7 +85,7 @@ export function suiTypeName(parameterType: SuiMoveNormalizedType): string {
   throw new Error(`suiTypeName Invalid type ${JSON.stringify(parameterType, null, 2)}`);
 }
 
-export function stringifySuiVectorType(t: any): string {
+export function stringifySuiVectorType(t: any, typeParameters?: SuiMoveAbilitySet[]): string {
   if (!t.Vector) {
     throw new Error(`stringifySuiVectorType ${JSON.stringify(t, null, 2)}`);
   }
@@ -94,7 +112,7 @@ export function stringifySuiVectorType(t: any): string {
     prefix += 'Vector<';
   }
 
-  const elTypeStr = suiTypeName(curVal);
+  const elTypeStr = suiTypeName(curVal, typeParameters);
 
   let postfix = '';
   for (let i = 0; i < vectorCnt; i++) {
@@ -104,7 +122,10 @@ export function stringifySuiVectorType(t: any): string {
   return prefix + elTypeStr + postfix;
 }
 
-export function stringifySuiVectorElementType(t: any): string {
+export function stringifySuiVectorElementType(
+  t: any,
+  typeParameters?: SuiMoveAbilitySet[],
+): string {
   let curVal = t;
   let cnt = 0;
   while (curVal) {
@@ -121,5 +142,5 @@ export function stringifySuiVectorElementType(t: any): string {
     curVal = curVal.Vector;
   }
 
-  return suiTypeName(curVal);
+  return suiTypeName(curVal, typeParameters);
 }

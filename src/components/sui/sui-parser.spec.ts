@@ -5,6 +5,7 @@
 // @ts-ignore
 
 import { stringifySuiVectorElementType, stringifySuiVectorType, suiTypeName } from './sui-parser';
+import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 
 describe('Sui Parser', () => {
   it('suiTypeName', () => {
@@ -229,6 +230,31 @@ describe('Sui Parser', () => {
     const str2 = stringifySuiVectorType(t);
     expect(str2).toBe(
       'Vector<Vector<0x2::coin::TreasuryCap<0x9f375eded10883abdb3e93073335f4078397cdc456dd766f8baddc0fc1a6b6e7::managed::MANAGED, 0x9f375eded10883abdb3e93073335f4078397cdc456dd766f8baddc0fc1a6b6e7::managed::MANAGED2>>>',
+    );
+  });
+
+  it('suiTypeName typeParameters', () => {
+    const t = {
+      Struct: {
+        address: '0x9db36de17260e18c279bf13ffbc4eb5535ff9b58eba2b64c3322652f86975b85',
+        module: 'auction_lib',
+        name: 'Auction',
+        typeArguments: [
+          {
+            TypeParameter: 0,
+          },
+        ],
+      },
+    };
+    const typeParameters: SuiMoveAbilitySet[] = [
+      {
+        abilities: ['Store', 'Key'],
+      },
+    ];
+
+    const str = suiTypeName(t, typeParameters);
+    expect(str).toBe(
+      '0x9db36de17260e18c279bf13ffbc4eb5535ff9b58eba2b64c3322652f86975b85::auction_lib::Auction<T0: Store + Key>',
     );
   });
 });

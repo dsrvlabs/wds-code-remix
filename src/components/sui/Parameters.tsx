@@ -13,7 +13,9 @@ interface InterfaceProps {
 }
 
 export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setParameters }) => {
-  log.info('parameters', JSON.stringify(func.parameters, null, 2));
+  log.info('func', JSON.stringify(func, null, 2));
+  log.debug('parameters', JSON.stringify(func.parameters, null, 2));
+  log.debug('typeParameters ', JSON.stringify(func.typeParameters, null, 2));
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('sui-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
@@ -69,7 +71,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               />
             );
           }
-          if (suiTypeName(parameterType) === 'Bool') {
+          if (suiTypeName(parameterType, func.typeParameters) === 'Bool') {
             return (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
@@ -77,7 +79,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-true-${idx}`}
                     type="radio"
-                    placeholder={suiTypeName(parameterType)}
+                    placeholder={suiTypeName(parameterType, func.typeParameters)}
                     defaultChecked={true}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
@@ -92,7 +94,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
                     className={'sui-parameter'}
                     id={`sui-parameter-bool-false-${idx}`}
                     type="radio"
-                    placeholder={suiTypeName(parameterType)}
+                    placeholder={suiTypeName(parameterType, func.typeParameters)}
                     onChange={(e) => {
                       updateParam(e, idx, parameterType);
                     }}
@@ -112,7 +114,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({ func, setP
               className={`sui-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
-              placeholder={suiTypeName(parameterType)}
+              placeholder={suiTypeName(parameterType, func.typeParameters)}
               size="sm"
               key={`sui-parameterType-${idx}`}
               onChange={(e) => {
