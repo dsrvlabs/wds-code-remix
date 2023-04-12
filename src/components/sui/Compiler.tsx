@@ -27,6 +27,7 @@ import {
   moveCallTxn,
   parseYaml,
   SuiChainId,
+  waitForTransactionWithResult,
 } from './sui-helper';
 
 import { PROD, STAGE } from '../../const/stage';
@@ -955,12 +956,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       parameters,
     );
 
-    const txHash = await dapp.request('sui', {
+    const txnHash = await dapp.request('sui', {
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
-    log.debug(`@@@ txHash=${txHash}`);
-    await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txHash}` });
+    log.debug('@@@ txnHash', txnHash);
+
+    const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
+    log.info('tx result', result);
+    log.info('tx result json', JSON.stringify(result, null, 2));
+    if (result?.effects?.status?.status !== 'success') {
+      log.error(result as any);
+      await client.terminal.log({ type: 'error', value: (result as any).vm_status });
+      return;
+    }
+
+    await client.terminal.log({
+      type: 'info',
+      value: `-------------------- ${txnHash} --------------------`,
+    });
+    await client.terminal.log({
+      type: 'info',
+      value: JSON.stringify(result, null, 2),
+    });
   };
 
   const queryObject = async () => {

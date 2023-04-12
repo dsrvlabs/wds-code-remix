@@ -108,7 +108,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         method: 'dapp:signAndSendTransaction',
         params: [rawTx_],
       });
-      log.debug(`@@@ txnHash=${txnHash}`);
+      log.debug('@@@ txnHash', txnHash);
 
       const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
       log.info('tx result', result);
@@ -119,6 +119,10 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
+      await client.terminal.log({
+        type: 'info',
+        value: `-------------------- ${txnHash} --------------------`,
+      });
       await client.terminal.log({
         type: 'info',
         value: JSON.stringify(result, null, 2),
