@@ -1,6 +1,11 @@
+import { PROD, STAGE } from './stage';
+
 export class S3Path {
   static bucket() {
-    return 'wds-code-build';
+    if (STAGE === PROD) {
+      return 'wds-code-build';
+    }
+    return 'wds-code-build-dev';
   }
 
   static outKey(
