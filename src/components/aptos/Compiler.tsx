@@ -768,15 +768,31 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    const moduleFiles = await prepareModules();
-    if (isNotEmptyList(moduleFiles)) {
-      await client.terminal.log({
-        type: 'error',
-        value:
-          "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
-      });
-      return;
-    }
+    // const moduleFiles = await prepareModules();
+    // if (isNotEmptyList(moduleFiles)) {
+    //   await client.terminal.log({
+    //     type: 'error',
+    //     value:
+    //       "If you want to run a new compilation, delete the 'out' directory and click the Compile button again.",
+    //   });
+    //   return;
+    // }
+    const removeArtifacts = async () => {
+      log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+      try {
+        await client?.fileManager.remove('browser/' + compileTarget + '/out');
+        setPackageName('');
+        setCompileTimestamp('');
+        setModuleWrappers([]);
+        setMetaDataBase64('');
+        setModuleBase64s([]);
+        setFileNames([]);
+      } catch (e) {
+        log.info(`no out folder`);
+      }
+    };
+
+    await removeArtifacts();
 
     const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     log.info(`@@@ compile projFiles`, projFiles);
