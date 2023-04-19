@@ -66,7 +66,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
               {'docs'}
             </Badge>
           </a>
-          <a href="https://github.com/welldonestudio/welldonestudio.github.io" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+          <a href="https://support.welldonestudio.io/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <Badge  pill bg="danger" className="me-2" style={{marginRight: '10px'}}>
               {'issues'}
             </Badge>
