@@ -12,6 +12,7 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { FunctionComponent } from 'react';
 import { log } from '../utils/logger';
 import { EditorClient } from '../utils/editor';
+import Badge from 'react-bootstrap/Badge';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -28,6 +29,7 @@ const STYLE: React.CSSProperties = {
   backgroundColor: 'var(--body-bg)',
   zIndex: 3,
   paddingBottom: '10px',
+  marginTop: '40px'
 };
 
 export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
@@ -54,12 +56,23 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   const Header = () => {
     return (
       <div style={STYLE}>
-        <div>
-          <br />
+        <div className="d-flex align-items-center">
           <FaChevronLeft onClick={handleLeftBtn} />
           <span style={{ marginLeft: '5px' }}>{chain}</span>
         </div>
-        <RefreshButton handleRefresh={handleRefresh} />
+        <div className="d-flex align-items-center">
+          <a href="https://docs.welldonestudio.io/code" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <Badge  pill bg="primary" className="me-2" style={{marginRight: '10px'}}>
+              {'docs'}
+            </Badge>
+          </a>
+          <a href="https://support.welldonestudio.io/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <Badge  pill bg="danger" className="me-2" style={{marginRight: '10px'}}>
+              {'issues'}
+            </Badge>
+          </a>
+          <RefreshButton handleRefresh={handleRefresh}/>
+        </div>
       </div>
     );
   };
