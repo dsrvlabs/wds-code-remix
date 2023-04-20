@@ -11,6 +11,7 @@ import {
 import { SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { delay } from '../near/utils/waitForTransaction';
 
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
@@ -122,18 +123,37 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
 }
 
 export async function waitForTransactionWithResult(txnHash: string, chainId: SuiChainId) {
+  await delay(5_000);
   const client = getProvider(chainId);
   log.info(`getTransactionBlock txHash`, txnHash);
-  const result = await client.getTransactionBlock({
-    digest: txnHash[0],
-    options: {
-      showInput: true,
-      showEffects: true,
-      showEvents: true,
-      showObjectChanges: true,
-      showBalanceChanges: true,
-    },
-  });
+  const try_num = 3;
+  let result;
+  for (let i = 0; i < try_num; i++) {
+    try {
+      log.info(`Trying getTransactionBlock n=${i + 1}.`);
+      result = await client.getTransactionBlock({
+        digest: txnHash[0],
+        options: {
+          showInput: true,
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+          showBalanceChanges: true,
+        },
+      });
+      if (result) {
+        break;
+      }
+    } catch (e) {
+      log.error(e);
+    }
+    await delay(5_000);
+  }
+
+  if (!result) {
+    throw new Error(`getTransactionBlock error. txnHash=${txnHash[0]}, chainId=${chainId}`);
+  }
+
   log.info(`TransactionBlock`, result);
   return result;
 }
