@@ -149,7 +149,7 @@ export function parseArgVal(argVal: any, argType: string) {
   }
 
   if (argType === 'U64' || argType === 'U128' || argType === 'U256') {
-    return ensureBigInt(argVal);
+    return ensureBigInt(argVal).toString();
   }
 
   if (argType === 'Address') {
