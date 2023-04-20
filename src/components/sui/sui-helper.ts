@@ -23,10 +23,12 @@ export async function dappPublishTxn(
   const tx = new TransactionBlock();
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
   tx.setGasBudget(13523880);
-  const cap = tx.publish(
-    compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
-    compiledModulesAndDeps.dependencies.map((addr: string) => normalizeSuiObjectId(addr)),
-  );
+  const cap = tx.publish({
+    modules: compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
+    dependencies: compiledModulesAndDeps.dependencies.map((addr: string) =>
+      normalizeSuiObjectId(addr),
+    ),
+  });
   tx.transferObjects([cap], tx.pure(accountId));
   tx.setSender(accountId);
   return tx.serialize();
