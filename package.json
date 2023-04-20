@@ -15,7 +15,7 @@
     "@monaco-editor/react": "^4.4.6",
     "@mui/material": "^5.8.6",
     "@mui/styled-engine": "^5.8.0",
-    "@mysten/sui.js": "^0.30.0",
+    "@mysten/sui.js": "^0.32.1",
     "@remixproject/plugin": "^0.3.31",
     "@remixproject/plugin-api": "^0.3.31",
     "@remixproject/plugin-iframe": "^0.3.31",

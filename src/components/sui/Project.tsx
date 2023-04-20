@@ -31,7 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('forge');
-  const templateList = ['forge'];
+  const templateList = ['forge', 'objects_tutorial'];
 
   useEffect(() => {
     getList();

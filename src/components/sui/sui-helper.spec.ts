@@ -25,4 +25,6 @@ describe('Sui Helper', () => {
 
     console.log('indices', indices);
   });
+
+  it('split', async () => {});
 });

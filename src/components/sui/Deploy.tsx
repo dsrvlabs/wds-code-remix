@@ -158,7 +158,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         packageId: publishedChange.packageId,
         packageName: packageName,
         compileTimestamp: Number(compileTimestamp),
-        deployTimestamp: result.timestampMs || 0,
+        deployTimestamp: Number(result.timestampMs) || 0,
         txHash: result.digest,
         modules: modules,
       };
