@@ -110,6 +110,7 @@ interface InterfaceProps {
   accountID: string;
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
+  gas: string;
 }
 
 export const Compiler: React.FunctionComponent<InterfaceProps> = ({
@@ -117,6 +118,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   compileTarget,
   accountID,
   dapp,
+  gas,
 }) => {
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [testLoading, setTestLoading] = useState<boolean>(false);
@@ -954,6 +956,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       targetFunc!.name,
       genericParameters,
       parameters,
+      Number(gas),
     );
 
     const txnHash = await dapp.request('sui', {
@@ -1191,6 +1194,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           compiledModulesAndDeps={compiledModulesAndDeps}
           dapp={dapp}
           client={client}
+          gas={gas}
           setDeployedContract={setDeployedContract}
           setAtAddress={setAtAddress}
           setSuiObjects={setSuiObjects}

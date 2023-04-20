@@ -31,6 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('forge');
+  const [gas, setGas] = useState<string>('0');
   const templateList = ['forge', 'objects_tutorial'];
 
   useEffect(() => {
@@ -47,6 +48,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const setProject = (e: { target: { value: React.SetStateAction<string> } }) => {
     setProjectName(e.target.value);
+  };
+
+  const setGasValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setGas(e.target.value);
   };
 
   const setTarget = (e: { target: { value: React.SetStateAction<string> } }) => {
@@ -211,10 +216,24 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             </Form.Control>
           </InputGroup>
         </Form.Group>
+        <Form.Group style={mt8}>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>GAS</small>
+          </Form.Text>
+          <InputGroup>
+            <Form.Control type="number" placeholder="0" size="sm" onChange={setGasValue} />
+          </InputGroup>
+        </Form.Group>
       </Form>
 
       <hr />
-      <Compiler compileTarget={compileTarget} accountID={account} dapp={dapp} client={client} />
+      <Compiler
+        compileTarget={compileTarget}
+        accountID={account}
+        dapp={dapp}
+        client={client}
+        gas={gas}
+      />
     </div>
   );
 };

@@ -31,6 +31,7 @@ interface InterfaceProps {
   compiledModulesAndDeps: CompiledModulesAndDeps;
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
+  gas: string;
   setDeployedContract: Function;
   setAtAddress: Function;
   setSuiObjects: Function;
@@ -49,6 +50,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   compiledModulesAndDeps,
   wallet,
   dapp,
+  gas,
   setDeployedContract,
   setAtAddress,
   setSuiObjects,
@@ -102,6 +104,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         accountID,
         dapp.networks.sui.chain as SuiChainId,
         compiledModulesAndDeps,
+        Number(gas),
       );
 
       const txnHash = await dapp.request('sui', {

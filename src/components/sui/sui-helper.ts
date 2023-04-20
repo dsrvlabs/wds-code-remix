@@ -19,10 +19,11 @@ export async function dappPublishTxn(
   accountId: string,
   chainId: SuiChainId,
   compiledModulesAndDeps: CompiledModulesAndDeps,
+  gas: number,
 ) {
   const tx = new TransactionBlock();
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
-  tx.setGasBudget(13523880);
+  tx.setGasBudget(gas);
   const cap = tx.publish({
     modules: compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
     dependencies: compiledModulesAndDeps.dependencies.map((addr: string) =>
@@ -42,6 +43,7 @@ export async function moveCallTxn(
   funcName: string,
   typeArgs: string[],
   args: any[],
+  gas: number,
 ) {
   console.log('moduleName', moduleName);
 
@@ -49,7 +51,7 @@ export async function moveCallTxn(
   const tx = new TransactionBlock();
   tx.setSender(accountId);
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
-  tx.setGasBudget(13523880);
+  tx.setGasBudget(gas);
 
   const moveCallInput = {
     target: `${packageId}::${moduleName}::${funcName}`,
