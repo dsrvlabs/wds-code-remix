@@ -21,6 +21,7 @@ interface InterfaceProps {
   dapp: any;
 }
 
+const DEFAULT_GAS = '30000000';
 export const Project: React.FunctionComponent<InterfaceProps> = ({
   wallet,
   account,
@@ -31,7 +32,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('forge');
-  const [gas, setGas] = useState<string>('0');
+  const [gas, setGas] = useState<string>(DEFAULT_GAS);
   const templateList = ['forge', 'objects_tutorial'];
 
   useEffect(() => {
@@ -221,7 +222,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             <small>GAS</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control type="number" placeholder="0" size="sm" onChange={setGasValue} />
+            <Form.Control
+              type="number"
+              defaultValue={DEFAULT_GAS}
+              size="sm"
+              onChange={setGasValue}
+            />
           </InputGroup>
         </Form.Group>
       </Form>

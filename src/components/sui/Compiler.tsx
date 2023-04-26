@@ -953,7 +953,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       dapp.networks.sui.chain,
       targetPackageId,
       targetModuleName,
-      targetFunc!.name,
+      targetFunc!,
       genericParameters,
       parameters,
       Number(gas),

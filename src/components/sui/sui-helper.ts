@@ -8,11 +8,10 @@ import {
   normalizeSuiObjectId,
   TransactionBlock,
 } from '@mysten/sui.js';
-import { SuiModule } from './sui-types';
+import { SuiModule, SuiFunc } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { delay } from '../near/utils/waitForTransaction';
-
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
@@ -41,23 +40,32 @@ export async function moveCallTxn(
   chainId: SuiChainId,
   packageId: string,
   moduleName: string,
-  funcName: string,
+  func: SuiFunc,
   typeArgs: string[],
   args: any[],
   gas: number,
 ) {
   console.log('moduleName', moduleName);
 
-  console.log('args', args);
+  log.info('args', args);
+  log.debug('gas', gas);
   const tx = new TransactionBlock();
   tx.setSender(accountId);
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
   tx.setGasBudget(gas);
 
   const moveCallInput = {
-    target: `${packageId}::${moduleName}::${funcName}`,
+    target: `${packageId}::${moduleName}::${func.name}`,
     typeArguments: typeArgs,
-    arguments: args.map((arg) => tx.pure(arg)),
+    arguments: args.map((arg, i) => {
+      const parameter: any = func.parameters[i];
+      if (parameter.Vector?.Struct) {
+        return tx.makeMoveVec({
+          objects: arg.map((a: any) => tx.pure(a)),
+        });
+      }
+      return tx.pure(arg);
+    }),
   };
   log.info('moveCallInput', moveCallInput);
   tx.moveCall(moveCallInput as any);
@@ -176,7 +184,7 @@ export function parseArgVal(argVal: any, argType: string) {
     return argVal;
   }
 
-  throw new Error(`Unsupported Type. ${argType}`);
+  return argVal;
 }
 
 export async function getModules(chainId: SuiChainId, packageId: string): Promise<SuiModule[]> {
