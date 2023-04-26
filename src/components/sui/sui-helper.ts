@@ -96,9 +96,6 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
         fullnode: 'https://fullnode.mainnet.sui.io:443/',
         faucet: 'https://faucet.mainnet.sui.io/gas',
       }),
-      {
-        skipDataValidation: false,
-      },
     );
   }
 
@@ -108,9 +105,6 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
         fullnode: 'https://fullnode.testnet.sui.io:443/',
         faucet: 'https://faucet.testnet.sui.io/gas',
       }),
-      {
-        skipDataValidation: false,
-      },
     );
   }
 
@@ -121,9 +115,6 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
         fullnode: 'https://wallet-rpc.devnet.sui.io/',
         faucet: 'https://faucet.devnet.sui.io/gas',
       }),
-      {
-        skipDataValidation: true,
-      },
     );
   }
 
