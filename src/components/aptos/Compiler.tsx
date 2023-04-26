@@ -620,19 +620,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTargetResource(resourceType);
   };
 
-  const queryResource = () => {
+  const queryResource = async () => {
+    const resources = await getAccountResources(atAddress, dapp.networks.aptos.chain);
     log.info(`targetResource`, targetResource);
-    log.info(`accountResources`, accountResources);
-    const selectedResource = accountResources.find((r) => r.type === targetResource);
+    log.info(`accountResources`, resources);
+    const selectedResource = resources.find((r) => r.type === targetResource);
     if (!selectedResource) {
-      client.terminal.log({
+      await client.terminal.log({
         type: 'error',
         value: `Resource Not Found For Type ${targetResource}`,
       });
       return;
     }
 
-    client.terminal.log({
+    await client.terminal.log({
       type: 'info',
       value: `\n${targetResource}\n${JSON.stringify(selectedResource.data, null, 2)}\n`,
     });
