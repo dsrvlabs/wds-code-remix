@@ -22,7 +22,7 @@ import {
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { readFile, stringify } from '../../utils/helper';
+import { readFile, shortenAddress, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -58,6 +58,7 @@ import {
 } from 'wds-event/dist/event/compiler/aptos/v2/aptos';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
+import copy from 'copy-to-clipboard';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -107,6 +108,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
   const [targetResource, setTargetResource] = useState<string>('');
+
+  const [copyMsg, setCopyMsg] = useState<string>('Copy');
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -621,9 +624,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const queryResource = async () => {
-    const resources = await getAccountResources(atAddress, dapp.networks.aptos.chain);
+    const resources = await getAccountResources(deployedContract, dapp.networks.aptos.chain);
     log.info(`targetResource`, targetResource);
-    log.info(`accountResources`, resources);
+    log.info(`deployedContract`, deployedContract);
+    log.info(`resources`, resources);
     const selectedResource = resources.find((r) => r.type === targetResource);
     if (!selectedResource) {
       await client.terminal.log({
@@ -923,6 +927,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       {atAddress || deployedContract ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
+            <span style={mr6}>Deployed Contract</span>
+            <span>{shortenAddress(deployedContract)}</span>
+            <OverlayTrigger placement="top" overlay={<Tooltip>{copyMsg}</Tooltip>}>
+              <Button
+                variant="link"
+                size="sm"
+                className="mt-0 pt-0"
+                onClick={() => {
+                  copy(deployedContract);
+                  setCopyMsg('Copied');
+                }}
+                onMouseLeave={() => {
+                  setTimeout(() => setCopyMsg('Copy'), 100);
+                }}
+              >
+                <i className="far fa-copy" />
+              </Button>
+            </OverlayTrigger>
+          </Form.Text>
+          <Form.Text className="text-muted" style={mb4}>
             <small>Resources</small>
           </Form.Text>
           <InputGroup>
@@ -1049,4 +1073,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
 const mb4 = {
   marginBottom: '4px',
+};
+const mr6 = {
+  marginRight: '6px',
 };
