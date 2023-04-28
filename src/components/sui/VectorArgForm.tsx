@@ -14,25 +14,10 @@ interface Props {
 
 type Arg = string | Arg[];
 type U8VecElParseType = 'string' | 'decimal' | 'hex';
-
-// @ts-ignore
-const abc = ({ indexMemo, vectorElType, parseU8Vector, val, handleFormChange }) => {
-  return (
-    <input
-      className={'form-control sui-parameter'}
-      key={`vec-arg-input-vector-u8-${indexMemo.join('-')}`}
-      id={`vec-arg-input-${indexMemo.join('-')}`}
-      name="val"
-      autoFocus={true}
-      placeholder={vectorElType}
-      value={parseU8Vector(val)}
-      onChange={(event) => handleFormChange(event)}
-      style={{
-        display: 'inline-block',
-      }}
-    />
-  );
-};
+interface U8VecHexParseCtx {
+  idx: string;
+  hex: string;
+}
 
 const VectorArgForm: React.FunctionComponent<Props> = ({
   func,
@@ -46,7 +31,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   );
   const [u8vecParseType, setU8VecParseType] = useState<U8VecElParseType>('string');
   const [args, setArgs] = useState<any[]>([]);
-  const [tmpHexStr, setTmpHexStr] = useState('');
+  const [u8VecHexParseCtxs, setU8VecHexParseCtxs] = useState<U8VecHexParseCtx[]>([]);
+
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('sui-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
@@ -113,6 +99,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     const id = event.target.id;
 
     const indices = toIndices(id);
+    console.log('handleFormChange u8vecParseType', u8vecParseType);
+    console.log('handleFormChange vectorElType', vectorElType);
     console.log('handleFormChange depth', depth);
     console.log('handleFormChange indices', indices);
     console.log('handleFormChange event.target.value', event.target.value);
@@ -123,15 +111,32 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     console.log('handleFormChange data', data);
     if (typeName === 'Vector<U8>' && u8vecParseType !== 'decimal') {
       if (u8vecParseType === 'string') {
-        console.log('### value', value, value.length);
-
+        const hexCtx = u8VecHexParseCtxs.find((ctx) => ctx.idx === indices.toString());
+        if (!hexCtx) {
+          u8VecHexParseCtxs.push({
+            idx: indices.toString(),
+            hex: Buffer.from(value, 'utf8').toString('hex'),
+          });
+        } else {
+          hexCtx.hex = Buffer.from(value, 'utf8').toString('hex');
+        }
+        setU8VecHexParseCtxs([...u8VecHexParseCtxs]);
         const arr = Array.from(Buffer.from(value, 'utf8'));
-        setTmpHexStr(Buffer.from(value, 'utf8').toString('hex'));
         setArgs(arr);
         updateParam(arr, parentIdx, typeName);
         return;
       } else if (u8vecParseType === 'hex') {
-        setTmpHexStr(value);
+        const hexCtx = u8VecHexParseCtxs.find((ctx) => ctx.idx === indices.toString());
+        if (!hexCtx) {
+          u8VecHexParseCtxs.push({
+            idx: indices.toString(),
+            hex: value,
+          });
+        } else {
+          hexCtx.hex = value;
+        }
+        setU8VecHexParseCtxs([...u8VecHexParseCtxs]);
+
         if (isHexadecimal(value)) {
           const arr = Array.from(Buffer.from(value, 'hex'));
           setArgs(arr);
@@ -148,25 +153,46 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         log.info(`handleFormChange ${vectorElType}`);
 
         data[indices[0]] = parseArgVal(id.includes('true'), vectorElType);
-      } else if (event.target.value === '') {
-        data[indices[0]] = '';
       } else {
         if (vectorElType === 'U8' && u8vecParseType !== 'decimal') {
           if (u8vecParseType === 'string') {
-            console.log('@@@ value', value, value.length);
-            setTmpHexStr(Buffer.from(value, 'utf8').toString());
+            const hexCtx = u8VecHexParseCtxs.find((ctx) => ctx.idx === indices.toString());
+            if (!hexCtx) {
+              u8VecHexParseCtxs.push({
+                idx: indices.toString(),
+                hex: Buffer.from(value, 'utf8').toString('hex'),
+              });
+            } else {
+              hexCtx.hex = Buffer.from(value, 'utf8').toString('hex');
+            }
+            setU8VecHexParseCtxs([...u8VecHexParseCtxs]);
+            // setTmpHexStr(Buffer.from(value, 'utf8').toString());
             const arr = Array.from(Buffer.from(value, 'utf8'));
             data[indices[0]] = arr.map((a) => parseArgVal(a, vectorElType, u8vecParseType));
             setArgs(data);
             updateParam(data, parentIdx, typeName);
             return;
           } else if (u8vecParseType === 'hex') {
-            setTmpHexStr(value);
+            const hexCtx = u8VecHexParseCtxs.find((ctx) => ctx.idx === indices.toString());
+            if (!hexCtx) {
+              u8VecHexParseCtxs.push({
+                idx: indices.toString(),
+                hex: value,
+              });
+            } else {
+              hexCtx.hex = value;
+            }
+            setU8VecHexParseCtxs([...u8VecHexParseCtxs]);
+            console.log(`handleFormChange hex u8VecHexParseCtxs`, u8VecHexParseCtxs);
             if (isHexadecimal(value)) {
               const arr = Array.from(Buffer.from(value, 'hex'));
+              console.log(`handleFormChange hex arr`, arr);
+
               data[indices[0]] = arr.map((a) => parseArgVal(a, vectorElType, u8vecParseType));
             }
           }
+        } else if (value === '') {
+          data[indices[0]] = '';
         } else {
           log.info(`@@@ handleFormChange typeName=${typeName}`);
           data[indices[0]] = parseArgVal(event.target.value, vectorElType, u8vecParseType);
@@ -305,30 +331,32 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     updateParam(data, parentIdx, typeName);
   };
 
-  const parseElValue = (elVal: any) => {
+  const parseElValue = (elVal: any, indexMemo: number[]) => {
     if (typeName === 'Vector<U8>' && u8vecParseType !== 'decimal') {
-      return parseU8Vector(elVal);
+      return parseU8Vector(elVal, indexMemo);
     }
 
     if (vectorElType === 'U8' && u8vecParseType !== 'decimal') {
       console.log(`parseElValue elVal`, elVal);
-      return parseU8Vector(elVal);
+      return parseU8Vector(elVal, indexMemo);
     }
 
     return elVal;
   };
 
-  const parseU8Vector = (nums: number[]) => {
+  const parseU8Vector = (nums: number[], indexMemo: number[]) => {
     console.log(`parseU8Vector nums`, nums);
     console.log(`parseU8Vector u8vecParseType`, u8vecParseType);
-    console.log(`parseU8Vector tmpHexStr`, tmpHexStr);
+    console.log(`parseU8Vector u8VecHexParseCtxs`, u8VecHexParseCtxs);
+    const hexStr = u8VecHexParseCtxs.find((ctx) => ctx.idx === indexMemo.toString())?.hex || '';
+
     if (u8vecParseType === 'string') {
       return Buffer.from(nums).toString('utf8');
     } else if (u8vecParseType === 'hex') {
-      if (isHexadecimal(tmpHexStr)) {
+      if (isHexadecimal(hexStr)) {
         return Buffer.from(nums).toString('hex');
       } else {
-        return tmpHexStr;
+        return hexStr;
       }
     }
   };
@@ -372,7 +400,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}
-            value={parseElValue(v)}
+            value={parseElValue(v, indexMemo)}
             onChange={(event) => handleFormChange(event)}
             style={{
               display: 'inline-block',
@@ -433,7 +461,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}
-            value={parseU8Vector(val)}
+            value={parseU8Vector(val, indexMemo)}
             onChange={(event) => handleFormChange(event)}
             style={{
               display: 'inline-block',
@@ -461,7 +489,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           name="val"
           autoFocus={true}
           placeholder={vectorElType}
-          value={parseU8Vector(val)}
+          value={parseU8Vector(val, indexMemo)}
           onChange={(event) => handleFormChange(event)}
           style={{
             display: 'inline-block',
@@ -527,7 +555,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}
-            value={parseElValue(val)}
+            value={parseElValue(val, indexMemo)}
             onChange={(event) => handleFormChange(event)}
             style={{
               display: 'inline-block',
