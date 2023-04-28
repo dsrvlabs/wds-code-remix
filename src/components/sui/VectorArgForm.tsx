@@ -614,7 +614,8 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
                 ? false
                 : getDiv(v, i, indexMemo)}
             </div>
-            {typeName !== 'Vector<U8>' ? (
+            {typeName !== 'Vector<U8>' ||
+            (typeName === 'Vector<U8>' && u8vecParseType == 'decimal') ? (
               <button
                 className="btn btn-info btn-sm"
                 id={`vec-arg-remove-${indexMemo.join('-')}`}
@@ -669,7 +670,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     return (
       <div>
         {render(args, -1)}
-        {typeName !== 'Vector<U8>' ? (
+        {typeName !== 'Vector<U8>' || (typeName === 'Vector<U8>' && u8vecParseType == 'decimal') ? (
           <button
             className="btn btn-info btn-sm"
             id={`vec-arg-add-${indexMemo.join('-')}`}

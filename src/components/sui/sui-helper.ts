@@ -47,7 +47,7 @@ export async function moveCallTxn(
 ) {
   console.log('moduleName', moduleName);
 
-  log.info('args', args);
+  log.info('args', JSON.stringify(args, null, 2));
   log.debug('gas', gas);
   const tx = new TransactionBlock();
   tx.setSender(accountId);
