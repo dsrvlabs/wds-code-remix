@@ -2,6 +2,7 @@ import React, { ChangeEvent, useEffect, useState } from 'react';
 import { parseArgVal } from './sui-helper';
 import { SuiFunc } from './sui-types';
 import { log } from '../../utils/logger';
+import { isHexadecimal } from './sui-parser';
 
 interface Props {
   func: SuiFunc;
@@ -12,6 +13,26 @@ interface Props {
 }
 
 type Arg = string | Arg[];
+type U8VecElParseType = 'string' | 'decimal' | 'hex';
+
+// @ts-ignore
+const abc = ({ indexMemo, vectorElType, parseU8Vector, val, handleFormChange }) => {
+  return (
+    <input
+      className={'form-control sui-parameter'}
+      key={`vec-arg-input-vector-u8-${indexMemo.join('-')}`}
+      id={`vec-arg-input-${indexMemo.join('-')}`}
+      name="val"
+      autoFocus={true}
+      placeholder={vectorElType}
+      value={parseU8Vector(val)}
+      onChange={(event) => handleFormChange(event)}
+      style={{
+        display: 'inline-block',
+      }}
+    />
+  );
+};
 
 const VectorArgForm: React.FunctionComponent<Props> = ({
   func,
@@ -21,8 +42,11 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   updateParam,
 }) => {
   log.info(
-    `VectorArgForm typeName=${typeName}, vectorElType=${vectorElType}, parentIdx=${parentIdx}`,
+    `@@@@@@@@@@@@@  VectorArgForm typeName=${typeName}, vectorElType=${vectorElType}, parentIdx=${parentIdx}`,
   );
+  const [u8vecParseType, setU8VecParseType] = useState<U8VecElParseType>('string');
+  const [args, setArgs] = useState<any[]>([]);
+  const [tmpHexStr, setTmpHexStr] = useState('');
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('sui-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
@@ -30,7 +54,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     }
     setArgs([]);
   }, [func]);
-  const [args, setArgs] = useState<any[]>([]);
+
   // const [args, setArgs] = useState<Arg[]>([[['a', 'b'], []], [], [['c']]]);
   // const [args, setArgs] = useState<Arg[]>(["a", "b", "c"]);
   const indexMemo: number[] = [];
@@ -58,15 +82,65 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       return id.replace('false', 'true');
     }
   };
+
+  const handleParseType = (event: ChangeEvent<HTMLInputElement>, parentIdx: number) => {
+    console.log(event);
+    const id = event.target.id;
+    console.log(id);
+    const els = document.getElementsByClassName(`vec-parse-type-${parentIdx}`);
+    console.log(els);
+    for (let i = 0; i < els.length; i++) {
+      const el: any = els.item(i);
+      if (el?.id === id) {
+        el.checked = true;
+        let type: U8VecElParseType;
+        if (id.includes('string')) {
+          type = 'string';
+        } else if (id.includes('hex')) {
+          type = 'hex';
+        } else {
+          type = 'decimal';
+        }
+        setU8VecParseType(type);
+      } else {
+        el.checked = false;
+      }
+    }
+  };
+
   const handleFormChange = (event: ChangeEvent<HTMLInputElement>) => {
     const depth = wordCount(typeName, 'Vector');
     const id = event.target.id;
 
     const indices = toIndices(id);
-    console.log('depth', depth);
-    console.log('indices', indices);
+    console.log('handleFormChange depth', depth);
+    console.log('handleFormChange indices', indices);
+    console.log('handleFormChange event.target.value', event.target.value);
+    const value = event.target.value;
+    console.log('!!! value', value, value.length);
 
     const data = [...args];
+    console.log('handleFormChange data', data);
+    if (typeName === 'Vector<U8>' && u8vecParseType !== 'decimal') {
+      if (u8vecParseType === 'string') {
+        console.log('### value', value, value.length);
+
+        const arr = Array.from(Buffer.from(value, 'utf8'));
+        setTmpHexStr(Buffer.from(value, 'utf8').toString('hex'));
+        setArgs(arr);
+        updateParam(arr, parentIdx, typeName);
+        return;
+      } else if (u8vecParseType === 'hex') {
+        setTmpHexStr(value);
+        if (isHexadecimal(value)) {
+          const arr = Array.from(Buffer.from(value, 'hex'));
+          setArgs(arr);
+          updateParam(arr, parentIdx, typeName);
+        }
+        return;
+      }
+    }
+
     if (indices.length === 1) {
       if (id.includes('bool')) {
         const el: any = document.getElementById(counterBoolElementId(id));
@@ -77,8 +151,26 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       } else if (event.target.value === '') {
         data[indices[0]] = '';
       } else {
-        log.info(`@@@ handleFormChange typeName=${typeName}`);
-        data[indices[0]] = parseArgVal(event.target.value, vectorElType);
+        if (vectorElType === 'U8' && u8vecParseType !== 'decimal') {
+          if (u8vecParseType === 'string') {
+            console.log('@@@ value', value, value.length);
+            setTmpHexStr(Buffer.from(value, 'utf8').toString());
+            const arr = Array.from(Buffer.from(value, 'utf8'));
+            data[indices[0]] = arr.map((a) => parseArgVal(a, vectorElType, u8vecParseType));
+            setArgs(data);
+            updateParam(data, parentIdx, typeName);
+            return;
+          } else if (u8vecParseType === 'hex') {
+            setTmpHexStr(value);
+            if (isHexadecimal(value)) {
+              const arr = Array.from(Buffer.from(value, 'hex'));
+              data[indices[0]] = arr.map((a) => parseArgVal(a, vectorElType, u8vecParseType));
+            }
+          }
+        } else {
+          log.info(`@@@ handleFormChange typeName=${typeName}`);
+          data[indices[0]] = parseArgVal(event.target.value, vectorElType, u8vecParseType);
+        }
       }
 
       setArgs(data);
@@ -99,7 +191,12 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     if (event.target.value === '') {
       el[indices[indices.length - 1]] = '';
     } else {
-      el[indices[indices.length - 1]] = parseArgVal(event.target.value, vectorElType);
+      console.log(el);
+      el[indices[indices.length - 1]] = parseArgVal(
+        event.target.value,
+        vectorElType,
+        u8vecParseType,
+      );
     }
     setArgs([...data]);
     updateParam(data, parentIdx, typeName);
@@ -208,54 +305,135 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     updateParam(data, parentIdx, typeName);
   };
 
-  const render: (val: any, i: number) => any = (val: any, i: number) => {
-    if (!Array.isArray(val)) {
-      if (vectorElType === 'Bool' && val === '') {
-        val = true;
-      }
-      return vectorElType === 'Bool' ? (
-        <div
-          id={`vec-arg-input-bool-${parentIdx}-${i}`}
-          style={{ display: 'flex', alignItems: 'center' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
-            <input
-              className={'sui-parameter'}
-              id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
-              type="radio"
-              name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
-              placeholder={vectorElType}
-              defaultChecked={true}
-              onChange={(event) => handleFormChange(event)}
-            />
-            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-              <label>True</label>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              className={'sui-parameter'}
-              id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
-              type="radio"
-              name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
-              placeholder={vectorElType}
-              onChange={(event) => handleFormChange(event)}
-            />
-            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-              <label>False</label>
-            </div>
-          </div>
+  const parseElValue = (elVal: any) => {
+    if (typeName === 'Vector<U8>' && u8vecParseType !== 'decimal') {
+      return parseU8Vector(elVal);
+    }
 
-          <br></br>
-        </div>
-      ) : (
+    if (vectorElType === 'U8' && u8vecParseType !== 'decimal') {
+      console.log(`parseElValue elVal`, elVal);
+      return parseU8Vector(elVal);
+    }
+
+    return elVal;
+  };
+
+  const parseU8Vector = (nums: number[]) => {
+    console.log(`parseU8Vector nums`, nums);
+    console.log(`parseU8Vector u8vecParseType`, u8vecParseType);
+    console.log(`parseU8Vector tmpHexStr`, tmpHexStr);
+    if (u8vecParseType === 'string') {
+      return Buffer.from(nums).toString('utf8');
+    } else if (u8vecParseType === 'hex') {
+      if (isHexadecimal(tmpHexStr)) {
+        return Buffer.from(nums).toString('hex');
+      } else {
+        return tmpHexStr;
+      }
+    }
+  };
+
+  function getDiv(v: any, i: number, indexMemo: number[]) {
+    console.log('############## 12 #################');
+
+    console.log(`getDiv indexMemo`, indexMemo);
+    console.log(`getDiv v`, v);
+    if (typeName === 'Vector<U8>') {
+      console.log('############## 13 #################');
+
+      return <></>;
+    }
+
+    // if (
+    //   vectorElType === 'U8' &&
+    //   u8vecParseType !== 'decimal' &&
+    //   Array.isArray(v) &&
+    //   v.length > 0 &&
+    //   typeof v[0] === 'number'
+    // ) {
+    //   console.log('############## 14 #################');
+    //
+    //   return <></>;
+    // }
+
+    if (Array.isArray(v)) {
+      if (
+        vectorElType === 'U8' &&
+        u8vecParseType !== 'decimal' &&
+        indexMemo.length === wordCount(typeName, 'Vector') - 1
+      ) {
+        console.log('############## 8 #################');
+
+        return (
+          <input
+            key={`vec-arg-input-vec-u8-${indexMemo.toString()}`}
+            className={'form-control sui-parameter'}
+            // id={`vec-arg-input-${indexMemo.join('-')}-abc`}
+            id={`vec-arg-input-${indexMemo.join('-')}`}
+            name="val"
+            placeholder={vectorElType}
+            value={parseElValue(v)}
+            onChange={(event) => handleFormChange(event)}
+            style={{
+              display: 'inline-block',
+            }}
+          />
+        );
+      } else {
+        console.log('############## 9 #################');
+
+        return (
+          <button
+            className="btn btn-info btn-sm"
+            key={`button-${i}`}
+            id={`vec-arg-add-${indexMemo.join('-')}`}
+            onClick={(e: any) => addRow(e, vectorElType)}
+            // style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
+          >
+            +
+          </button>
+        );
+      }
+    }
+    console.log('############## 10 #################');
+
+    return <></>;
+    //
+    // return (
+    //   <>
+    //     {Array.isArray(v) &&
+    //     typeName !== 'Vector<U8>' &&
+    //     u8vecParseType != 'decimal' &&
+    //     !(vectorElType === 'U8' && indexMemo.length === wordCount(typeName, 'Vector') - 1) ? (
+    //       <button
+    //         className="btn btn-info btn-sm"
+    //         key={`button-${i}`}
+    //         id={`vec-arg-add-${indexMemo.join('-')}`}
+    //         onClick={(e: any) => addRow(e, vectorElType)}
+    //         // style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
+    //       >
+    //         +
+    //       </button>
+    //     ) : (
+    //       <div>abc</div>
+    //     )}
+    //   </>
+    // );
+  }
+
+  const render: (val: any, i: number) => any = (val: any, i: number) => {
+    console.log('render', val);
+    console.log('############## 1 #################');
+
+    if (typeName === 'Vector<U8>' && u8vecParseType !== 'decimal') {
+      return (
         <div>
           <input
             className={'form-control sui-parameter'}
             id={`vec-arg-input-${indexMemo.join('-')}`}
             name="val"
             placeholder={vectorElType}
-            value={val}
+            value={parseU8Vector(val)}
             onChange={(event) => handleFormChange(event)}
             style={{
               display: 'inline-block',
@@ -266,21 +444,125 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       );
     }
 
+    if (
+      vectorElType === 'U8' &&
+      u8vecParseType !== 'decimal' &&
+      Array.isArray(val) &&
+      val.length > 0 &&
+      typeof val[0] === 'number'
+    ) {
+      console.log('############## 2 #################');
+      // return abc({ indexMemo, vectorElType, parseU8Vector, val, handleFormChange });
+      return (
+        <input
+          className={'form-control sui-parameter'}
+          key={`vec-arg-input-vector-u8-${indexMemo.join('-')}`}
+          id={`vec-arg-input-${indexMemo.join('-')}`}
+          name="val"
+          autoFocus={true}
+          placeholder={vectorElType}
+          value={parseU8Vector(val)}
+          onChange={(event) => handleFormChange(event)}
+          style={{
+            display: 'inline-block',
+          }}
+        />
+      );
+    }
+
+    console.log('############## 3 #################');
+
+    if (!Array.isArray(val)) {
+      console.log('############## 4 #################');
+
+      if (vectorElType === 'Bool' && val === '') {
+        val = true;
+      }
+      if (vectorElType === 'Bool') {
+        console.log('############## 5 #################');
+
+        return (
+          <div
+            id={`vec-arg-input-bool-${parentIdx}-${i}`}
+            style={{ display: 'flex', alignItems: 'center' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
+              <input
+                className={'sui-parameter'}
+                id={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
+                type="radio"
+                name={`vec-arg-input-bool-${parentIdx}-${i}-true-${indexMemo.join('-')}`}
+                placeholder={vectorElType}
+                defaultChecked={true}
+                onChange={(event) => handleFormChange(event)}
+              />
+              <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+                <label>True</label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                className={'sui-parameter'}
+                id={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
+                type="radio"
+                name={`vec-arg-input-bool-${parentIdx}-${i}-false-${indexMemo.join('-')}`}
+                placeholder={vectorElType}
+                onChange={(event) => handleFormChange(event)}
+              />
+              <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+                <label>False</label>
+              </div>
+            </div>
+
+            <br></br>
+          </div>
+        );
+      }
+      console.log('############## 6 #################');
+
+      return (
+        <div>
+          <input
+            className={'form-control sui-parameter'}
+            id={`vec-arg-input-${indexMemo.join('-')}`}
+            name="val"
+            placeholder={vectorElType}
+            value={parseElValue(val)}
+            onChange={(event) => handleFormChange(event)}
+            style={{
+              display: 'inline-block',
+            }}
+          />
+          <br></br>
+        </div>
+      );
+    }
+
+    console.log('val', val);
+    console.log('############## 7 #################');
+
     return val.map((v, i) => {
       indexMemo.push(i);
-      // console.log(indexMemo);
+      console.log('indexMemo', indexMemo);
+      console.log('v', v);
+
       const b = (
         <div
-          key={i}
+          key={`sui-vector-${i}`}
           style={{
             display: 'flex',
             flexDirection: 'column',
           }}
         >
           <div style={{ display: 'flex' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '2em' }}>[{i}]</div>
-            </div>
+            {vectorElType === 'U8' && u8vecParseType !== 'decimal' ? (
+              false
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: '2em' }}>[{i}]</div>
+              </div>
+            )}
+
             <div
               key={i}
               style={
@@ -296,30 +578,28 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
               }
             >
               {render(v, i)}
-              {Array.isArray(v) ? (
-                <button
-                  className="btn btn-info btn-sm"
-                  key={`button-${i}`}
-                  id={`vec-arg-add-${indexMemo.join('-')}`}
-                  onClick={(e: any) => addRow(e, vectorElType)}
-                  // style={{ backgroundColor: 'lightgrey', border: 'none', outline: 'none' }}
-                >
-                  +
-                </button>
-              ) : (
-                <></>
-              )}
+              {vectorElType === 'U8' &&
+              u8vecParseType !== 'decimal' &&
+              Array.isArray(v) &&
+              v.length > 0 &&
+              typeof v[0] === 'number'
+                ? false
+                : getDiv(v, i, indexMemo)}
             </div>
-            <button
-              className="btn btn-info btn-sm"
-              id={`vec-arg-remove-${indexMemo.join('-')}`}
-              onClick={(e) => removeRow(e)}
-            >
-              -
-            </button>
+            {typeName !== 'Vector<U8>' ? (
+              <button
+                className="btn btn-info btn-sm"
+                id={`vec-arg-remove-${indexMemo.join('-')}`}
+                onClick={(e) => removeRow(e)}
+              >
+                -
+              </button>
+            ) : (
+              false
+            )}
           </div>
           <div style={{ height: '0.5em' }}></div>
-          {indexMemo.length === 0 ? (
+          {indexMemo.length === 0 && typeName !== 'Vector<U8>' && u8vecParseType != 'decimal' ? (
             <button
               className="btn btn-info btn-sm"
               key={`button-${i}`}
@@ -335,15 +615,17 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
         </div>
       );
       indexMemo.pop();
+      console.log('############## 11 #################');
+
       return b;
     });
   };
 
-  return (
-    <div style={{ marginBottom: '10px' }}>
-      <div>{typeName}</div>
-      <div style={{ border: '0.1px solid', padding: '0.5em' }}>
-        {args.length === 0 ? (
+  const renderWrapper = () => {
+    console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!! renderWrapper args', args);
+    if (args.length === 0) {
+      if (typeName !== 'Vector<U8>' && u8vecParseType != 'decimal') {
+        return (
           <button
             className="btn btn-info btn-sm"
             key={`button-${0}`}
@@ -352,19 +634,76 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
           >
             +
           </button>
+        );
+      }
+    }
+
+    return (
+      <div>
+        {render(args, -1)}
+        {typeName !== 'Vector<U8>' ? (
+          <button
+            className="btn btn-info btn-sm"
+            id={`vec-arg-add-${indexMemo.join('-')}`}
+            onClick={(e) => addRow(e, vectorElType)}
+          >
+            +
+          </button>
         ) : (
-          <div>
-            {render(args, -1)}
-            <button
-              className="btn btn-info btn-sm"
-              id={`vec-arg-add-${indexMemo.join('-')}`}
-              onClick={(e) => addRow(e, vectorElType)}
-            >
-              +
-            </button>
-          </div>
+          false
         )}
       </div>
+    );
+  };
+
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ display: 'flex' }}>
+        <div>{typeName}</div>
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: '1em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
+            <input
+              className={`vec-parse-type-${parentIdx}`}
+              id={`vec-parse-type-${parentIdx}-string-${indexMemo.join('-')}`}
+              type="radio"
+              name={`vec-parse-type-${parentIdx}-string-${indexMemo.join('-')}`}
+              placeholder={vectorElType}
+              defaultChecked={true}
+              onChange={(event) => handleParseType(event, parentIdx)}
+            />
+            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+              <label>String</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <input
+              className={`vec-parse-type-${parentIdx}`}
+              id={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
+              type="radio"
+              name={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
+              placeholder={vectorElType}
+              onChange={(event) => handleParseType(event, parentIdx)}
+            />
+            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+              <label>Decimal</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <input
+              className={`vec-parse-type-${parentIdx}`}
+              id={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
+              type="radio"
+              name={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
+              placeholder={vectorElType}
+              onChange={(event) => handleParseType(event, parentIdx)}
+            />
+            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+              <label>Hex</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ border: '0.1px solid', padding: '0.5em' }}>{renderWrapper()}</div>
     </div>
   );
 };

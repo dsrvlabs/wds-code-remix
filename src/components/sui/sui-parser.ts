@@ -9,6 +9,11 @@ export function suiTypeParameterName(idx: number, typeParameter: SuiTypeParamete
   return `T${idx}: ${typeParameter.abilities.join(' + ')}`;
 }
 
+export function isHexadecimal(str: string) {
+  const reg = /^[a-fA-F0-9]+$/;
+  return reg.test(str) && str.length % 2 === 0;
+}
+
 export function suiTypeName(
   parameterType: SuiMoveNormalizedType,
   typeParameters?: SuiMoveAbilitySet[],
