@@ -52,9 +52,9 @@ export async function moveCallTxn(
   await client.terminal.log({
     type: 'info',
     value:
-      '------------------------ Tx Arguments------------------------------\n\n' +
+      '------------------------ Tx Arguments ------------------------------\n\n' +
       `${JSON.stringify(args, null, 2)}` +
-      '\n\n---------------------------------------------------------------',
+      '\n\n----------------------------------------------------------------',
   });
   log.debug('gas', gas);
   const tx = new TransactionBlock();
