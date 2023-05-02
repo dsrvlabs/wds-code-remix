@@ -971,13 +971,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.info('tx result json', JSON.stringify(result, null, 2));
     if (result?.effects?.status?.status !== 'success') {
       log.error(result as any);
-      await client.terminal.log({ type: 'error', value: (result as any).vm_status });
+      await client.terminal.log({
+        type: 'error',
+        value: `-------------------- Failure ${txnHash} --------------------`,
+      });
+      await client.terminal.log({ type: 'error', value: JSON.stringify(result, null, 2) });
       return;
     }
 
     await client.terminal.log({
       type: 'info',
-      value: `-------------------- ${txnHash} --------------------`,
+      value: `-------------------- Success ${txnHash} --------------------`,
     });
     await client.terminal.log({
       type: 'info',
