@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import { WelldoneConnect } from './WelldoneConnect';
 import { Project } from './Project';
-import { WalletRpcProvider } from 'near-api-js/lib/providers/wallet-rpc-provider';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Connect as CommonConnect } from '../common/Connect';
+import { NetworkUI } from '../common/Network';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
+}
+interface InterfaceDapp {
+  networks: any;
 }
 
 export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => {
   const [wallet, setWallet] = useState('');
   const [account, setAccount] = useState('');
-  const [dapp, setDapp] = useState<WalletRpcProvider>();
+  const [dapp, setDapp] = useState<InterfaceDapp>();
   const [active, setActive] = useState<boolean>(false);
 
   return (
@@ -27,7 +30,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setWallet={setWallet}
         wallet={wallet}
       />
-      <hr />
+      {dapp ? <NetworkUI networkName={dapp.networks.sui.chain} /> : null}
       <div>
         <WelldoneConnect
           active={active}

@@ -115,7 +115,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
   }, [active, dappProvider]);
 
   return (
-    <div>
+    <div style={mt10}>
       <Alert variant="danger" hidden={error === ''}>
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
@@ -154,4 +154,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 
 const mb4 = {
   marginBottom: '4px',
+};
+const mt10 = {
+  marginTop: '10px',
 };

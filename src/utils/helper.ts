@@ -1,6 +1,6 @@
 import { Annotation, HighlightPosition } from '@remixproject/plugin-api';
 import { PROD, STAGE } from '../const/stage';
-import { PositionDetails } from '../types/editor';
+import { PositionDetails } from '../types';
 import { log } from './logger';
 
 export const getPositionDetails = (msg: string): PositionDetails => {
