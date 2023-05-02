@@ -36,6 +36,7 @@ export async function dappPublishTxn(
 }
 
 export async function moveCallTxn(
+  client: any,
   accountId: string,
   chainId: SuiChainId,
   packageId: string,
@@ -48,6 +49,13 @@ export async function moveCallTxn(
   console.log('moduleName', moduleName);
 
   log.info('args', JSON.stringify(args, null, 2));
+  await client.terminal.log({
+    type: 'info',
+    value:
+      '------------------------ Tx Arguments------------------------------\n\n' +
+      `${JSON.stringify(args, null, 2)}` +
+      '\n\n---------------------------------------------------------------',
+  });
   log.debug('gas', gas);
   const tx = new TransactionBlock();
   tx.setSender(accountId);
