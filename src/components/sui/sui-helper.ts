@@ -291,6 +291,7 @@ export function txCtxRemovedParametersLen(parameters: SuiMoveNormalizedType[]) {
 }
 
 export function txCtxRemovedParameters(parameters: SuiMoveNormalizedType[]) {
+  console.log('txCtxRemovedParameters parameters', parameters);
   return parameters.filter(
     (p: any, index: number) => !(index === parameters.length - 1 && isTxCtx(p)),
   );
@@ -298,8 +299,11 @@ export function txCtxRemovedParameters(parameters: SuiMoveNormalizedType[]) {
 
 function isTxCtx(p: any) {
   return (
-    p.MutableReference?.Struct?.address === '0x2' &&
-    p.MutableReference?.Struct?.module === 'tx_context' &&
-    p.MutableReference?.Struct?.name === 'TxContext'
+    (p.MutableReference?.Struct?.address === '0x2' &&
+      p.MutableReference?.Struct?.module === 'tx_context' &&
+      p.MutableReference?.Struct?.name === 'TxContext') ||
+    (p.Reference?.Struct?.address === '0x2' &&
+      p.Reference?.Struct?.module === 'tx_context' &&
+      p.Reference?.Struct?.name === 'TxContext')
   );
 }
