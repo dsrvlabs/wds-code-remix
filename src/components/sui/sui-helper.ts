@@ -36,6 +36,7 @@ export async function dappPublishTxn(
 }
 
 export async function moveCallTxn(
+  client: any,
   accountId: string,
   chainId: SuiChainId,
   packageId: string,
@@ -47,7 +48,14 @@ export async function moveCallTxn(
 ) {
   console.log('moduleName', moduleName);
 
-  log.info('args', args);
+  log.info('args', JSON.stringify(args, null, 2));
+  await client.terminal.log({
+    type: 'info',
+    value:
+      '------------------------ Tx Arguments------------------------------\n\n' +
+      `${JSON.stringify(args, null, 2)}` +
+      '\n\n---------------------------------------------------------------',
+  });
   log.debug('gas', gas);
   const tx = new TransactionBlock();
   tx.setSender(accountId);
@@ -157,10 +165,22 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: Sui
   return result;
 }
 
-export function parseArgVal(argVal: any, argType: string) {
-  log.info(`### parseArgVal argVal=${argVal} argType=${argType}`);
+export function parseArgVal(argVal: any, argType: string, u8parseType?: string) {
+  log.info(`### parseArgVal argVal=${argVal}, argType=${argType}, u8parseType=${u8parseType}`);
   if (argType === 'Bool') {
     return argVal;
+  }
+
+  if (argType === 'U8') {
+    if (u8parseType === 'string') {
+      return argVal;
+    }
+
+    if (u8parseType === 'hex') {
+      return argVal;
+    }
+
+    return ensureNumber(argVal);
   }
 
   if (argType === 'U8' || argType === 'U16' || argType === 'U32') {

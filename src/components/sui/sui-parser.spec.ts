@@ -4,10 +4,19 @@
 
 // @ts-ignore
 
-import { stringifySuiVectorElementType, stringifySuiVectorType, suiTypeName } from './sui-parser';
+import {
+  isHexadecimal,
+  stringifySuiVectorElementType,
+  stringifySuiVectorType,
+  suiTypeName,
+} from './sui-parser';
 import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 
 describe('Sui Parser', () => {
+  it('isHexadecimal', async () => {
+    console.log(isHexadecimal('abcd'));
+  });
+
   it('suiTypeName', () => {
     const t = {
       Vector: {

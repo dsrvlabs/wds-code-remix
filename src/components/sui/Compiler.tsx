@@ -949,6 +949,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const dappTxn_ = await moveCallTxn(
+      client,
       accountID,
       dapp.networks.sui.chain,
       targetPackageId,
