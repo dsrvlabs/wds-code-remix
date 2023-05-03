@@ -70,6 +70,7 @@ import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js';
 import { Deploy } from './Deploy';
 import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
+import { CustomTooltip } from '../common/CustomTooltip';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -1228,9 +1229,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             }}
             value={inputAddress}
           />
-          <OverlayTrigger
-            placement="left"
-            overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract account</Tooltip>}
+          <CustomTooltip
+            placement="top"
+            tooltipId="overlay-ataddresss"
+            tooltipText="Use deployed Contract account"
           >
             <Button
               variant="info"
@@ -1240,7 +1242,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             >
               <small>At Address</small>
             </Button>
-          </OverlayTrigger>
+          </CustomTooltip>
         </InputGroup>
       </Form.Group>
       <hr />
