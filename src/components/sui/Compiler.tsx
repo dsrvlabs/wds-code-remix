@@ -12,7 +12,7 @@ import * as _ from 'lodash';
 import { COMPILER_API_ENDPOINT, SUI_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { readFile, stringify } from '../../utils/helper';
+import { readFile, shortenHexString, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -1258,9 +1258,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               onChange={onChangeObjectId}
             >
               {suiObjects.map((object, idx) => {
+                const packageId = object.type?.split('::') ? object.type.split('::')[0] : '';
+                const objectType =
+                  object.type?.indexOf(':') && object.type.indexOf(':') > 10
+                    ? `${shortenHexString(packageId, 6, 4)}::${object.type?.slice(
+                        object.type.indexOf(':') + 2,
+                      )}`
+                    : object.type;
                 return (
                   <option value={object.objectId} key={`sui-object-${idx}`}>
-                    {object.objectId}
+                    {`${object.objectId} >> ${objectType}`}
                   </option>
                 );
               })}

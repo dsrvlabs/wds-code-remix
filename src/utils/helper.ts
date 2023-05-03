@@ -73,8 +73,8 @@ export const readFile = (file: File): Promise<string> => {
 export const stringify = (data: any) => {
   return JSON.stringify(data, null, 2);
 };
-export const shortenAddress = (address: string) => {
-  return address === '' ? '' : `${address.slice(0, 6)}...${address.slice(-6)}`;
+export const shortenHexString = (address: string, first: number, last: number) => {
+  return address === '' ? '' : `${address.slice(0, first)}...${address.slice(-last)}`;
 };
 
 export const enableAptosProve = () => STAGE !== PROD;

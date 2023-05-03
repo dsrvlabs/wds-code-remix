@@ -22,7 +22,7 @@ import {
 import { APTOS_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { readFile, shortenAddress, stringify } from '../../utils/helper';
+import { readFile, shortenHexString, stringify } from '../../utils/helper';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -928,7 +928,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
             <span style={mr6}>Deployed Contract</span>
-            <span>{shortenAddress(deployedContract)}</span>
+            <span>{shortenHexString(deployedContract, 6, 6)}</span>
             <OverlayTrigger placement="top" overlay={<Tooltip>{copyMsg}</Tooltip>}>
               <Button
                 variant="link"
