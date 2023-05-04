@@ -100,5 +100,8 @@ code {
 
 .rjsf fieldset>div:last-child {
   margin-left: 0px;
+}
 
+.pr15rem {
+  padding-right: 1.5rem !important;
 }

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
+import { CopyToClipboard } from '../common/CopyToClipboard';
 
 interface InterfaceProps {
   active: boolean;
@@ -133,6 +134,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
               size="sm"
               readOnly
             />
+            <CopyToClipboard tip="Copy" content={account} direction="top-end" />
           </InputGroup>
           <Form.Text className="text-muted" style={mb4}>
             <small>BALANCE</small>

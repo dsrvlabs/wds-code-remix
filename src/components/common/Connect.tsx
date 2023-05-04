@@ -29,6 +29,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
     <ListGroup>
       <ListGroup.Item
         as="li"
+        style={{ cursor: 'pointer' }}
         action
         active={active && wallet === 'welldone'}
         onClick={async () => {
@@ -51,6 +52,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
       {chain === 'aptos' ? (
         <ListGroup.Item
           as="li"
+          style={{ cursor: 'pointer' }}
           action
           active={active && wallet === 'petra'}
           onClick={async () => {

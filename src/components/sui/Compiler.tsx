@@ -1255,7 +1255,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <InputGroup>
             <Form.Control
               style={{ width: '80%', marginBottom: '10px' }}
-              className="custom-select"
+              className="custom-select pr15rem"
               as="select"
               value={targetObjectId}
               onChange={onChangeObjectId}
@@ -1298,7 +1298,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             </Form.Text>
             <InputGroup>
               <Form.Control
-                className="custom-select"
+                className="custom-select pr15rem"
                 as="select"
                 value={targetPackageId}
                 onChange={onChangePackageId}
@@ -1311,6 +1311,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   );
                 })}
               </Form.Control>
+              <CopyToClipboard tip="Copy" content={targetPackageId} direction="auto-start" />
             </InputGroup>
           </Form.Group>
           <Form.Group>
@@ -1391,8 +1392,4 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
 const mb4 = {
   marginBottom: '4px',
-  paddingRight: '1.5rem',
-};
-const pr15rem = {
-  paddingRight: '1.5rem',
 };

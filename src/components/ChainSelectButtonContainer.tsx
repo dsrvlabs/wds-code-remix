@@ -42,6 +42,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
         </Form.Text>
         <ListGroup.Item
           as="li"
+          style={{ cursor: 'pointer' }}
           action
           onClick={() => {
             setChain('Sui');
@@ -56,6 +57,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
         <ListGroup>
           <ListGroup.Item
             as="li"
+            style={{ cursor: 'pointer' }}
             action
             onClick={() => {
               setChain('Aptos');
@@ -70,6 +72,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
 
           <ListGroup.Item
             as="li"
+            style={{ cursor: 'pointer' }}
             action
             onClick={() => {
               setChain('Juno');
@@ -83,6 +86,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           </ListGroup.Item>
           <ListGroup.Item
             as="li"
+            style={{ cursor: 'pointer' }}
             action
             onClick={() => {
               setChain('Near');
@@ -93,6 +97,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           </ListGroup.Item>
           <ListGroup.Item
             as="li"
+            style={{ cursor: 'pointer' }}
             action
             onClick={() => {
               setChain('Celo');
@@ -103,6 +108,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           </ListGroup.Item>
           <ListGroup.Item
             as="li"
+            style={{ cursor: 'pointer' }}
             action
             onClick={() => {
               setChain('Klaytn');

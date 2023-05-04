@@ -29,7 +29,7 @@ const STYLE: React.CSSProperties = {
   backgroundColor: 'var(--body-bg)',
   zIndex: 3,
   paddingBottom: '10px',
-  marginTop: '40px'
+  marginTop: '40px',
 };
 
 export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
@@ -57,21 +57,31 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
     return (
       <div style={STYLE}>
         <div className="d-flex align-items-center">
-          <FaChevronLeft onClick={handleLeftBtn} />
+          <FaChevronLeft style={{ cursor: 'pointer' }} onClick={handleLeftBtn} />
           <span style={{ marginLeft: '5px' }}>{chain}</span>
         </div>
         <div className="d-flex align-items-center">
-          <a href="https://docs.welldonestudio.io/code" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Badge  pill bg="primary" className="me-2" style={{marginRight: '10px'}}>
+          <a
+            href="https://docs.welldonestudio.io/code"
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <Badge pill bg="primary" className="me-2" style={{ marginRight: '10px' }}>
               {'docs'}
             </Badge>
           </a>
-          <a href="https://support.welldonestudio.io/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Badge  pill bg="danger" className="me-2" style={{marginRight: '10px'}}>
+          <a
+            href="https://support.welldonestudio.io/"
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <Badge pill bg="danger" className="me-2" style={{ marginRight: '10px' }}>
               {'issues'}
             </Badge>
           </a>
-          <RefreshButton handleRefresh={handleRefresh}/>
+          <RefreshButton handleRefresh={handleRefresh} />
         </div>
       </div>
     );
