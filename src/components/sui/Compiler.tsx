@@ -71,6 +71,7 @@ import { SuiObjectData } from '@mysten/sui.js';
 import { Deploy } from './Deploy';
 import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 import { CustomTooltip } from '../common/CustomTooltip';
+import { CopyToClipboard } from '../common/CopyToClipboard';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -1274,6 +1275,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 );
               })}
             </Form.Control>
+            <CopyToClipboard tip="Copy" content={targetObjectId} direction="auto-start" />
           </InputGroup>
           <Button
             style={{ marginTop: '10px', minWidth: '70px' }}
@@ -1389,4 +1391,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
 const mb4 = {
   marginBottom: '4px',
+  paddingRight: '1.5rem',
+};
+const pr15rem = {
+  paddingRight: '1.5rem',
 };

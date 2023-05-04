@@ -2,7 +2,7 @@ import React, { Fragment } from 'react';
 import { OverlayTrigger, Popover } from 'react-bootstrap';
 import { CustomTooltipType } from '../../types';
 
-export function CustomTooltip({
+export const CustomTooltip = ({
   children,
   placement,
   tooltipId,
@@ -10,7 +10,7 @@ export function CustomTooltip({
   tooltipText,
   tooltipTextClasses,
   delay,
-}: CustomTooltipType) {
+}: CustomTooltipType) => {
   if (typeof tooltipText !== 'string') {
     tooltipText = React.cloneElement(tooltipText, {
       className: ' bg-secondary text-wrap p-1 px-2 ',
@@ -44,4 +44,4 @@ export function CustomTooltip({
       </OverlayTrigger>
     </Fragment>
   );
-}
+};
