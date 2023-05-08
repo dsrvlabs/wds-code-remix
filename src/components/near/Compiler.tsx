@@ -37,6 +37,7 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { Near, providers } from 'near-api-js';
 import { Provider } from './WalletRpcProvider';
 import { log } from '../../utils/logger';
+import { PROD, STAGE } from '../../const/stage';
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
@@ -394,8 +395,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
-          const bucket = 'near-origin-code';
-          const fileKey = `${address}/${timestamp}/out_${address}_${timestamp}_${fileType}.zip`;
+          const bucket = STAGE === PROD ? 'wds-code-build' : 'wds-code-build-dev';
+          const fileKey = `near/${address}/${timestamp}/out_${address}_${timestamp}_${fileType}.zip`;
           const res = await axios.request({
             method: 'GET',
             url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=${bucket}&fileKey=${fileKey}`,
