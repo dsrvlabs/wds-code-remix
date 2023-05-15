@@ -77,6 +77,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
         {func.typeParameters.map((param: any, idx: number) => {
           return (
             <Form.Control
+              className={`sui-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
               placeholder={`${suiTypeParameterName(idx, param)}`}
