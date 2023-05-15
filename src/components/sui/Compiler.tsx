@@ -966,11 +966,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
-    log.debug('@@@ txnHash', txnHash);
+    log.info('@@@ txnHash', txnHash);
 
-    const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
+    const result = await waitForTransactionWithResult(
+      txnHash,
+      dapp.networks.sui.chain,
+      accountID,
+      packageName,
+      Number(compileTimestamp),
+    );
     log.info('tx result', result);
-    log.info('tx result json', JSON.stringify(result, null, 2));
+    // log.info('tx result json', JSON.stringify(result, null, 2));
     if (result?.effects?.status?.status !== 'success') {
       log.error(result as any);
       await client.terminal.log({

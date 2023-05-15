@@ -12,6 +12,9 @@ import { SuiModule, SuiFunc } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { delay } from '../near/utils/waitForTransaction';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { SuiDeployHistoryCreateDto } from './Deploy';
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
@@ -129,7 +132,13 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
   throw new Error(`Invalid ChainId=${chainId}`);
 }
 
-export async function waitForTransactionWithResult(txnHash: string, chainId: SuiChainId) {
+export async function waitForTransactionWithResult(
+  txnHash: string,
+  chainId: SuiChainId,
+  accountID: string = '',
+  packageName: string = '',
+  compileTimestamp: number = 0,
+) {
   await delay(5_000);
   const client = getProvider(chainId);
   log.info(`getTransactionBlock txHash`, txnHash);
@@ -158,6 +167,28 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: Sui
   }
 
   if (!result) {
+    const suiDeployHistoryCreateTimeoutDto: SuiDeployHistoryCreateDto = {
+      chainId: chainId,
+      account: accountID,
+      packageId: '',
+      packageName: packageName,
+      compileTimestamp: Number(compileTimestamp),
+      deployTimestamp: 0,
+      txHash: txnHash,
+      status: null,
+      modules: [''],
+    };
+    log.info('suiDeployHistoryCreateTimeoutDto', suiDeployHistoryCreateTimeoutDto);
+
+    try {
+      const res = await axios.post(
+        COMPILER_API_ENDPOINT + '/sui-deploy-histories',
+        suiDeployHistoryCreateTimeoutDto,
+      );
+      log.info(`sui-deploy-histories api res`, res);
+    } catch (e) {
+      log.error(`sui-deploy-histories api error`);
+    }
     throw new Error(`getTransactionBlock error. txnHash=${txnHash[0]}, chainId=${chainId}`);
   }
 

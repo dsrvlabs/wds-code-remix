@@ -20,6 +20,7 @@ export interface SuiDeployHistoryCreateDto {
   compileTimestamp: number;
   deployTimestamp: number;
   txHash: string;
+  status: string | null;
   modules: string[];
 }
 
@@ -111,16 +112,17 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         method: 'dapp:signAndSendTransaction',
         params: [rawTx_],
       });
-      log.debug('@@@ txnHash', txnHash);
+      log.info('@@@ txnHash', txnHash);
 
-      const result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
+      const result = await waitForTransactionWithResult(
+        txnHash,
+        dapp.networks.sui.chain,
+        accountID,
+        packageName,
+        Number(compileTimestamp),
+      );
       log.info('tx result', result);
-      log.info('tx result json', JSON.stringify(result, null, 2));
-      if (result?.effects?.status?.status !== 'success') {
-        log.error(result as any);
-        await client.terminal.log({ type: 'error', value: (result as any).vm_status });
-        return;
-      }
+      // log.info('tx result json', JSON.stringify(result, null, 2));
 
       await client.terminal.log({
         type: 'info',
@@ -152,8 +154,37 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         log.error(`no packageId`, publishedChange);
         return;
       }
-
       const modules = publishedChange.modules || [];
+
+      if (result?.effects?.status?.status !== 'success') {
+        log.error(result as any);
+
+        const suiDeployHistoryCreateFailDto: SuiDeployHistoryCreateDto = {
+          chainId: dapp.networks.sui.chain,
+          account: accountID,
+          packageId: publishedChange.packageId || '',
+          packageName: packageName,
+          compileTimestamp: Number(compileTimestamp),
+          deployTimestamp: Number(result.timestampMs) || 0,
+          txHash: result.digest,
+          status: result?.effects?.status?.status || 'fail',
+          modules: modules || [''],
+        };
+        log.info('suiDeployHistoryCreateFailDto', suiDeployHistoryCreateFailDto);
+
+        try {
+          const res = await axios.post(
+            COMPILER_API_ENDPOINT + '/sui-deploy-histories',
+            suiDeployHistoryCreateFailDto,
+          );
+          log.info(`sui-deploy-histories api res`, res);
+        } catch (e) {
+          log.error(`sui-deploy-histories api error`);
+        }
+
+        await client.terminal.log({ type: 'error', value: (result as any).vm_status });
+        return;
+      }
 
       const suiDeployHistoryCreateDto: SuiDeployHistoryCreateDto = {
         chainId: dapp.networks.sui.chain,
@@ -163,9 +194,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         compileTimestamp: Number(compileTimestamp),
         deployTimestamp: Number(result.timestampMs) || 0,
         txHash: result.digest,
+        status: result?.effects?.status?.status,
         modules: modules,
       };
-
       log.info('suiDeployHistoryCreateDto', suiDeployHistoryCreateDto);
 
       try {
@@ -173,7 +204,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           COMPILER_API_ENDPOINT + '/sui-deploy-histories',
           suiDeployHistoryCreateDto,
         );
-
         log.info(`sui-deploy-histories api res`, res);
       } catch (e) {
         log.error(`sui-deploy-histories api error`);
