@@ -31,7 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello_blockchain');
-  const templateList = ['hello_blockchain', 'ticket', 'hello_prover', 'marketplace'];
+  const templateList = ['hello_blockchain', 'ticket', 'hello_prover', 'marketplace', 'moon_coin'];
 
   useEffect(() => {
     getList();
@@ -169,7 +169,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             <small>SELECT A TEMPLATE</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
+            <Form.Control
+              className="custom-select"
+              as="select"
+              value={template}
+              onChange={setTargetTemplate}
+            >
               {templateList.map((temp, idx) => {
                 return (
                   <option value={temp} key={idx}>
