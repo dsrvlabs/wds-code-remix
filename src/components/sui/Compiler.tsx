@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
@@ -69,7 +69,6 @@ import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js';
 import { Deploy } from './Deploy';
-import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
 import { CustomTooltip } from '../common/CustomTooltip';
 import { CopyToClipboard } from '../common/CopyToClipboard';
 
@@ -152,6 +151,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetFunc, setTargetFunc] = useState<SuiFunc>();
   const [genericParameters, setGenericParameters] = useState<string[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
+
+  const [uploadCodeChecked, setUploadCodeChecked] = useState(false);
+  const handleCheckboxChange = (event: {
+    target: { checked: boolean | ((prevState: boolean) => boolean) };
+  }) => {
+    setUploadCodeChecked(event.target.checked);
+  };
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -285,6 +291,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerSuiCompileErrorOccurredV1) => {
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: 'sui',
+                chainId: dapp.networks.sui.chain,
+                account: accountID,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
+
           log.debug(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
               data,
@@ -348,6 +369,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           responseType: 'arraybuffer',
           responseEncoding: 'null',
         });
+
+        if (!uploadCodeChecked) {
+          await axios.request({
+            method: 'DELETE',
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              chainName: 'sui',
+              chainId: dapp.networks.sui.chain,
+              account: accountID,
+              timestamp: timestamp,
+            },
+            responseType: 'arraybuffer',
+            responseEncoding: 'null',
+          });
+        }
+
         //
         // const zip = await new JSZip().loadAsync(res.data);
         // let content: any;
@@ -549,6 +586,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_SUI_TEST_ERROR_OCCURRED_V1,
         async (data: CompilerSuiTestErrorOccurredV1) => {
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: 'sui',
+                chainId: dapp.networks.sui.chain,
+                account: accountID,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
+
           log.debug(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_TEST_ERROR_OCCURRED_V1} data=${stringify(
               data,
@@ -579,6 +631,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(COMPILER_SUI_TEST_COMPLETED_V1, async (data: CompilerSuiTestCompletedV1) => {
+        if (!uploadCodeChecked) {
+          await axios.request({
+            method: 'DELETE',
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              chainName: 'sui',
+              chainId: dapp.networks.sui.chain,
+              account: accountID,
+              timestamp: timestamp,
+            },
+            responseType: 'arraybuffer',
+            responseEncoding: 'null',
+          });
+        }
+
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_TEST_COMPLETED_V1} data=${stringify(data)}`,
         );
@@ -662,6 +729,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_SUI_PROVE_ERROR_OCCURRED_V1,
         async (data: CompilerSuiProveErrorOccurredV1) => {
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: 'sui',
+                chainId: dapp.networks.sui.chain,
+                account: accountID,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
+
           log.debug(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_ERROR_OCCURRED_V1} data=${stringify(
               data,
@@ -694,6 +776,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(COMPILER_SUI_PROVE_COMPLETED_V1, async (data: CompilerSuiProveCompletedV1) => {
+        if (!uploadCodeChecked) {
+          await axios.request({
+            method: 'DELETE',
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              chainName: 'sui',
+              chainId: dapp.networks.sui.chain,
+              account: accountID,
+              timestamp: timestamp,
+            },
+            responseType: 'arraybuffer',
+            responseEncoding: 'null',
+          });
+        }
+
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_PROVE_COMPLETED_V1} data=${stringify(data)}`,
         );
@@ -1142,6 +1239,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   return (
     <>
       <div className="d-grid gap-2">
+        <div className="mb-2 form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="uploadCodeCheckbox"
+            checked={uploadCodeChecked}
+            onChange={handleCheckboxChange}
+          />
+          <CustomTooltip
+            placement="top"
+            tooltipId="overlay-ataddresss"
+            tooltipText="When you upload the code, a code verification feature will be provided in the future."
+          >
+            <label
+              className="form-check-label"
+              htmlFor="uploadCodeCheckbox"
+              style={{ verticalAlign: 'top' }}
+            >
+              Upload Code
+            </label>
+          </CustomTooltip>
+        </div>
         <Button
           variant="primary"
           disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}

@@ -67,11 +67,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   const [abi, setABI] = useState<any>({});
   const [param, setParam] = useState<string>('');
   const [resource, setResource] = useState<string>('');
-  const [uploadCodeChecked, setUploadCodeChecked] = useState(false);
-
-  const handleCheckboxChange = (event: { target: { checked: boolean | ((prevState: boolean) => boolean); }; }) => {
-    setUploadCodeChecked(event.target.checked);
-  };
 
   const checkExistContract = async () => {
     if (!dapp) {
@@ -143,12 +138,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       log.info('objectChanges', objectChanges);
       const publishedChange = objectChanges.find((oc) => oc.type === 'published') as
         | {
-          packageId: string;
-          type: 'published';
-          version: number;
-          digest: string;
-          modules: string[];
-        }
+            packageId: string;
+            type: 'published';
+            version: number;
+            digest: string;
+            modules: string[];
+          }
         | undefined;
 
       if (!publishedChange) {
@@ -246,24 +241,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   return (
     <>
       <div className="d-grid gap-2">
-        <div className="mb-2 form-check">
-          <input
-            type="checkbox"
-            className="form-check-input"
-            id="uploadCodeCheckbox"
-            checked={uploadCodeChecked}
-            onChange={handleCheckboxChange}
-          />
-          <CustomTooltip
-            placement="top"
-            tooltipId="overlay-ataddresss"
-            tooltipText="When you upload the code, a code verification feature will be provided in the future."
-          >
-            <label className="form-check-label" htmlFor="uploadCodeCheckbox" style={{ verticalAlign: 'top' }}>
-              Upload Code
-            </label>
-          </CustomTooltip>
-        </div>
         <Button
           variant="warning"
           disabled={inProgress || !compiledModulesAndDeps}
