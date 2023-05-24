@@ -401,6 +401,7 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
             name="val"
             placeholder={vectorElType}
             value={parseElValue(v, indexMemo)}
+            autoFocus={true}
             onChange={(event) => handleFormChange(event)}
             style={{
               display: 'inline-block',
