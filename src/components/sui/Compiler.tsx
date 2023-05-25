@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -152,7 +152,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [genericParameters, setGenericParameters] = useState<string[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
 
-  const [uploadCodeChecked, setUploadCodeChecked] = useState(false);
+  const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
+  useEffect(() => {
+    setPackageName('');
+    setBuildInfo(undefined);
+    setCompileTimestamp('');
+    setModuleBase64s([]);
+    setFileNames([]);
+    setCompiledModulesAndDeps(undefined);
+  }, [compileTarget]);
+
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
   }) => {
@@ -1246,6 +1255,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             id="uploadCodeCheckbox"
             checked={uploadCodeChecked}
             onChange={handleCheckboxChange}
+            disabled={
+              loading || (!!compiledModulesAndDeps && compiledModulesAndDeps.modules.length > 0)
+            }
           />
           <CustomTooltip
             placement="top"
