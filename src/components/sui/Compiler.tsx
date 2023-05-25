@@ -1335,6 +1335,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setParameters={setParameters}
           setInputAddress={setInputAddress}
           initContract={initContract}
+          uploadCodeChecked={uploadCodeChecked}
         />
       ) : (
         <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>

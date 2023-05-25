@@ -22,6 +22,7 @@ export interface SuiDeployHistoryCreateDto {
   deployTimestamp: number;
   txHash: string;
   status: string | null;
+  isSrcUploaded: boolean;
   modules: string[];
 }
 
@@ -42,6 +43,7 @@ interface InterfaceProps {
   setParameters: Function;
   setInputAddress: Function;
   initContract: Function;
+  uploadCodeChecked: boolean;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -61,6 +63,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setParameters,
   setInputAddress,
   initContract,
+  uploadCodeChecked,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -168,6 +171,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           compileTimestamp: Number(compileTimestamp),
           deployTimestamp: Number(result.timestampMs) || 0,
           txHash: result.digest,
+          isSrcUploaded: uploadCodeChecked,
           status: result?.effects?.status?.status || 'fail',
           modules: modules || [''],
         };
@@ -195,6 +199,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         compileTimestamp: Number(compileTimestamp),
         deployTimestamp: Number(result.timestampMs) || 0,
         txHash: result.digest,
+        isSrcUploaded: uploadCodeChecked,
         status: result?.effects?.status?.status,
         modules: modules,
       };

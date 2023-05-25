@@ -138,6 +138,7 @@ export async function waitForTransactionWithResult(
   accountID: string = '',
   packageName: string = '',
   compileTimestamp: number = 0,
+  uploadCodeChecked = false,
 ) {
   await delay(5_000);
   const client = getProvider(chainId);
@@ -175,6 +176,7 @@ export async function waitForTransactionWithResult(
       compileTimestamp: Number(compileTimestamp),
       deployTimestamp: 0,
       txHash: txnHash,
+      isSrcUploaded: uploadCodeChecked,
       status: null,
       modules: [''],
     };
