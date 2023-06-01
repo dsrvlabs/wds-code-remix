@@ -33,7 +33,14 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('forge');
   const [gas, setGas] = useState<string>(DEFAULT_GAS);
-  const templateList = ['forge', 'objects_tutorial', 'basics', 'my_coin', 'fungible_tokens'];
+  const templateList = [
+    'forge',
+    'objects_tutorial',
+    'basics',
+    'my_coin',
+    'fungible_tokens',
+    'vec_test',
+  ];
 
   useEffect(() => {
     getList();
