@@ -9,6 +9,7 @@ import {
   codeBytes,
   dappTxn,
   getAccountResources,
+  getTx,
   metadataSerializedBytes,
   waitForTransactionWithResult,
 } from './aptos-helper';
@@ -24,6 +25,8 @@ export interface AptosDeployHistoryCreateDto {
   package: string;
   compileTimestamp: number;
   deployTimestamp: number;
+  upgradeNumber: string | null;
+  upgradePolicy: number | null;
   txHash: string;
   modules: string[];
 }
@@ -136,12 +139,24 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             vm_status: result.vm_status,
           },
         });
+
+        // todo WIP
+        // const tx: any = await getTx(txnHash, dapp.networks.aptos.chain);
+        // const changes = tx.changes.filter((change: any) => {
+        //   return (change.address =
+        //     accountID &&
+        //     change.type === 'write_resource' &&
+        //     change.data.type === '0x1::code::PackageRegistry');
+        // });
+
         const aptosDeployHistoryCreateDto: AptosDeployHistoryCreateDto = {
           chainId: dapp.networks.aptos.chain,
           account: accountID,
           package: packageName,
           compileTimestamp: Number(compileTimestamp),
           deployTimestamp: Number(result.timestamp),
+          upgradeNumber: null, // todo
+          upgradePolicy: null, // todo
           txHash: result.hash,
           modules: moduleWrappers.map((m) => m.moduleName),
         };

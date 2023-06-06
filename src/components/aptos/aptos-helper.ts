@@ -67,6 +67,11 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: str
   return aptosClient.waitForTransactionWithResult(txnHash);
 }
 
+export async function getTx(txnHash: string, chainId: string) {
+  const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+  return aptosClient.getTransactionByHash(txnHash);
+}
+
 export function serializedArgs(args_: ArgTypeValuePair[]) {
   return args_.map((arg, idx) => {
     if (arg.type === 'bool') {
