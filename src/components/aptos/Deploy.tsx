@@ -19,6 +19,7 @@ import { isNotEmptyList } from '../../utils/ListUtil';
 import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { ModuleWrapper } from './Compiler';
+import { Types } from 'aptos';
 export interface AptosDeployHistoryCreateDto {
   chainId: string;
   account: string;
@@ -47,6 +48,19 @@ interface InterfaceProps {
   setTargetResource: Function;
   setParameters: Function;
   getAccountModulesFromAccount: Function;
+}
+
+interface WriteResourcePackageModule {
+  name: string;
+}
+
+interface WriteResourcePackage {
+  name: string;
+  upgrade_number: string;
+  upgrade_policy: {
+    policy: number;
+  };
+  modules: WriteResourcePackageModule[];
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -140,28 +154,41 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           },
         });
 
-        // todo WIP
-        // const tx: any = await getTx(txnHash, dapp.networks.aptos.chain);
-        // const changes = tx.changes.filter((change: any) => {
-        //   return (change.address =
-        //     accountID &&
-        //     change.type === 'write_resource' &&
-        //     change.data.type === '0x1::code::PackageRegistry');
-        // });
+        const tx: Types.Transaction_UserTransaction = (await getTx(
+          txnHash,
+          dapp.networks.aptos.chain,
+        )) as Types.Transaction_UserTransaction;
+        const change = tx.changes.find((change) => {
+          const change_: Types.WriteSetChange_WriteResource =
+            change as Types.WriteSetChange_WriteResource;
+          return (
+            change_.address === accountID &&
+            change_.type === 'write_resource' &&
+            change_.data.type === '0x1::code::PackageRegistry'
+          );
+        });
+        const change_: Types.WriteSetChange_WriteResource =
+          change as Types.WriteSetChange_WriteResource;
 
-        const aptosDeployHistoryCreateDto: AptosDeployHistoryCreateDto = {
+        const data = change_.data.data as any;
+        const writeResourcePackages = data.packages as WriteResourcePackage[];
+        const writeResourcePackage = writeResourcePackages.find((pkg) => pkg.name === packageName);
+        console.log(`writeResourcePackage`, JSON.stringify(writeResourcePackage, null, 2));
+        const aptosDeployHistoryCreateDto = {
           chainId: dapp.networks.aptos.chain,
           account: accountID,
           package: packageName,
           compileTimestamp: Number(compileTimestamp),
           deployTimestamp: Number(result.timestamp),
-          upgradeNumber: null, // todo
-          upgradePolicy: null, // todo
+          upgradeNumber: writeResourcePackage?.upgrade_number,
+          upgradePolicy: writeResourcePackage?.upgrade_policy.policy,
           txHash: result.hash,
-          modules: moduleWrappers.map((m) => m.moduleName),
+          modules: writeResourcePackage?.modules.map((m) => m.name),
         };
-
-        log.info('aptosDeployHistoryCreateDto', aptosDeployHistoryCreateDto);
+        console.log(
+          `aptosDeployHistoryCreateDto`,
+          JSON.stringify(aptosDeployHistoryCreateDto, null, 2),
+        );
 
         const res = await axios.post(
           COMPILER_API_ENDPOINT + '/aptos-deploy-histories',
