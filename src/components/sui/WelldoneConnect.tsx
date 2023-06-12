@@ -6,6 +6,7 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
 import { CopyToClipboard } from '../common/CopyToClipboard';
+import { NetworkUI } from '../common/Network';
 
 interface InterfaceProps {
   active: boolean;
@@ -26,6 +27,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [balance, setBalance] = useState<string>('');
   const [error, setError] = useState<String>('');
+  const [network, setNetwork] = useState<string>('');
 
   const dappProvider = window.dapp;
   // const proxyProvider = new Provider();
@@ -43,6 +45,13 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             dappProvider.on('dapp:accountsChanged', (provider: any) => {
               window.location.reload();
             });
+            dappProvider
+              .request('sui', {
+                method: 'dapp:chainId',
+              })
+              .then((networkName: any) => {
+                setNetwork(networkName);
+              });
 
             dappProvider
               .request('sui', {
@@ -121,6 +130,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
+      {network ? <NetworkUI networkName={network} /> : null}
       <Form>
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
