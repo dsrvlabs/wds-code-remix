@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
+import { NetworkUI } from '../common/Network';
 
 interface InterfaceProps {
   active: boolean;
@@ -25,6 +26,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [balance, setBalance] = useState<string>('');
   const [error, setError] = useState<String>('');
+  const [network, setNetwork] = useState<string>('');
 
   const dappProvider = window.dapp;
   // const proxyProvider = new Provider();
@@ -42,6 +44,19 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             dappProvider.on('dapp:accountsChanged', (provider: any) => {
               window.location.reload();
             });
+            dappProvider
+              .request('aptos', {
+                method: 'dapp:chainId',
+              })
+              .then((networkName: any) => {
+                if (networkName === 1) {
+                  setNetwork('mainnet');
+                } else if (networkName === 2) {
+                  setNetwork('testnet');
+                } else {
+                  setNetwork('devnet');
+                }
+              });
 
             dappProvider
               .request('aptos', {
@@ -80,7 +95,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                     });
                     setError('Create account on chain');
                     setActive(false);
-                  })
+                  });
               })
               .catch(async (e: any) => {
                 setAccount('');
@@ -113,6 +128,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
+      {network ? <NetworkUI networkName={network} /> : null}
       <Form>
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
