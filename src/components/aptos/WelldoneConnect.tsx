@@ -6,6 +6,7 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
 import { NetworkUI } from '../common/Network';
+import { PROD, STAGE } from '../../const/stage';
 
 interface InterfaceProps {
   active: boolean;
@@ -44,19 +45,23 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             dappProvider.on('dapp:accountsChanged', (provider: any) => {
               window.location.reload();
             });
-            dappProvider
-              .request('aptos', {
-                method: 'dapp:chainId',
-              })
-              .then((networkName: any) => {
-                if (networkName === 1) {
-                  setNetwork('mainnet');
-                } else if (networkName === 2) {
-                  setNetwork('testnet');
-                } else {
-                  setNetwork('devnet');
-                }
-              });
+
+            // todo remove condition after wallet 1.23 release
+            if (STAGE !== PROD) {
+              dappProvider
+                .request('aptos', {
+                  method: 'dapp:chainId',
+                })
+                .then((networkName: any) => {
+                  if (networkName === 1) {
+                    setNetwork('mainnet');
+                  } else if (networkName === 2) {
+                    setNetwork('testnet');
+                  } else {
+                    setNetwork('devnet');
+                  }
+                });
+            }
 
             dappProvider
               .request('aptos', {
@@ -128,7 +133,8 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network ? <NetworkUI networkName={network} /> : null}
+      // todo remove condition after wallet 1.23 release
+      {STAGE !== PROD ? network ? <NetworkUI networkName={network} /> : null : null}
       <Form>
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
