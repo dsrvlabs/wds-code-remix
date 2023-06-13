@@ -30,7 +30,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setWallet={setWallet}
         wallet={wallet}
       />
-      {dapp ? <NetworkUI networkName={dapp.networks.sui.chain} /> : null}
       <div>
         <WelldoneConnect
           active={active}
