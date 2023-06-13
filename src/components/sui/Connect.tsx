@@ -31,7 +31,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setWallet={setWallet}
         wallet={wallet}
       />
-      // todo remove below line after wallet 1.23 release
       {STAGE === PROD ? dapp ? <NetworkUI networkName={dapp.networks.sui.chain} /> : null : null}
       <div>
         <WelldoneConnect

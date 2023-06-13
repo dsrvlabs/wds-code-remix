@@ -46,7 +46,6 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
               window.location.reload();
             });
 
-            // todo remove condition after wallet 1.23 release
             if (STAGE !== PROD) {
               dappProvider
                 .request('aptos', {
@@ -133,7 +132,6 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      // todo remove condition after wallet 1.23 release
       {STAGE !== PROD ? network ? <NetworkUI networkName={network} /> : null : null}
       <Form>
         <Form.Group>
