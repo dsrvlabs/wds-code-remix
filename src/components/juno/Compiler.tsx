@@ -167,7 +167,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     let socketJuno: Socket;
 
     if (STAGE === PROD) {
-      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT);
+      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
+        reconnection: false,
+        transports: ['websocket'],
+      });
     } else {
       socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
         transports: ['websocket'],
