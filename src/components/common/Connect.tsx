@@ -56,7 +56,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
           action
           active={active && wallet === 'petra'}
           onClick={async () => {
-            console.log(window);
             if (!(window as any).aptos) {
               // await client.terminal.log({
               //   value:
@@ -69,6 +68,15 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
                 type: 'error',
               });
               setError('Petra wallet will be supported soon.');
+              // eslint-disable-next-line no-restricted-globals
+              console.log('top', top);
+              console.log('window.dapp', window.dapp);
+              console.log('window.petra', window.petra);
+              debugger;
+              // eslint-disable-next-line no-restricted-globals
+              console.log('top.window.dapp', top?.window.dapp);
+              // eslint-disable-next-line no-restricted-globals
+              console.log('top.window.petra', top?.window.petra);
             } else {
               setActive(true);
               setWallet('petra');
