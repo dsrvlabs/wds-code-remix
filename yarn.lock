@@ -15478,10 +15478,10 @@
   dependencies:
     "defaults" "^1.0.3"
 
-"wds-event@^1.0.29":
-  "integrity" "sha512-imxOwNHFii+CzAEaw3O8f3fK0lrEffv5lm6bIniTPy9TSFNWJuWRnLq1bdkMzDj0Qzi6DTIWlnUHuISU7YLqHw=="
-  "resolved" "https://registry.npmjs.org/wds-event/-/wds-event-1.0.29.tgz"
-  "version" "1.0.29"
+"wds-event@^1.0.31":
+  "integrity" "sha512-J2SAlaxkd6PXGlbD9koUmFLK1wG91IOecdBVc3PAXy0ke3oWlm7W6+m4vcOsbmyevjc3svXtkXBxiuH3KSlGGw=="
+  "resolved" "https://registry.npmjs.org/wds-event/-/wds-event-1.0.31.tgz"
+  "version" "1.0.31"
 
 "wds-near-contract-parser@^0.1.5":
   "integrity" "sha512-Q2NC3drSSohvw1DplE9bMmMoIJtYP+SEa6Jhcisom1Xa7uKiRqH4Ve7cpvXxhqz7dt5PcyTWPuiL1NFTAChGKw=="

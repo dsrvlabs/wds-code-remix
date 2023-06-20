@@ -6,6 +6,7 @@ import { Connect as KlayConnect } from './klaytn/Connect';
 import { Connect as AptosConnect } from './aptos/Connect';
 import { Connect as SuiConnect } from './sui/Connect';
 import { Connect as JunoConnect } from './juno/Connect';
+import { Connect as NeutronConnect } from './neutron/Connect';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -101,6 +102,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <SuiConnect client={client} />;
       case 'Juno':
         return <JunoConnect client={client} />;
+      case 'Neutron':
+        return <NeutronConnect client={client} />;
       default:
         return <></>;
     }

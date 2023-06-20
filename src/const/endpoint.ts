@@ -37,3 +37,10 @@ const SUI_COMPILER_CONSUMER_ENDPOINT_POOL = {
   prod: 'wss://prod.near.compiler.welldonestudio.io',
 };
 export const SUI_COMPILER_CONSUMER_ENDPOINT = SUI_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
+
+const NEUTRON_COMPILER_CONSUMER_ENDPOINT_POOL = {
+  local: 'ws://localhost:8000',
+  dev: 'wss://dev.compiler.welldonestudio.io',
+  prod: 'wss://prod.neutron.compiler.welldonestudio.io',
+};
+export const NEUTRON_COMPILER_CONSUMER_ENDPOINT = NEUTRON_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];

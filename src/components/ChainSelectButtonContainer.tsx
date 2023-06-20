@@ -2,6 +2,7 @@ import { Badge, Form, ListGroup } from 'react-bootstrap';
 
 import Aptos from '../assets/Aptos-Big.png';
 import Sui from '../assets/Sui-Big.png';
+import Neutron from '../assets/Neutron-Big.svg';
 import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
 import Juno from '../assets/Juno-Big.png';
@@ -12,7 +13,7 @@ import { EditorClient } from '../utils/editor';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
-import { enableSui } from '../utils/helper';
+import { PROD, STAGE } from '../const/stage';
 
 interface InterfaceProps {
   setChain: Function;
@@ -40,6 +41,22 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <span>Select a Chain</span>
           <RefreshButton handleRefresh={handleRefresh} />
         </Form.Text>
+        {STAGE !== PROD ? (
+          <ListGroup.Item
+            as="li"
+            style={{ cursor: 'pointer' }}
+            action
+            onClick={() => {
+              setChain('Neutron');
+            }}
+          >
+            <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
+            <b>NEUTRON (CosmWasm)</b>
+            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
+              Beta
+            </Badge>
+          </ListGroup.Item>
+        ) : null}
         <ListGroup.Item
           as="li"
           style={{ cursor: 'pointer' }}
