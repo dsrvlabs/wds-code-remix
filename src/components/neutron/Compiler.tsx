@@ -27,6 +27,8 @@ import { cleanupSocketNeutron } from '../../socket';
 import { io } from 'socket.io-client';
 import { PROD, STAGE } from '../../const/stage';
 import { CHAIN_NAME } from '../../const/chain';
+import { S3Path } from '../../const/s3-path';
+import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 
 interface InterfaceProps {
   fileName: string;
@@ -222,7 +224,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+          ) {
             return;
           }
           await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
@@ -239,7 +244,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_NEUTRON_COMPILE_LOGGED_V1} data=${stringify(data)}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+          ) {
             return;
           }
 
@@ -284,15 +292,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+          ) {
             return;
           }
 
-          const bucket = 'neutron-origin-code';
-          const fileKey = `${address}/${timestamp}/out_${address}_${timestamp}_neutron.zip`;
           const res = await axios.request({
             method: 'GET',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=${bucket}&fileKey=${fileKey}`,
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              bucket: S3Path.bucket(),
+              fileKey: S3Path.outKey(
+                CHAIN_NAME.neutron,
+                dapp.networks.neutron.chain,
+                account,
+                timestamp,
+                BUILD_FILE_TYPE.rs,
+              ),
+            },
             responseType: 'arraybuffer',
             responseEncoding: 'null',
           });
@@ -345,7 +364,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.neutron);
-      formData.append('chainId', dapp.networks.neutron.chain); // todo sui
+      formData.append('chainId', dapp.networks.neutron.chain);
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'neutron');

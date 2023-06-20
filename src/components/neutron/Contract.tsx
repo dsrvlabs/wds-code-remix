@@ -60,8 +60,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
           let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
           let denom = 'untrn';
-          if (cid === 'neutron') {
-            // rpcUrl = 'https://rpc-juno.itastakers.com'; // todo
+          if (cid === 'mainnet') {
+            rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
             denom = 'untrn';
           }
 
@@ -142,8 +142,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     const cid = dapp.networks.neutron.chain;
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-    if (cid === 'neutron') {
-      // rpcUrl = 'https://rpc-juno.itastakers.com'; // todo
+    if (cid === 'mainnet') {
+      rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
     const cosmwasmClient = await SigningCosmWasmClient.connect(rpcUrl);
 
