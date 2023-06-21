@@ -47,7 +47,7 @@ export const NEUTRON_COMPILER_CONSUMER_ENDPOINT = NEUTRON_COMPILER_CONSUMER_ENDP
 
 const COSMWASM_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',
-  dev: 'wss://ec2-18-116-65-119.us-east-2.compute.amazonaws.com',
-  prod: 'wss://ec2-18-116-65-119.us-east-2.compute.amazonaws.com',
+  dev: 'wss://ec2-18-116-65-119.us-east-2.compute.amazonaws.com:8000',
+  prod: 'wss://ec2-18-116-65-119.us-east-2.compute.amazonaws.com:8000',
 };
 export const COSMWASM_COMPILER_CONSUMER_ENDPOINT = COSMWASM_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
