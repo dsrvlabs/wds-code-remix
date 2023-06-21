@@ -40,14 +40,7 @@ export const SUI_COMPILER_CONSUMER_ENDPOINT = SUI_COMPILER_CONSUMER_ENDPOINT_POO
 
 const NEUTRON_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',
-  dev: 'wss://dev.compiler.welldonestudio.io',
-  prod: 'wss://prod.neutron.compiler.welldonestudio.io',
+  dev: 'ws://ec2-18-116-15-222.us-east-2.compute.amazonaws.com:8000',
+  prod: 'ws://ec2-18-116-15-222.us-east-2.compute.amazonaws.com:8000',
 };
 export const NEUTRON_COMPILER_CONSUMER_ENDPOINT = NEUTRON_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
-
-const COSMWASM_COMPILER_CONSUMER_ENDPOINT_POOL = {
-  local: 'ws://localhost:8000',
-  dev: 'wss://18.116.65.119:8000',
-  prod: 'wss://18.116.65.119:8000',
-};
-export const COSMWASM_COMPILER_CONSUMER_ENDPOINT = COSMWASM_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];

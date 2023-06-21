@@ -6,7 +6,6 @@ import { FaSyncAlt } from 'react-icons/fa';
 import { StoreCode } from './StoreCode';
 
 import {
-  compileId,
   compileIdV2,
   COMPILER_NEUTRON_COMPILE_COMPLETED_V1,
   COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1,
@@ -17,11 +16,7 @@ import {
   REMIX_NEUTRON_COMPILE_REQUESTED_V1,
   RemixNeutronCompileRequestedV1,
 } from 'wds-event';
-import {
-  COMPILER_API_ENDPOINT,
-  COSMWASM_COMPILER_CONSUMER_ENDPOINT,
-  NEUTRON_COMPILER_CONSUMER_ENDPOINT,
-} from '../../const/endpoint';
+import { COMPILER_API_ENDPOINT, NEUTRON_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
 import { EditorClient } from '../../utils/editor';
@@ -29,7 +24,6 @@ import AlertCloseButton from '../common/AlertCloseButton';
 import { DisconnectDescription, Socket } from 'socket.io-client/build/esm/socket';
 import { cleanupSocketNeutron } from '../../socket';
 import { io } from 'socket.io-client';
-import { PROD, STAGE } from '../../const/stage';
 import { CHAIN_NAME } from '../../const/chain';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
@@ -172,18 +166,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     //   transports: ['websocket'],
     // });
 
-    let socket: Socket;
-
-    if (STAGE === PROD) {
-      socket = io(COSMWASM_COMPILER_CONSUMER_ENDPOINT, {
-        reconnection: false,
-        transports: ['websocket'],
-      });
-    } else {
-      socket = io(COSMWASM_COMPILER_CONSUMER_ENDPOINT, {
-        transports: ['websocket'],
-      });
-    }
+    const socket = io(NEUTRON_COMPILER_CONSUMER_ENDPOINT, {
+      reconnection: false,
+      transports: ['websocket'],
+    });
 
     try {
       socket.on('connect_error', function (err) {
