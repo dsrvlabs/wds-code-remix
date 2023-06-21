@@ -6,7 +6,6 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Connect as CommonConnect } from '../common/Connect';
 import { NetworkUI } from '../common/Network';
-import { PROD, STAGE } from '../../const/stage';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -31,7 +30,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setWallet={setWallet}
         wallet={wallet}
       />
-      {STAGE === PROD ? dapp ? <NetworkUI networkName={dapp.networks.sui.chain} /> : null : null}
       <div>
         <WelldoneConnect
           active={active}
