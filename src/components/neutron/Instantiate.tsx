@@ -75,7 +75,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           // mainnet or testnet
           const cid = dapp.networks.neutron.chain;
 
-          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+          let rpcUrl = 'http://localhost:26657/';
           let denom = 'untrn';
           if (cid === 'mainnet') {
             rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
@@ -85,16 +85,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           const stargateClient = await StargateClient.connect(rpcUrl);
           log.debug(stargateClient);
 
-          const sequence = (await stargateClient.getSequence(result['neutron'].address)).sequence;
-          log.debug('sequence: ' + sequence);
-
-          const accountNumber = (await stargateClient.getSequence(result['neutron'].address))
-            .accountNumber;
-          log.debug('accountNumber: ' + accountNumber);
+          const response = await stargateClient.getSequence(result['neutron'].address);
+          log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
+          log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
 
           const chainId = await stargateClient.getChainId();
           log.debug('chainId: ' + chainId);
-
           log.debug('fund: ' + fund);
 
           const funds = fund ? [{ denom, amount: fund.toString() }] : [];
@@ -111,7 +107,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             },
           };
 
-          log.debug(JSON.stringify(instantiateContractMsg));
+          log.debug(`instantiateContractMsg=${JSON.stringify(instantiateContractMsg, null, 2)}`);
 
           const memo = undefined;
           const gasEstimation = await simulate(
@@ -119,7 +115,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             [instantiateContractMsg],
             memo,
             result['neutron'].pubKey,
-            sequence,
+            response.sequence,
           );
           log.debug('@@@ gasEstimation', gasEstimation);
           log.debug('@@@ gasPrice', gasPrice);
@@ -133,14 +129,14 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           log.debug('@@@ usedFee', usedFee);
 
           const rawTx = {
-            account_number: accountNumber,
+            account_number: response.accountNumber,
             chain_id: chainId,
-            sequence: sequence,
+            sequence: response.sequence,
             fee: usedFee,
             msgs: [instantiateContractMsg],
           };
 
-          log.debug(rawTx);
+          log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
 
           const res = await dapp.request('neutron', {
             method: 'dapp:signAndSendTransaction',
@@ -148,6 +144,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           });
 
           log.debug(res);
+          log.info('!!! instantiate', JSON.stringify(res, null, 2));
 
           const contract = await waitGetContract(res[0]);
           log.debug('contract address', contract);
@@ -163,7 +160,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const waitGetContract = async (hash: string) => {
     const cid = dapp.networks.neutron.chain;
 
-    let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+    let rpcUrl = 'http://localhost:26657/';
     if (cid === 'mainnet') {
       rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
@@ -180,6 +177,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           waitGetContract(hash);
           return;
         }
+        log.info('!!! waitGetContract', JSON.stringify(result, null, 2));
 
         if (result.code !== 0) {
           log.debug(`rawLog=${result?.rawLog}`);

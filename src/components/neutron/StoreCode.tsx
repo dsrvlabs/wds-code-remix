@@ -43,7 +43,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   const waitGetCodeID = async (hash: string) => {
     const cid = dapp.networks.neutron.chain;
 
-    let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech';
+    let rpcUrl = 'http://localhost:26657';
     if (cid === 'mainnet') {
       rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
@@ -53,7 +53,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await stargateClient.getTx(hash);
-        log.debug('!!! waitGetCodeID interval', result);
+        log.info('!!! waitGetCodeID interval', JSON.stringify(result, null, 2));
         if (result) {
           const code_id = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
           log.debug(code_id);
@@ -97,7 +97,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
           // mainnet or testnet
           const cid = dapp.networks.neutron.chain;
 
-          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+          let rpcUrl = 'http://localhost:26657/';
           let denom = 'untrn';
           if (cid === 'mainnet') {
             rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
