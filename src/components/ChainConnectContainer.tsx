@@ -39,6 +39,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   setChain,
 }) => {
   log.debug(chain);
+  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn'];
 
   const handleLeftBtn = async () => {
     setChain('');
@@ -55,6 +56,10 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   };
 
   const Header = () => {
+    let docsLink = 'https://docs.welldonestudio.io/code/';
+    if (docsChains.includes(chain.toLowerCase())) {
+      docsLink = `https://docs.welldonestudio.io/code/deploy-and-run/${chain.toLowerCase()}`;
+    }
     return (
       <div style={STYLE}>
         <div className="d-flex align-items-center">
@@ -62,12 +67,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
           <span style={{ marginLeft: '5px' }}>{chain}</span>
         </div>
         <div className="d-flex align-items-center">
-          <a
-            href="https://docs.welldonestudio.io/code"
-            target="_blank"
-            rel="noreferrer"
-            style={{ textDecoration: 'none' }}
-          >
+          <a href={docsLink} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <Badge pill bg="primary" className="me-2" style={{ marginRight: '10px' }}>
               {'docs'}
             </Badge>
