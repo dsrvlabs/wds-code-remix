@@ -1,6 +1,6 @@
 import React, { Dispatch, useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
-import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient, StdFee } from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
@@ -22,6 +22,8 @@ interface InterfaceProps {
   schemaInit: { [key: string]: any };
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
+  account: string;
+  timestamp: string;
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
@@ -36,6 +38,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   schemaInit,
   schemaExec,
   schemaQuery,
+  account,
+  timestamp,
 }) => {
   const [gasPrice, setGasPrice] = useState<number>(0.025);
   const [fund, setFund] = useState<number>(0);
@@ -143,7 +147,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           // const multiplier = 1.3;
           // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
-          const usedFee = calculateFee(Number(gasEstimation), gas);
+          const usedFee: StdFee = calculateFee(Number(gasEstimation), gas);
 
           log.debug('@@@ usedFee', usedFee);
 
@@ -152,6 +156,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             account_number: accountNumber,
             chain_id: chainId,
             sequence: sequence,
+            // fee: usedFee,
             fee: usedFee,
             msgs: messages,
           };
@@ -236,6 +241,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               schemaInit={schemaInit}
               schemaExec={schemaExec}
               schemaQuery={schemaQuery}
+              account={account}
+              timestamp={timestamp}
             />
           </>
         )}

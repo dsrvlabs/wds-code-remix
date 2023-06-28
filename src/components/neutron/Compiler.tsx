@@ -58,6 +58,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
+  const [timestamp, setTimestamp] = useState('');
 
   const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
   const [schemaExec, setSchemaExec] = useState<Object>({});
@@ -159,6 +160,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const address = account;
     const timestamp = Date.now().toString();
+    setTimestamp(timestamp);
     // const socketNeutron = io(NEUTRON_COMPILER_CONSUMER_ENDPOINT, {
     //   timeout: 40_000,
     //   ackTimeout: 300_000,
@@ -489,6 +491,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           schemaInit={schemaInit}
           schemaExec={schemaExec}
           schemaQuery={schemaQuery}
+          account={account}
+          timestamp={timestamp}
         />
       ) : (
         <>

@@ -12,6 +12,8 @@ import validator from '@rjsf/validator-ajv8';
 import { simulate } from './neutron-helper';
 
 import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -29,6 +31,25 @@ interface InterfaceProps {
   schemaInit: { [key: string]: any };
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
+  account: string;
+  timestamp: string;
+}
+
+export interface NeutronDeployHistoryCreateDto {
+  chainId: string;
+  account: string;
+  codeId: string;
+  contractAddress: string;
+  isImmutable: boolean;
+  compileTimestamp: number | null;
+  deployTimestamp: number | null;
+  txHash: string;
+  isSrcUploaded: boolean;
+  isRemix: boolean;
+  oldVersion: string | null;
+  currentVersion: string | null;
+  verificationStatus: string | null;
+  createdBy: string;
 }
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
@@ -41,6 +62,8 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   schemaInit,
   schemaExec,
   schemaQuery,
+  account,
+  timestamp,
 }) => {
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
@@ -145,8 +168,37 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(res);
           log.info('!!! instantiate', JSON.stringify(res, null, 2));
+          const txHash = res[0];
+          const contract = await waitGetContract(txHash);
+          const admin = instantiateContractMsg.value.admin;
+          if (contract) {
+            const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
+              chainId: dapp.networks.neutron.chain,
+              account: account,
+              codeId: codeID,
+              contractAddress: contract as string,
+              isImmutable: admin === undefined || admin === null || admin.trim().length === 0,
+              compileTimestamp: Number(timestamp),
+              deployTimestamp: null, //todo
+              txHash: txHash,
+              isSrcUploaded: true, // todo
+              isRemix: true,
+              oldVersion: '', // todo
+              currentVersion: '', // todo
+              verificationStatus: null,
+              createdBy: 'REMIX',
+            };
+            try {
+              const res = await axios.post(
+                COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
+                neutronDeployHistoryCreateDto,
+              );
+              log.info(`neutron-deploy-histories api res`, res);
+            } catch (e) {
+              log.error(`neutron-deploy-histories api error`);
+            }
+          }
 
-          const contract = await waitGetContract(res[0]);
           log.debug('contract address', contract);
           setContractAddress(contract as any);
           await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
