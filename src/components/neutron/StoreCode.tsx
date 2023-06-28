@@ -149,7 +149,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
           // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
           const usedFee: StdFee = calculateFee(Number(gasEstimation), gas);
 
-          log.debug('@@@ usedFee', usedFee);
+          // log.debug('@@@ usedFee', usedFee);
 
           log.debug(messages[0]);
           const rawTx = {
@@ -161,7 +161,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             msgs: messages,
           };
 
-          log.debug(JSON.stringify(rawTx));
+          // log.debug(JSON.stringify(rawTx));
 
           const res = await dapp.request('neutron', {
             method: 'dapp:signAndSendTransaction',
