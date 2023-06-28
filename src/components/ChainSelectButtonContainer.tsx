@@ -52,9 +52,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           >
             <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
             <b>NEUTRON (CosmWasm)</b>
-            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-              Beta
-            </Badge>
           </ListGroup.Item>
         ) : null}
         <ListGroup.Item
@@ -67,9 +64,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
         >
           <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
           <b>SUI (MoveVM)</b>
-          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-            Beta
-          </Badge>
         </ListGroup.Item>
         <ListGroup>
           <ListGroup.Item
@@ -82,9 +76,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           >
             <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
             <b>APTOS (MoveVM)</b>
-            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-              Beta
-            </Badge>
           </ListGroup.Item>
 
           <ListGroup.Item
@@ -97,9 +88,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           >
             <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
             <b>JUNO (CosmWasm)</b>
-            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '20px' }}>
-              Beta
-            </Badge>
           </ListGroup.Item>
           <ListGroup.Item
             as="li"
