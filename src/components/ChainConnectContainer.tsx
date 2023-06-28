@@ -68,7 +68,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         </div>
         <div className="d-flex align-items-center">
           <a href={docsLink} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Badge pill bg="primary" className="me-2" style={{ marginRight: '10px' }}>
+            <Badge pill bg="primary" style={{ color: 'white', marginRight: '10px' }}>
               {'docs'}
             </Badge>
           </a>
@@ -78,7 +78,12 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
             rel="noreferrer"
             style={{ textDecoration: 'none' }}
           >
-            <Badge pill bg="danger" className="me-2" style={{ marginRight: '10px' }}>
+            <Badge
+              pill
+              bg="danger"
+              className="me-2"
+              style={{ color: 'white', marginRight: '10px' }}
+            >
               {'issues'}
             </Badge>
           </a>
