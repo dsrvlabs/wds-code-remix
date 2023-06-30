@@ -47,7 +47,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   const waitGetCodeID = async (hash: string) => {
     const cid = dapp.networks.neutron.chain;
 
-    let rpcUrl = 'http://localhost:26657';
+    let rpcUrl = 'https://neutron-node.welldonestudio.io/';
     if (cid === 'mainnet') {
       rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
@@ -101,7 +101,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
           // mainnet or testnet
           const cid = dapp.networks.neutron.chain;
 
-          let rpcUrl = 'http://localhost:26657/';
+          let rpcUrl = 'https://neutron-node.welldonestudio.io/';
           let denom = 'untrn';
           if (cid === 'mainnet') {
             rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
