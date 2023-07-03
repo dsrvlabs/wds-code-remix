@@ -90,42 +90,56 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const removeArtifacts = async () => {
+    log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+    try {
+      await client?.fileManager.remove('browser/' + compileTarget + '/out');
+    } catch (e) {
+      log.info(`no out folder`);
+    }
+  };
+
+  const init = () => {
+    setWasm('');
+    setFileName('');
+    setCodeID('');
+    setTxHash('');
+    setSchemaExec({});
+    setSchemaInit({});
+    setSchemaQuery({});
+  };
+
   const readCode = async () => {
     if (loading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
 
-    setCodeID('');
-    setSchemaExec({});
-    setSchemaInit({});
-    setSchemaQuery({});
+    await removeArtifacts();
+    init();
 
-    if (await exists()) {
-      await setSchemaObj();
-    } else {
-      setWasm('');
-      setFileName('');
-      setCodeID('');
-      setTxHash('');
-      const toml = compileTarget + '/Cargo.toml';
-      const schema = compileTarget + '/examples/schema.rs';
+    // if (await exists()) {
+    //   await setSchemaObj();
+    // } else {
 
-      const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
-      const sourceFilesName = Object.keys(sourceFiles || {});
+    const toml = compileTarget + '/Cargo.toml';
+    const schema = compileTarget + '/examples/schema.rs';
 
-      const filesName = sourceFilesName.concat(toml, schema);
+    const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
+    const sourceFilesName = Object.keys(sourceFiles || {});
 
-      let code;
-      const fileList = await Promise.all(
-        filesName.map(async (f) => {
-          code = await client?.fileManager.getFile(f);
-          return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
-        }),
-      );
+    const filesName = sourceFilesName.concat(toml, schema);
 
-      generateZip(fileList);
-    }
+    let code;
+    const fileList = await Promise.all(
+      filesName.map(async (f) => {
+        code = await client?.fileManager.getFile(f);
+        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
+      }),
+    );
+
+    generateZip(fileList);
+    // }
   };
 
   const createFile = (code: string, name: string) => {
@@ -452,7 +466,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     <>
       <Button
         variant="primary"
-        disabled={account === ''}
+        disabled={account === '' || loading || !compileTarget}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
@@ -476,7 +490,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       ) : (
         false
       )}
-      {wasm ? (
+      {wasm && !loading ? (
         <StoreCode
           dapp={dapp}
           wallet={'Dsrv'}
