@@ -40,6 +40,7 @@ interface InterfaceProps {
   schemaQuery: { [key: string]: any };
   account: string;
   timestamp: string;
+  checksum: string;
 }
 
 export interface NeutronDeployHistoryCreateDto {
@@ -50,6 +51,7 @@ export interface NeutronDeployHistoryCreateDto {
   compileTimestamp: number | null;
   deployTimestamp: number | null;
   txHash: string;
+  checksum: string | null;
   isSrcUploaded: boolean;
   isRemix: boolean;
   oldVersion: string | null;
@@ -70,6 +72,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   schemaQuery,
   account,
   timestamp,
+  checksum,
 }) => {
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
@@ -192,6 +195,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               compileTimestamp: Number(timestamp),
               deployTimestamp: null, //todo
               txHash: txHash,
+              checksum: checksum,
               isSrcUploaded: true, // todo
               isRemix: true,
               oldVersion: '', // todo

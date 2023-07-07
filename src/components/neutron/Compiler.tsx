@@ -54,6 +54,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
+  const [checksum, setChecksum] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
@@ -101,12 +102,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const init = () => {
     setWasm('');
+    setChecksum('');
     setFileName('');
     setCodeID('');
     setTxHash('');
     setSchemaExec({});
     setSchemaInit({});
     setSchemaQuery({});
+    setTimestamp('');
   };
 
   const readCode = async () => {
@@ -352,6 +355,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   );
                 } else {
                   const fileData = await zip.files[filename].async('string');
+                  if (filename === 'artifacts/checksums.txt') {
+                    const checksum = fileData.slice(0, 64);
+                    console.log(`@@@ checksum=${checksum}`);
+                    setChecksum(checksum);
+                  }
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     fileData,
@@ -498,6 +506,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           client={client}
           wasm={wasm}
           setWasm={setWasm}
+          checksum={checksum}
           txHash={txHash}
           setTxHash={setTxHash}
           codeID={codeID}

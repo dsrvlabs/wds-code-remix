@@ -15,6 +15,7 @@ interface InterfaceProps {
   client: any;
   wasm: string;
   setWasm: Dispatch<React.SetStateAction<string>>;
+  checksum: string;
   txHash: string;
   setTxHash: Dispatch<React.SetStateAction<string>>;
   codeID: string;
@@ -29,6 +30,7 @@ interface InterfaceProps {
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   dapp,
   wasm,
+  checksum,
   wallet,
   client,
   txHash,
@@ -247,6 +249,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               schemaQuery={schemaQuery}
               account={account}
               timestamp={timestamp}
+              checksum={checksum}
             />
           </>
         )}
