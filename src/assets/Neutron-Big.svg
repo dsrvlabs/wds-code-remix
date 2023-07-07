@@ -2,9 +2,9 @@
 <rect width="72" height="72" rx="32" fill="url(#paint0_radial_4249_52683)"/>
 <path fill-rule="evenodd" clip-rule="evenodd" d="M51 21H23.125L31.0607 30.356C32.3801 29.2004 34.1083 28.5 36 28.5C40.1421 28.5 43.5 31.8578 43.5 36C43.5 37.8684 42.8168 39.5772 41.6866 40.8903L51 48.904V21ZM47.328 51L39.9525 42.3752C38.8049 43.0882 37.4505 43.5 36 43.5C31.8579 43.5 28.5 40.1422 28.5 36C28.5 34.5625 28.9044 33.2195 29.6057 32.0785L21 24.5846V51H47.328Z" fill="white"/>
 <defs>
-<radialGradient id="paint0_radial_4249_52683" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-13.7302 -1.31765e-05) rotate(45) scale(214.579 205.166)">
+<radialGradient id="paint0_radial_4249_52683" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-15 -7.00001) rotate(46.0531) scale(220.464 210.792)">
 <stop stop-color="#29D6E1"/>
-<stop offset="0.338497" stop-color="#2952E1"/>
+<stop offset="0.338497" stop-color="#1F212E"/>
 <stop offset="1" stop-opacity="0"/>
 </radialGradient>
 </defs>
