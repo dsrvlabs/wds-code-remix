@@ -1,5 +1,5 @@
 import React, { Dispatch, useEffect, useState } from 'react';
-import { Button, Form as ReactForm } from 'react-bootstrap';
+import { Button, Form as ReactForm, InputGroup } from 'react-bootstrap';
 import { Contract } from './Contract';
 import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
@@ -11,13 +11,20 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { simulate } from './neutron-helper';
 
-import { MsgInstantiateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
+import { MsgInstantiateContract, MsgMigrateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
+
+import { CustomTooltip } from '../common/CustomTooltip';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
   readonly value: Partial<MsgInstantiateContract>;
+}
+
+export interface MsgMigrateContractEncodeObject extends EncodeObject {
+  readonly typeUrl: "/cosmwasm.wasm.v1.MsgMigrateContract";
+  readonly value: Partial<MsgMigrateContract>;
 }
 
 interface InterfaceProps {
@@ -40,7 +47,6 @@ export interface NeutronDeployHistoryCreateDto {
   account: string;
   codeId: string;
   contractAddress: string;
-  isImmutable: boolean;
   compileTimestamp: number | null;
   deployTimestamp: number | null;
   txHash: string;
@@ -68,9 +74,14 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
   const [param, setParams] = useState({});
+  const [callMsg, setCallMsg] = useState<string>('Instantiate');
+  const [immutableChecked, setImmutableChecked] = useState(false);
+  const [migrateContractAddress, setMigrateContractAddress] = useState<string>('')
+  const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
     setContractAddress('');
+    setCallMsg('Instantiate')
   }, [codeID]);
 
   useEffect(() => {
@@ -124,7 +135,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract',
             value: {
               sender: result['neutron'].address,
-              admin: result['neutron'].address,
+              admin: immutableChecked ? '' : result['neutron'].address,
               codeId: parseInt(codeID) as any,
               label: 'contract init',
               msg: toBase64(toUtf8(JSON.stringify(param))) as any,
@@ -172,14 +183,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           log.info('!!! instantiate', JSON.stringify(res, null, 2));
           const txHash = res[0];
           const contract = await waitGetContract(txHash);
-          const admin = instantiateContractMsg.value.admin;
           if (contract) {
             const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
               chainId: dapp.networks.neutron.chain,
               account: account,
               codeId: codeID,
               contractAddress: contract as string,
-              isImmutable: admin === undefined || admin === null || admin.trim().length === 0,
               compileTimestamp: Number(timestamp),
               deployTimestamp: null, //todo
               txHash: txHash,
@@ -203,6 +212,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug('contract address', contract);
           setContractAddress(contract as any);
+          setDisabled(true)
           await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
         } catch (error: any) {
           log.error(error);
@@ -210,6 +220,130 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         }
       });
   };
+
+  const migrate = async () => {
+    dapp
+      .request('neutron', {
+        method: 'dapp:accounts',
+      })
+      .then(async (result: any) => {
+        log.debug(result);
+        log.debug('account', result['neutron'].address);
+        log.debug('publicKey', result['neutron'].pubKey);
+
+        log.debug('sendTx');
+        try {
+          // mainnet or testnet
+          const cid = dapp.networks.neutron.chain;
+
+          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+          let denom = 'untrn';
+          if (cid === 'mainnet') {
+            rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
+            denom = 'untrn';
+          }
+
+          const stargateClient = await StargateClient.connect(rpcUrl);
+          log.debug(stargateClient);
+
+          const response = await stargateClient.getSequence(result['neutron'].address);
+          log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
+          log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
+
+          const chainId = await stargateClient.getChainId();
+          log.debug('chainId: ' + chainId);
+          log.debug('fund: ' + fund);
+
+          const funds = fund ? [{ denom, amount: fund.toString() }] : [];
+
+          const migrateContractMsg: MsgMigrateContractEncodeObject = {
+            typeUrl: "/cosmwasm.wasm.v1.MsgMigrateContract",
+            value: {
+              sender: result['neutron'].address,
+              contract: migrateContractAddress,
+              codeId: parseInt(codeID) as any,
+              msg: toBase64(toUtf8(JSON.stringify({
+                "new_format": "New Format Description"
+              }))) as any,
+            },
+          };
+
+          log.debug(`migrateContractMsg=${JSON.stringify(migrateContractMsg, null, 2)}`);
+
+          const memo = undefined;
+          const gasEstimation = await simulate(
+            stargateClient,
+            [migrateContractMsg],
+            memo,
+            result['neutron'].pubKey,
+            response.sequence,
+          );
+          log.debug('@@@ gasEstimation', gasEstimation);
+          log.debug('@@@ gasPrice', gasPrice);
+          log.debug('@@@ denom', gasEstimation);
+
+          const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+
+          // const multiplier = 1.3;
+          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
+          const usedFee = calculateFee(Number(gasEstimation), gas);
+          log.debug('@@@ usedFee', usedFee);
+
+          const rawTx = {
+            account_number: response.accountNumber,
+            chain_id: chainId,
+            sequence: response.sequence,
+            fee: usedFee,
+            msgs: [migrateContractMsg],
+          };
+
+          log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
+
+          const res = await dapp.request('neutron', {
+            method: 'dapp:signAndSendTransaction',
+            params: [JSON.stringify(rawTx)],
+          });
+
+          log.debug(res);
+          log.info('!!! migrateContractMsg', JSON.stringify(res, null, 2));
+          const txHash = res[0];
+          const contract = await waitGetContract(txHash);
+
+          if (contract) {
+            const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
+              chainId: dapp.networks.neutron.chain,
+              account: account,
+              codeId: codeID,
+              contractAddress: contract as string,
+              compileTimestamp: Number(timestamp),
+              deployTimestamp: null, //todo
+              txHash: txHash,
+              isSrcUploaded: true, // todo
+              isRemix: true,
+              oldVersion: '', // todo
+              currentVersion: '', // todo
+              verificationStatus: null,
+              createdBy: 'REMIX',
+            };
+            try {
+              // const res = await axios.post(
+              //   COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
+              //   neutronDeployHistoryCreateDto,
+              // );
+              log.info(`neutron-deploy-histories api res`, res);
+            } catch (e) {
+              log.error(`neutron-deploy-histories api error`);
+            }
+          }
+
+          log.debug('contract address', contract);
+          setContractAddress(contract as any);
+          setDisabled(true)
+        } catch (e) {
+          console.log(e)
+        }
+      })
+  }
 
   const waitGetContract = async (hash: string) => {
     const cid = dapp.networks.neutron.chain;
@@ -243,7 +377,13 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
-        const contractAddress = JSON.parse(result.rawLog)[0].events[0].attributes[0].value;
+        let contractAddress;
+
+        if (callMsg === 'Instantiate') {
+          contractAddress = JSON.parse(result.rawLog)[0].events[0].attributes[0].value;
+        } else if (callMsg === 'Migrate') {
+          contractAddress = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
+        }
         resolve(contractAddress);
         clearInterval(id);
       }, 2000);
@@ -254,8 +394,22 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
     setCodeID(e.target.value);
   };
 
+  const changeMigrateContractAddress = (e: { target: { value: any } }) => {
+    setMigrateContractAddress(e.target.value);
+  };
+
   const handleChange = ({ formData }: any) => {
     setParams(formData);
+  };
+
+  const handleCallMsg = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setCallMsg(e.target.value);
+  };
+
+  const handleCheckboxChange = (event: {
+    target: { checked: boolean | ((prevState: boolean) => boolean) };
+  }) => {
+    setImmutableChecked(event.target.checked);
   };
 
   return (
@@ -282,7 +436,68 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           />
         </div>
         <hr />
-        {codeID && (
+        <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
+          Method
+        </div>
+        <ReactForm.Control
+          className="custom-select"
+          as="select"
+          value={callMsg}
+          onChange={handleCallMsg}
+          style={{ marginBottom: '10px' }}
+          disabled={disabled}
+        >
+          <option value={'Instantiate'} key={1}>
+            {'instantiate'}
+          </option>
+          <option value={'Migrate'} key={2}>
+            {'migrate'}
+          </option>
+        </ReactForm.Control>
+        {
+          callMsg === 'Instantiate' ?
+            <div className="mb-2 form-check" style={{ marginTop: '10px' }}>
+              <input
+                type="checkbox"
+                className="form-check-input"
+                id="uploadCodeCheckbox"
+                checked={immutableChecked}
+                onChange={handleCheckboxChange}
+              />
+              <CustomTooltip
+                placement="top"
+                tooltipId="overlay-ataddresss"
+                tooltipText="By checking here, this contract becomes immutable."
+              >
+                <label
+                  className="form-check-label"
+                  htmlFor="immutableCheckbox"
+                  style={{ verticalAlign: 'top' }}
+                >
+                  Immutable
+                </label>
+              </CustomTooltip>
+            </div> : <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'start',
+                marginTop: '10px'
+              }}
+            >
+              <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
+                Target Contract Address
+              </div>
+              <ReactForm.Control
+                placeholder=""
+                size="sm"
+                value={migrateContractAddress}
+                onChange={changeMigrateContractAddress}
+              />
+            </div>
+        }
+
+        {codeID && callMsg === 'Instantiate' ? (
           <>
             <div style={{ padding: '0.2em' }}>
               <Form
@@ -320,7 +535,38 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               )}
             </div>
           </>
-        )}
+        ) :
+          <>
+            <div style={{ padding: '0.2em' }}>
+              <div>
+                {codeID && (
+                  <Button
+                    type="submit"
+                    variant="warning"
+                    onClick={migrate}
+                    className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+                    disabled={!codeID}
+                  >
+                    <span>Migrate</span>
+                  </Button>
+                )}
+              </div>
+              {initMsgErr && (
+                <span
+                  style={{
+                    marginRight: '1em',
+                    fontSize: '11px',
+                    color: 'red',
+                    wordBreak: 'break-all',
+                  }}
+                  className="mb-1"
+                >
+                  {initMsgErr}
+                </span>
+              )}
+            </div>
+          </>
+        }
       </ReactForm.Group>
       <ReactForm.Group>
         {contractAddress && (
