@@ -23,7 +23,7 @@ export interface MsgInstantiateContractEncodeObject extends EncodeObject {
 }
 
 export interface MsgMigrateContractEncodeObject extends EncodeObject {
-  readonly typeUrl: "/cosmwasm.wasm.v1.MsgMigrateContract";
+  readonly typeUrl: '/cosmwasm.wasm.v1.MsgMigrateContract';
   readonly value: Partial<MsgMigrateContract>;
 }
 
@@ -48,15 +48,11 @@ export interface NeutronDeployHistoryCreateDto {
   account: string;
   codeId: string;
   contractAddress: string;
+  checksum: string | null;
   compileTimestamp: number | null;
   deployTimestamp: number | null;
   txHash: string;
-  checksum: string | null;
   isSrcUploaded: boolean;
-  isRemix: boolean;
-  oldVersion: string | null;
-  currentVersion: string | null;
-  verificationStatus: string | null;
   createdBy: string;
 }
 
@@ -79,12 +75,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const [param, setParams] = useState({});
   const [callMsg, setCallMsg] = useState<string>('Instantiate');
   const [immutableChecked, setImmutableChecked] = useState(false);
-  const [migrateContractAddress, setMigrateContractAddress] = useState<string>('')
+  const [migrateContractAddress, setMigrateContractAddress] = useState<string>('');
   const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
     setContractAddress('');
-    setCallMsg('Instantiate')
+    setCallMsg('Instantiate');
   }, [codeID]);
 
   useEffect(() => {
@@ -197,10 +193,6 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               txHash: txHash,
               checksum: checksum,
               isSrcUploaded: true, // todo
-              isRemix: true,
-              oldVersion: '', // todo
-              currentVersion: '', // todo
-              verificationStatus: null,
               createdBy: 'REMIX',
             };
             try {
@@ -216,7 +208,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug('contract address', contract);
           setContractAddress(contract as any);
-          setDisabled(true)
+          setDisabled(true);
           await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
         } catch (error: any) {
           log.error(error);
@@ -261,14 +253,18 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           const funds = fund ? [{ denom, amount: fund.toString() }] : [];
 
           const migrateContractMsg: MsgMigrateContractEncodeObject = {
-            typeUrl: "/cosmwasm.wasm.v1.MsgMigrateContract",
+            typeUrl: '/cosmwasm.wasm.v1.MsgMigrateContract',
             value: {
               sender: result['neutron'].address,
               contract: migrateContractAddress,
               codeId: parseInt(codeID) as any,
-              msg: toBase64(toUtf8(JSON.stringify({
-                "new_format": "New Format Description"
-              }))) as any,
+              msg: toBase64(
+                toUtf8(
+                  JSON.stringify({
+                    new_format: 'New Format Description',
+                  }),
+                ),
+              ) as any,
             },
           };
 
@@ -323,17 +319,14 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               deployTimestamp: null, //todo
               txHash: txHash,
               isSrcUploaded: true, // todo
-              isRemix: true,
-              oldVersion: '', // todo
-              currentVersion: '', // todo
-              verificationStatus: null,
+              checksum: checksum,
               createdBy: 'REMIX',
             };
             try {
-              // const res = await axios.post(
-              //   COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
-              //   neutronDeployHistoryCreateDto,
-              // );
+              const res = await axios.post(
+                COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
+                neutronDeployHistoryCreateDto,
+              );
               log.info(`neutron-deploy-histories api res`, res);
             } catch (e) {
               log.error(`neutron-deploy-histories api error`);
@@ -342,12 +335,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug('contract address', contract);
           setContractAddress(contract as any);
-          setDisabled(true)
+          setDisabled(true);
         } catch (e) {
-          console.log(e)
+          console.log(e);
         }
-      })
-  }
+      });
+  };
 
   const waitGetContract = async (hash: string) => {
     const cid = dapp.networks.neutron.chain;
@@ -458,48 +451,49 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             {'migrate'}
           </option>
         </ReactForm.Control>
-        {
-          callMsg === 'Instantiate' ?
-            <div className="mb-2 form-check" style={{ marginTop: '10px' }}>
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id="uploadCodeCheckbox"
-                checked={immutableChecked}
-                onChange={handleCheckboxChange}
-              />
-              <CustomTooltip
-                placement="top"
-                tooltipId="overlay-ataddresss"
-                tooltipText="By checking here, this contract becomes immutable."
-              >
-                <label
-                  className="form-check-label"
-                  htmlFor="immutableCheckbox"
-                  style={{ verticalAlign: 'top' }}
-                >
-                  Immutable
-                </label>
-              </CustomTooltip>
-            </div> : <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'start',
-                marginTop: '10px'
-              }}
+        {callMsg === 'Instantiate' ? (
+          <div className="mb-2 form-check" style={{ marginTop: '10px' }}>
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id="uploadCodeCheckbox"
+              checked={immutableChecked}
+              onChange={handleCheckboxChange}
+            />
+            <CustomTooltip
+              placement="top"
+              tooltipId="overlay-ataddresss"
+              tooltipText="By checking here, this contract becomes immutable."
             >
-              <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
-                Target Contract Address
-              </div>
-              <ReactForm.Control
-                placeholder=""
-                size="sm"
-                value={migrateContractAddress}
-                onChange={changeMigrateContractAddress}
-              />
+              <label
+                className="form-check-label"
+                htmlFor="immutableCheckbox"
+                style={{ verticalAlign: 'top' }}
+              >
+                Immutable
+              </label>
+            </CustomTooltip>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'start',
+              marginTop: '10px',
+            }}
+          >
+            <div style={{ marginRight: '1em', fontSize: '11px' }} className="mb-1">
+              Target Contract Address
             </div>
-        }
+            <ReactForm.Control
+              placeholder=""
+              size="sm"
+              value={migrateContractAddress}
+              onChange={changeMigrateContractAddress}
+            />
+          </div>
+        )}
 
         {codeID && callMsg === 'Instantiate' ? (
           <>
@@ -539,7 +533,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               )}
             </div>
           </>
-        ) :
+        ) : (
           <>
             <div style={{ padding: '0.2em' }}>
               <div>
@@ -570,7 +564,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
               )}
             </div>
           </>
-        }
+        )}
       </ReactForm.Group>
       <ReactForm.Group>
         {contractAddress && (
