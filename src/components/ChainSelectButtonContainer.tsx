@@ -41,22 +41,20 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <span>Select a Chain</span>
           <RefreshButton handleRefresh={handleRefresh} />
         </Form.Text>
-        {STAGE !== PROD ? (
-          <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Neutron');
-            }}
-          >
-            <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
-            <b>NEUTRON (CosmWasm)</b>
-            <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-              Beta
-            </Badge>
-          </ListGroup.Item>
-        ) : null}
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Neutron');
+          }}
+        >
+          <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
+          <b>NEUTRON (CosmWasm)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            Beta
+          </Badge>
+        </ListGroup.Item>
         <ListGroup.Item
           as="li"
           style={{ cursor: 'pointer' }}
