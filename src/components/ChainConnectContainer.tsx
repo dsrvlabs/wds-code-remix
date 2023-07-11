@@ -39,7 +39,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   setChain,
 }) => {
   log.debug(chain);
-  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn'];
+  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn', 'neutron'];
 
   const handleLeftBtn = async () => {
     setChain('');
