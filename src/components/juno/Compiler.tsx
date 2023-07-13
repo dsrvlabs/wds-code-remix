@@ -6,7 +6,7 @@ import { FaSyncAlt } from 'react-icons/fa';
 import { StoreCode } from './StoreCode';
 
 import {
-  compileId,
+  compileIdV2,
   COMPILER_JUNO_COMPILE_COMPLETED_V1,
   COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
   COMPILER_JUNO_COMPILE_LOGGED_V1,
@@ -24,7 +24,9 @@ import AlertCloseButton from '../common/AlertCloseButton';
 import { DisconnectDescription, Socket } from 'socket.io-client/build/esm/socket';
 import { cleanupSocketJuno } from '../../socket';
 import { io } from 'socket.io-client';
-import { PROD, STAGE } from '../../const/stage';
+import { CHAIN_NAME } from '../../const/chain';
+import { S3Path } from '../../const/s3-path';
+import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 
 interface InterfaceProps {
   fileName: string;
@@ -52,10 +54,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
+  const [checksum, setChecksum] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
+  const [timestamp, setTimestamp] = useState('');
 
   const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
   const [schemaExec, setSchemaExec] = useState<Object>({});
@@ -87,42 +91,58 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const removeArtifacts = async () => {
+    log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+    try {
+      await client?.fileManager.remove('browser/' + compileTarget + '/out');
+    } catch (e) {
+      log.info(`no out folder`);
+    }
+  };
+
+  const init = () => {
+    setWasm('');
+    setChecksum('');
+    setFileName('');
+    setCodeID('');
+    setTxHash('');
+    setSchemaExec({});
+    setSchemaInit({});
+    setSchemaQuery({});
+    setTimestamp('');
+  };
+
   const readCode = async () => {
     if (loading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
 
-    setCodeID('');
-    setSchemaExec({});
-    setSchemaInit({});
-    setSchemaQuery({});
+    await removeArtifacts();
+    init();
 
-    if (await exists()) {
-      await setSchemaObj();
-    } else {
-      setWasm('');
-      setFileName('');
-      setCodeID('');
-      setTxHash('');
-      const toml = compileTarget + '/Cargo.toml';
-      const schema = compileTarget + '/examples/schema.rs';
+    // if (await exists()) {
+    //   await setSchemaObj();
+    // } else {
 
-      const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
-      const sourceFilesName = Object.keys(sourceFiles || {});
+    const toml = compileTarget + '/Cargo.toml';
+    const schema = compileTarget + '/examples/schema.rs';
 
-      const filesName = sourceFilesName.concat(toml, schema);
+    const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
+    const sourceFilesName = Object.keys(sourceFiles || {});
 
-      let code;
-      const fileList = await Promise.all(
-        filesName.map(async (f) => {
-          code = await client?.fileManager.getFile(f);
-          return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
-        }),
-      );
+    const filesName = sourceFilesName.concat(toml, schema);
 
-      generateZip(fileList);
-    }
+    let code;
+    const fileList = await Promise.all(
+      filesName.map(async (f) => {
+        code = await client?.fileManager.getFile(f);
+        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
+      }),
+    );
+
+    generateZip(fileList);
+    // }
   };
 
   const createFile = (code: string, name: string) => {
@@ -157,6 +177,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const address = account;
     const timestamp = Date.now().toString();
+    setTimestamp(timestamp);
     // const socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
     //   timeout: 40_000,
     //   ackTimeout: 300_000,
@@ -164,85 +185,47 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     //   transports: ['websocket'],
     // });
 
-    let socketJuno: Socket;
-
-    if (STAGE === PROD) {
-      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
-        reconnection: false,
-        transports: ['websocket'],
-      });
-    } else {
-      socketJuno = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
-        transports: ['websocket'],
-      });
-    }
+    const socket = io(JUNO_COMPILER_CONSUMER_ENDPOINT, {
+      reconnection: false,
+      transports: ['websocket'],
+    });
 
     try {
-      socketJuno.on('connect', async () => {
-        log.info('[SOCKET.JUNO] connected.');
-        const formData = new FormData();
-        formData.append('address', address || 'noaddress');
-        formData.append('timestamp', timestamp.toString() || '0');
-        formData.append('fileType', 'juno');
-        formData.append('zipFile', blob || '');
-        const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Accept: 'application/json',
-          },
-        });
-
-        log.info(res);
-
-        if (res.status !== 201) {
-          log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
-          socketJuno.disconnect();
-          setIconSpin('');
-          setLoading(false);
-          return;
-        }
-
-        const remixJunoCompileRequestedV1: RemixJunoCompileRequestedV1 = {
-          compileId: compileId(address, timestamp),
-          address: address || 'noaddress',
-          timestamp: timestamp.toString() || '0',
-          fileType: 'juno',
-        };
-
-        socketJuno.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
-        log.info(
-          `${SEND_EVENT_LOG_PREFIX} ${REMIX_JUNO_COMPILE_REQUESTED_V1} data=${stringify(
-            remixJunoCompileRequestedV1,
-          )}`,
-        );
+      socket.on('connect_error', function (err) {
+        // handle server error here
+        log.debug('Error connecting to server');
+        setLoading(false);
+        socket.disconnect();
       });
 
-      socketJuno.on(
+      socket.on('connect', async () => {});
+
+      socket.on(
         'disconnect',
         (reason: Socket.DisconnectReason, description?: DisconnectDescription) => {
           log.info('[SOCKET.JUNO] disconnected.', reason, description);
           setIconSpin('');
           setLoading(false);
-          log.info(`@@@ after disconnect. disconnected=${socketJuno.disconnected}`);
-          cleanupSocketJuno(socketJuno);
+          log.info(`@@@ after disconnect. disconnected=${socket.disconnected}`);
+          cleanupSocketJuno(socket);
         },
       );
 
-      socketJuno.on('connect_error', function (err) {
+      socket.on('connect_error', function (err) {
         // handle server error here
         log.info('[SOCKET.JUNO] Error connecting to server');
         log.error(err);
         setIconSpin('');
         setLoading(false);
-        log.info(`@@@ after connect_error. disconnected=${socketJuno.disconnected}`);
-        cleanupSocketJuno(socketJuno);
+        log.info(`@@@ after connect_error. disconnected=${socket.disconnected}`);
+        cleanupSocketJuno(socket);
         client.terminal.log({
           type: 'error',
           value: `${err.message}`,
         });
       });
 
-      socketJuno.on(
+      socket.on(
         COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerJunoCompileErrorOccurredV1) => {
           log.info(
@@ -250,22 +233,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.juno, dapp.networks.juno.chain, address, timestamp)
+          ) {
             return;
           }
           await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
           setIconSpin('');
           setLoading(false);
-          socketJuno.disconnect();
-          cleanupSocketJuno(socketJuno);
+          socket.disconnect();
+          cleanupSocketJuno(socket);
         },
       );
 
-      socketJuno.on(COMPILER_JUNO_COMPILE_LOGGED_V1, async (data: CompilerJunoCompileLoggedV1) => {
+      socket.on(COMPILER_JUNO_COMPILE_LOGGED_V1, async (data: CompilerJunoCompileLoggedV1) => {
         log.info(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_LOGGED_V1} data=${stringify(data)}`,
         );
-        if (data.compileId !== compileId(address, timestamp)) {
+        if (
+          data.compileId !==
+          compileIdV2(CHAIN_NAME.juno, dapp.networks.juno.chain, address, timestamp)
+        ) {
           return;
         }
 
@@ -292,30 +281,41 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
               setIconSpin('');
               setLoading(false);
-              socketJuno.disconnect();
+              socket.disconnect();
               return;
             }
           }
         }
       });
 
-      socketJuno.on(
+      socket.on(
         COMPILER_JUNO_COMPILE_COMPLETED_V1,
         async (data: CompilerJunoCompileCompletedV1) => {
-          socketJuno.disconnect();
+          socket.disconnect();
 
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_JUNO_COMPILE_COMPLETED_V1} data=${stringify(data)}`,
           );
-          if (data.compileId !== compileId(address, timestamp)) {
+          if (
+            data.compileId !==
+            compileIdV2(CHAIN_NAME.juno, dapp.networks.juno.chain, address, timestamp)
+          ) {
             return;
           }
 
-          const bucket = 'juno-origin-code';
-          const fileKey = `${address}/${timestamp}/out_${address}_${timestamp}_juno.zip`;
           const res = await axios.request({
             method: 'GET',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=${bucket}&fileKey=${fileKey}`,
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              bucket: S3Path.bucket(),
+              fileKey: S3Path.outKey(
+                CHAIN_NAME.juno,
+                dapp.networks.juno.chain,
+                account,
+                timestamp,
+                BUILD_FILE_TYPE.rs,
+              ),
+            },
             responseType: 'arraybuffer',
             responseEncoding: 'null',
           });
@@ -350,6 +350,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   );
                 } else {
                   const fileData = await zip.files[filename].async('string');
+                  if (filename === 'artifacts/checksums.txt') {
+                    const checksum = fileData.slice(0, 64);
+                    console.log(`@@@ checksum=${checksum}`);
+                    setChecksum(checksum);
+                  }
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     fileData,
@@ -364,6 +369,46 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             setLoading(false);
           }
         },
+      );
+
+      const formData = new FormData();
+      formData.append('chainName', CHAIN_NAME.juno);
+      formData.append('chainId', dapp.networks.juno.chain);
+      formData.append('account', address || 'noaddress');
+      formData.append('timestamp', timestamp.toString() || '0');
+      formData.append('fileType', 'juno');
+      formData.append('zipFile', blob || '');
+      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
+        },
+      });
+
+      log.info(res);
+
+      if (res.status !== 201) {
+        log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
+        socket.disconnect();
+        setIconSpin('');
+        setLoading(false);
+        return;
+      }
+
+      const remixJunoCompileRequestedV1: RemixJunoCompileRequestedV1 = {
+        compileId: compileIdV2(CHAIN_NAME.juno, dapp.networks.juno.chain, address, timestamp),
+        chainName: CHAIN_NAME.juno,
+        chainId: dapp.networks.juno.chain,
+        address: address || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        fileType: 'juno',
+      };
+
+      socket.emit(REMIX_JUNO_COMPILE_REQUESTED_V1, remixJunoCompileRequestedV1);
+      log.info(
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_JUNO_COMPILE_REQUESTED_V1} data=${stringify(
+          remixJunoCompileRequestedV1,
+        )}`,
       );
     } catch (e) {
       log.error(e);
@@ -424,7 +469,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     <>
       <Button
         variant="primary"
-        disabled={account === ''}
+        disabled={account === '' || loading || !compileTarget}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
@@ -448,7 +493,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       ) : (
         false
       )}
-      {wasm ? (
+      {wasm && !loading ? (
         <StoreCode
           dapp={dapp}
           wallet={'Dsrv'}
@@ -456,6 +501,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           client={client}
           wasm={wasm}
           setWasm={setWasm}
+          checksum={checksum}
           txHash={txHash}
           setTxHash={setTxHash}
           codeID={codeID}
@@ -463,6 +509,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           schemaInit={schemaInit}
           schemaExec={schemaExec}
           schemaQuery={schemaQuery}
+          account={account}
+          timestamp={timestamp}
         />
       ) : (
         <>

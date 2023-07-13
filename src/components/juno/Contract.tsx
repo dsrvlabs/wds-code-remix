@@ -4,8 +4,8 @@ import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { log } from '../../utils/logger';
-import Form from "@rjsf/core";
-import validator from "@rjsf/validator-ajv8";
+import Form from '@rjsf/core';
+import validator from '@rjsf/validator-ajv8';
 import { Decimal } from '@cosmjs/math';
 import { simulate } from './juno-helper';
 
@@ -26,9 +26,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   fund,
   gasPrice,
   schemaExec,
-  schemaQuery
+  schemaQuery,
 }) => {
-
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
 
@@ -57,7 +56,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.juno.chain
+          const cid = dapp.networks.juno.chain;
 
           let rpcUrl = 'https://uni-rpc.reece.sh/';
           let denom = 'ujunox';
@@ -72,7 +71,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
           const sequence = (await stargateClient.getSequence(result['juno'].address)).sequence;
           log.debug('sequence: ' + sequence);
 
-          const accountNumber = (await stargateClient.getSequence(result['juno'].address)).accountNumber;
+          const accountNumber = (await stargateClient.getSequence(result['juno'].address))
+            .accountNumber;
           log.debug('accountNumber: ' + accountNumber);
 
           const chainId = await stargateClient.getChainId();
@@ -88,7 +88,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
               sender: result['juno'].address,
               contract: contractAddress,
               msg: toBase64(toUtf8(JSON.stringify(executeMsg))) as any,
-              funds
+              funds,
             },
           };
 
@@ -133,14 +133,13 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         } catch (error: any) {
           log.error(error);
           await client.terminal.log({ type: 'error', value: error?.message?.toString() });
-
         }
       });
   };
 
   // query
   const query = async () => {
-    const cid = dapp.networks.juno.chain
+    const cid = dapp.networks.juno.chain;
 
     let rpcUrl = 'https://uni-rpc.reece.sh/';
     if (cid === 'juno') {
@@ -153,14 +152,12 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
       log.debug(res);
       setQueryResult(JSON.stringify(res, null, 2));
       await client.terminal.log({ type: 'info', value: res });
-
     } catch (e: any) {
       log.debug('error', e);
       setQueryResult(e?.message);
       await client.terminal.log({ type: 'error', value: e?.message?.toString() });
     }
   };
-
 
   const handleQueryChange = ({ formData }: any) => {
     setQueryMsg(formData);
@@ -177,9 +174,9 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         return { value: key, label: lbl };
       });
       return {
-        "ui:widget": "select",
-        "ui:options": { enumOptions },
-        "classNames": "no-legend"
+        'ui:widget': 'select',
+        'ui:options': { enumOptions },
+        classNames: 'no-legend',
       };
     }
     return {};
@@ -196,8 +193,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
           className="mb-2"
         >
           <Form
-            schema={(schemaQuery
-            )} validator={validator}
+            schema={schemaQuery}
+            validator={validator}
             uiSchema={uiSchemaQuery}
             onChange={handleQueryChange}
             formData={queryMsg || {}}
@@ -206,7 +203,6 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
               Query
             </Button>
           </Form>
-
         </div>
         <div>
           <span style={{ color: 'red' }}>{queryMsgErr}</span>
@@ -219,8 +215,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
           className="mb-2"
         >
           <Form
-            schema={(schemaExec
-            )} validator={validator}
+            schema={schemaExec}
+            validator={validator}
             uiSchema={uiSchemaExecute}
             onChange={handleExecuteChange}
             formData={executeMsg || {}}
@@ -229,7 +225,6 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
               Execute
             </Button>
           </Form>
-
         </div>
         <div>
           <span style={{ color: 'red' }}>{executeMsgErr}</span>
@@ -238,4 +233,3 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     </ReactForm>
   );
 };
-

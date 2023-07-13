@@ -166,7 +166,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             <small>SELECT A TEMPLATE</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
+            <Form.Control
+              className="custom-select"
+              as="select"
+              value={template}
+              onChange={setTargetTemplate}
+            >
               {templateList.map((temp, idx) => {
                 return (
                   <option value={temp} key={idx}>
@@ -188,7 +193,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             </span>
           </Form.Text>
           <InputGroup>
-            <Form.Control className="custom-select" as="select" value={compileTarget} onChange={setTarget}>
+            <Form.Control
+              className="custom-select"
+              as="select"
+              value={compileTarget}
+              onChange={setTarget}
+            >
               {projectList.map((projectName, idx) => {
                 return (
                   <option value={projectName} key={idx}>

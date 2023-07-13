@@ -79,7 +79,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
                     });
                     setError('Create account on chain');
                     setActive(false);
-                  })
+                  });
               })
               .catch(async (e: any) => {
                 setAccount('');

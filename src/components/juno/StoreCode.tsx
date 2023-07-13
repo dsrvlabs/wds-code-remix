@@ -1,6 +1,6 @@
 import React, { Dispatch, useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
-import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient, StdFee } from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
@@ -15,6 +15,7 @@ interface InterfaceProps {
   client: any;
   wasm: string;
   setWasm: Dispatch<React.SetStateAction<string>>;
+  checksum: string;
   txHash: string;
   setTxHash: Dispatch<React.SetStateAction<string>>;
   codeID: string;
@@ -22,25 +23,31 @@ interface InterfaceProps {
   schemaInit: { [key: string]: any };
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
+  account: string;
+  timestamp: string;
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   dapp,
   wasm,
+  checksum,
   wallet,
   client,
   txHash,
   setTxHash,
   codeID,
   setCodeID,
-  schemaInit, schemaExec, schemaQuery
+  schemaInit,
+  schemaExec,
+  schemaQuery,
+  account,
+  timestamp,
 }) => {
-
   const [gasPrice, setGasPrice] = useState<number>(0.025);
   const [fund, setFund] = useState<number>(0);
 
   const waitGetCodeID = async (hash: string) => {
-    const cid = dapp.networks.juno.chain
+    const cid = dapp.networks.juno.chain;
 
     let rpcUrl = 'https://uni-rpc.reece.sh/';
     if (cid === 'juno') {
@@ -52,7 +59,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await stargateClient.getTx(hash);
-        log.debug('!!! waitGetCodeID interval', result);
+        log.info('!!! waitGetCodeID interval', JSON.stringify(result, null, 2));
         if (result) {
           const code_id = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
           log.debug(code_id);
@@ -74,7 +81,6 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const dsrvProceed = async () => {
-
     if (!dapp) {
       return;
     }
@@ -95,7 +101,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.juno.chain
+          const cid = dapp.networks.juno.chain;
 
           let rpcUrl = 'https://uni-rpc.reece.sh/';
           let denom = 'ujunox';
@@ -143,20 +149,21 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           // const multiplier = 1.3;
           // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
-          const usedFee = calculateFee(Number(gasEstimation), gas);
+          const usedFee: StdFee = calculateFee(Number(gasEstimation), gas);
 
-          log.debug('@@@ usedFee', usedFee);
+          // log.debug('@@@ usedFee', usedFee);
 
           log.debug(messages[0]);
           const rawTx = {
             account_number: accountNumber,
             chain_id: chainId,
             sequence: sequence,
+            // fee: usedFee,
             fee: usedFee,
             msgs: messages,
           };
 
-          log.debug(JSON.stringify(rawTx));
+          // log.debug(JSON.stringify(rawTx));
 
           const res = await dapp.request('juno', {
             method: 'dapp:signAndSendTransaction',
@@ -194,13 +201,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               onChange={(e) => setFund(Number(e.target.value))}
               onBlur={handleBlur}
             />
-            <Form.Control
-              type="text"
-              placeholder=""
-              value={'ujuno / ujunox'}
-              size="sm"
-              readOnly
-            />
+            <Form.Control type="text" placeholder="" value={'ujuno / ujunox'} size="sm" readOnly />
           </InputGroup>
         </Form>
         <Form>
@@ -215,13 +216,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               size="sm"
               onChange={(e) => setGasPrice(Number(e.target.value))}
             />
-            <Form.Control
-              type="text"
-              placeholder=""
-              value={'ujuno / ujunox'}
-              size="sm"
-              readOnly
-            />
+            <Form.Control type="text" placeholder="" value={'ujuno / ujunox'} size="sm" readOnly />
           </InputGroup>
         </Form>
         <hr />
@@ -235,15 +230,25 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       </Form>
       <hr />
       <div>
-        {
-          codeID &&
+        {codeID && (
           <>
             <Instantiate
-              client={client} dapp={dapp} wallet={wallet} codeID={codeID || ''} setCodeID={setCodeID} fund={fund} gasPrice={gasPrice}
-              schemaInit={schemaInit} schemaExec={schemaExec} schemaQuery={schemaQuery}
+              client={client}
+              dapp={dapp}
+              wallet={wallet}
+              codeID={codeID || ''}
+              setCodeID={setCodeID}
+              fund={fund}
+              gasPrice={gasPrice}
+              schemaInit={schemaInit}
+              schemaExec={schemaExec}
+              schemaQuery={schemaQuery}
+              account={account}
+              timestamp={timestamp}
+              checksum={checksum}
             />
           </>
-        }
+        )}
       </div>
     </>
   );
