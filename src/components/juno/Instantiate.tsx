@@ -230,11 +230,11 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           // mainnet or testnet
           const cid = dapp.networks.juno.chain;
 
-          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-          let denom = 'untrn';
-          if (cid === 'mainnet') {
-            rpcUrl = 'https://rpc-kralum.juno-1.juno.org';
-            denom = 'untrn';
+          let rpcUrl = 'https://uni-rpc.reece.sh/';
+          let denom = 'ujunox';
+          if (cid === 'juno') {
+            rpcUrl = 'https://rpc-juno.itastakers.com';
+            denom = 'ujuno';
           }
 
           const stargateClient = await StargateClient.connect(rpcUrl);
