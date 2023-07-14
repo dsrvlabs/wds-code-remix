@@ -121,28 +121,27 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     await removeArtifacts();
     init();
 
-    // if (await exists()) {
-    //   await setSchemaObj();
-    // } else {
+    if (await exists()) {
+      await setSchemaObj();
+    } else {
+      const toml = compileTarget + '/Cargo.toml';
+      const schema = compileTarget + '/examples/schema.rs';
 
-    const toml = compileTarget + '/Cargo.toml';
-    const schema = compileTarget + '/examples/schema.rs';
+      const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
+      const sourceFilesName = Object.keys(sourceFiles || {});
 
-    const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
-    const sourceFilesName = Object.keys(sourceFiles || {});
+      const filesName = sourceFilesName.concat(toml, schema);
 
-    const filesName = sourceFilesName.concat(toml, schema);
+      let code;
+      const fileList = await Promise.all(
+        filesName.map(async (f) => {
+          code = await client?.fileManager.getFile(f);
+          return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
+        }),
+      );
 
-    let code;
-    const fileList = await Promise.all(
-      filesName.map(async (f) => {
-        code = await client?.fileManager.getFile(f);
-        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
-      }),
-    );
-
-    generateZip(fileList);
-    // }
+      generateZip(fileList);
+    }
   };
 
   const createFile = (code: string, name: string) => {

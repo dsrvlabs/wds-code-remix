@@ -84,13 +84,17 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
           const funds = fund ? [{ denom, amount: fund.toString() }] : [];
 
+          log.debug(`!!! executeMsg=${JSON.stringify(executeMsg, null, 2)}`);
+          const executeMsg_ = { ...executeMsg };
+          recursiveValueChange(executeMsg_, ntos);
+
           const execContractMsg = {
             typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
             value: {
               sender: result['neutron'].address,
               contract: contractAddress,
-              msg: toBase64(toUtf8(JSON.stringify(executeMsg))) as any,
-              funds,
+              msg: toBase64(toUtf8(JSON.stringify(executeMsg_))) as any,
+              funds: funds,
             },
           };
 
@@ -237,3 +241,17 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     </ReactForm>
   );
 };
+
+function recursiveValueChange(obj: any, callback: any) {
+  for (const key in obj) {
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      recursiveValueChange(obj[key], callback);
+    } else {
+      obj[key] = callback(obj[key]);
+    }
+  }
+}
+function ntos(value: any) {
+  if (typeof value === 'number') return value.toString();
+  return value;
+}
