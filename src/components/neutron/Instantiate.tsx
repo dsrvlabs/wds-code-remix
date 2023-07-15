@@ -13,9 +13,9 @@ import { simulate } from './neutron-helper';
 
 import { MsgInstantiateContract, MsgMigrateContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import axios from 'axios';
-import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 
 import { CustomTooltip } from '../common/CustomTooltip';
+import { NEUTRON_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -197,7 +197,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             };
             try {
               const res = await axios.post(
-                COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
+                NEUTRON_COMPILER_CONSUMER_ENDPOINT + '/neutron-deploy-histories',
                 neutronDeployHistoryCreateDto,
               );
               log.info(`neutron-deploy-histories api res`, res);
@@ -324,7 +324,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             };
             try {
               const res = await axios.post(
-                COMPILER_API_ENDPOINT + '/neutron-deploy-histories',
+                NEUTRON_COMPILER_CONSUMER_ENDPOINT + '/neutron-deploy-histories',
                 neutronDeployHistoryCreateDto,
               );
               log.info(`neutron-deploy-histories api res`, res);
