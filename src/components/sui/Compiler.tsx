@@ -1565,13 +1565,13 @@ function enabledStyle() {
   return {
     color: '#fff',
     fontSize: '1.1em',
-    textShadow: '0 0 7px #fff, 0 0 10px #fff, 0 0 21px #fff',
+    textShadow: '0 0 7px #D3D6DF, 0 0 10px #D3D6DF, 0 0 21px #D3D6DF',
   };
 }
 
 function disabledStyle() {
   return {
-    color: 'grey',
+    color: '#D3D6DF',
     fontSize: '1.1em',
   };
 }
