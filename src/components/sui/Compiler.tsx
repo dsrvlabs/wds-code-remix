@@ -893,13 +893,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const initPackageCtx = async (account: string, chainId: SuiChainId, packageId?: string) => {
     try {
+      let loadedPackageIds: string[] = [];
       if (account) {
-        const packageIds = await getPackageIds(account, chainId);
-        log.info('@@@ packageIds', packageIds);
-        if (isEmptyList(packageIds)) {
+        loadedPackageIds = await getPackageIds(account, chainId);
+        if (isEmptyList(loadedPackageIds)) {
           return;
         }
-        setPackageIds([...packageIds]);
+        setPackageIds([...loadedPackageIds]);
       }
 
       let targetInitPackageId;
@@ -910,12 +910,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setPackageIds([packageId]);
         }
       } else {
-        setTargetPackageId(packageIds[0]);
-        targetInitPackageId = packageIds[0];
+        setTargetPackageId(loadedPackageIds[0]);
+        targetInitPackageId = loadedPackageIds[0];
       }
+      log.info(`[initPackageCtx] targetInitPackageId=${targetInitPackageId}`);
       const modules = await getModules(dapp.networks.sui.chain, targetInitPackageId); // todo sui
       log.info(`[initPackageCtx] modules=${JSON.stringify(modules, null, 2)}`);
-      // const modules = await getModules('devnet', packageIds[0]);
+      // const modules = await getModules('devnet', loadedPackageIds[0]);
       if (isEmptyList(modules)) {
         setModules([]);
         setTargetModuleName('');
@@ -983,6 +984,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const onChangePackageId = async (e: any) => {
     const packageId = e.target.value;
     setTargetPackageId(packageId);
+    log.info(`[onChangePackageId] packageId=${packageId}`);
     const modules = await getModules(dapp.networks.sui.chain, packageId); // todo sui
     // const modules = await getModules('devnet', packageId);
     setModules([...modules]);
@@ -1377,38 +1379,39 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               onChange={(e) => {
                 setInputAddress(e.target.value.trim());
               }}
+              disabled={accountID === '' || isProgress}
               value={inputAddress}
             />
             <div style={{ marginLeft: '0.3em' }}> </div>
-            <CustomTooltip
-              placement="top"
-              tooltipId="overlay-package"
-              tooltipText="Package Object ID"
+            {/*<CustomTooltip*/}
+            {/*  placement="top"*/}
+            {/*  tooltipId="overlay-package"*/}
+            {/*  tooltipText="Package Object ID"*/}
+            {/*>*/}
+            <Button
+              variant="info"
+              size="sm"
+              disabled={accountID === '' || isProgress}
+              // disabled={true}
+              onClick={() => initContract('', inputAddress, 'package')}
+              style={queryMode === 'package' ? enabledStyle() : disabledStyle()}
             >
-              <Button
-                variant="info"
-                size="sm"
-                disabled={accountID === '' || isProgress}
-                // disabled={true}
-                onClick={() => initContract('', inputAddress, 'package')}
-                style={queryMode === 'package' ? enabledStyle() : disabledStyle()}
-              >
-                <small>Package</small>
-              </Button>
-            </CustomTooltip>
+              <small>Package</small>
+            </Button>
+            {/*</CustomTooltip>*/}
             <div style={{ marginLeft: '0.3em' }}> </div>
-            <CustomTooltip placement="top" tooltipId="overlay-ataddresss" tooltipText="Account ID">
-              <Button
-                variant="info"
-                size="sm"
-                disabled={accountID === '' || isProgress}
-                // disabled={true}
-                onClick={() => initContract(inputAddress, undefined, 'address')}
-                style={queryMode === 'address' ? enabledStyle() : disabledStyle()}
-              >
-                <small>Address</small>
-              </Button>
-            </CustomTooltip>
+            {/*<CustomTooltip placement="top" tooltipId="overlay-ataddresss" tooltipText="Account ID">*/}
+            <Button
+              variant="info"
+              size="sm"
+              disabled={accountID === '' || isProgress}
+              // disabled={true}
+              onClick={() => initContract(inputAddress, undefined, 'address')}
+              style={queryMode === 'address' ? enabledStyle() : disabledStyle()}
+            >
+              <small>Address</small>
+            </Button>
+            {/*</CustomTooltip>*/}
           </div>
         </InputGroup>
       </Form.Group>

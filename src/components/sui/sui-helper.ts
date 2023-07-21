@@ -100,33 +100,39 @@ export async function moveCallTxn(
   return tx.serialize();
 }
 
+const PROVIDER_MAINNET = new JsonRpcProvider(
+  new Connection({
+    fullnode: 'https://fullnode.mainnet.sui.io:443/',
+    faucet: 'https://faucet.mainnet.sui.io/gas',
+  }),
+);
+
+const PROVIDER_TESTNET = new JsonRpcProvider(
+  new Connection({
+    fullnode: 'https://fullnode.testnet.sui.io:443/',
+    faucet: 'https://faucet.testnet.sui.io/gas',
+  }),
+);
+
+const PROVIDER_DEVNET = new JsonRpcProvider(
+  new Connection({
+    // fullnode: 'https://fullnode.devnet.sui.io:443/',
+    fullnode: 'https://wallet-rpc.devnet.sui.io/',
+    faucet: 'https://faucet.devnet.sui.io/gas',
+  }),
+);
+
 export function getProvider(chainId: SuiChainId): JsonRpcProvider {
   if (chainId === 'mainnet') {
-    return new JsonRpcProvider(
-      new Connection({
-        fullnode: 'https://fullnode.mainnet.sui.io:443/',
-        faucet: 'https://faucet.mainnet.sui.io/gas',
-      }),
-    );
+    return PROVIDER_MAINNET;
   }
 
   if (chainId === 'testnet') {
-    return new JsonRpcProvider(
-      new Connection({
-        fullnode: 'https://fullnode.testnet.sui.io:443/',
-        faucet: 'https://faucet.testnet.sui.io/gas',
-      }),
-    );
+    return PROVIDER_TESTNET;
   }
 
   if (chainId === 'devnet') {
-    return new JsonRpcProvider(
-      new Connection({
-        // fullnode: 'https://fullnode.devnet.sui.io:443/',
-        fullnode: 'https://wallet-rpc.devnet.sui.io/',
-        faucet: 'https://faucet.devnet.sui.io/gas',
-      }),
-    );
+    return PROVIDER_DEVNET;
   }
 
   throw new Error(`Invalid ChainId=${chainId}`);
@@ -232,7 +238,7 @@ export function parseArgVal(argVal: any, argType: string, u8parseType?: string) 
 }
 
 export async function getModules(chainId: SuiChainId, packageId: string): Promise<SuiModule[]> {
-  log.info(`[getModules] chainId=${chainId}`);
+  log.info(`[getModules] chainId=${chainId}, packageId=${packageId}`);
   const suiMoveNormalizedModules = await getProvider(chainId).getNormalizedMoveModulesByPackage({
     package: packageId,
   });
