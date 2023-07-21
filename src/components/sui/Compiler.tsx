@@ -72,6 +72,8 @@ import { Deploy } from './Deploy';
 import { CustomTooltip } from '../common/CustomTooltip';
 import { CopyToClipboard } from '../common/CopyToClipboard';
 
+type QueryMode = 'package' | 'address' | '';
+
 export interface ModuleWrapper {
   packageName: string;
   path: string;
@@ -144,6 +146,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [packageIds, setPackageIds] = useState<string[]>([]);
   const [targetPackageId, setTargetPackageId] = useState('');
+  const [queryMode, setQueryMode] = useState<QueryMode>('');
 
   const [modules, setModules] = useState<SuiModule[]>([]);
   const [targetModuleName, setTargetModuleName] = useState<string>('');
@@ -890,22 +893,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const initPackageCtx = async (account: string, chainId: SuiChainId, packageId?: string) => {
     try {
-      const packageIds = await getPackageIds(account, chainId);
-      log.info('@@@ packageIds', packageIds);
-      if (isEmptyList(packageIds)) {
-        return;
+      if (account) {
+        const packageIds = await getPackageIds(account, chainId);
+        log.info('@@@ packageIds', packageIds);
+        if (isEmptyList(packageIds)) {
+          return;
+        }
+        setPackageIds([...packageIds]);
       }
-      setPackageIds([...packageIds]);
 
       let targetInitPackageId;
       if (packageId) {
         setTargetPackageId(packageId);
         targetInitPackageId = packageId;
+        if (!account) {
+          setPackageIds([packageId]);
+        }
       } else {
         setTargetPackageId(packageIds[0]);
         targetInitPackageId = packageIds[0];
       }
       const modules = await getModules(dapp.networks.sui.chain, targetInitPackageId); // todo sui
+      log.info(`[initPackageCtx] modules=${JSON.stringify(modules, null, 2)}`);
       // const modules = await getModules('devnet', packageIds[0]);
       if (isEmptyList(modules)) {
         setModules([]);
@@ -952,17 +961,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   }
 
-  const initContract = async (address: string, packageId?: string) => {
+  const initContract = async (address: string, packageId?: string, queryMode?: QueryMode) => {
     clearAccountCtx();
-    setAtAddress(address);
-    sendCustomEvent('at_address', {
-      event_category: 'sui',
-      method: 'at_address',
-    });
-    setDeployedContract(address);
+    setQueryMode(queryMode || '');
+    if (address) {
+      setAtAddress(address);
+      sendCustomEvent('at_address', {
+        event_category: 'sui',
+        method: 'at_address',
+      });
+      setDeployedContract(address);
 
-    await initObjectsCtx(address, dapp.networks.sui.chain); // todo sui
-    // await initObjectsCtx(inputAddress, 'devnet');
+      await initObjectsCtx(address, dapp.networks.sui.chain); // todo sui
+      // await initObjectsCtx(inputAddress, 'devnet');
+    }
 
     await initPackageCtx(address, dapp.networks.sui.chain, packageId);
     // await initPackageCtx(inputAddress, 'devnet');
@@ -1329,62 +1341,77 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {compiledModulesAndDeps ? (
-        <Deploy
-          wallet={'Dsrv'}
-          accountID={accountID}
-          compileTimestamp={compileTimestamp}
-          packageName={packageName}
-          compiledModulesAndDeps={compiledModulesAndDeps}
-          dapp={dapp}
-          client={client}
-          gas={gas}
-          setDeployedContract={setDeployedContract}
-          setAtAddress={setAtAddress}
-          setSuiObjects={setSuiObjects}
-          setTargetObjectId={setTargetObjectId}
-          setGenericParameters={setGenericParameters}
-          setParameters={setParameters}
-          setInputAddress={setInputAddress}
-          initContract={initContract}
-          uploadCodeChecked={uploadCodeChecked}
-        />
-      ) : (
-        <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
-          <small>NO COMPILED CONTRACT</small>
-        </p>
-      )}
-      <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
-        <small>OR</small>
-      </p>
+      {
+        compiledModulesAndDeps ? (
+          <Deploy
+            wallet={'Dsrv'}
+            accountID={accountID}
+            compileTimestamp={compileTimestamp}
+            packageName={packageName}
+            compiledModulesAndDeps={compiledModulesAndDeps}
+            dapp={dapp}
+            client={client}
+            gas={gas}
+            setDeployedContract={setDeployedContract}
+            setAtAddress={setAtAddress}
+            setSuiObjects={setSuiObjects}
+            setTargetObjectId={setTargetObjectId}
+            setGenericParameters={setGenericParameters}
+            setParameters={setParameters}
+            setInputAddress={setInputAddress}
+            initContract={initContract}
+            uploadCodeChecked={uploadCodeChecked}
+          />
+        ) : null
+        // <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+        //   <small>NO COMPILED CONTRACT</small>
+        // </p>
+      }
       <Form.Group>
         <InputGroup>
-          <Form.Control
-            type="text"
-            placeholder="account"
-            size="sm"
-            onChange={(e) => {
-              setInputAddress(e.target.value.trim());
-            }}
-            value={inputAddress}
-          />
-          <CustomTooltip
-            placement="top"
-            tooltipId="overlay-ataddresss"
-            tooltipText="Use deployed Contract account"
-          >
-            <Button
-              variant="info"
+          <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+            <Form.Control
+              type="text"
+              placeholder="Package or Address"
               size="sm"
-              disabled={accountID === '' || isProgress}
-              onClick={() => initContract(inputAddress)}
+              onChange={(e) => {
+                setInputAddress(e.target.value.trim());
+              }}
+              value={inputAddress}
+            />
+            <div style={{ marginLeft: '0.3em' }}> </div>
+            <CustomTooltip
+              placement="top"
+              tooltipId="overlay-package"
+              tooltipText="Package Object ID"
             >
-              <small>At Address</small>
-            </Button>
-          </CustomTooltip>
+              <Button
+                variant="info"
+                size="sm"
+                disabled={accountID === '' || isProgress}
+                // disabled={true}
+                onClick={() => initContract('', inputAddress, 'package')}
+                style={queryMode === 'package' ? enabledStyle() : disabledStyle()}
+              >
+                <small>Package</small>
+              </Button>
+            </CustomTooltip>
+            <div style={{ marginLeft: '0.3em' }}> </div>
+            <CustomTooltip placement="top" tooltipId="overlay-ataddresss" tooltipText="Account ID">
+              <Button
+                variant="info"
+                size="sm"
+                disabled={accountID === '' || isProgress}
+                // disabled={true}
+                onClick={() => initContract(inputAddress, undefined, 'address')}
+                style={queryMode === 'address' ? enabledStyle() : disabledStyle()}
+              >
+                <small>Address</small>
+              </Button>
+            </CustomTooltip>
+          </div>
         </InputGroup>
       </Form.Group>
-      <hr />
       {suiObjects.length > 0 ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
@@ -1430,28 +1457,31 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       {packageIds.length > 0 ? (
         <>
-          <Form.Group>
-            <Form.Text className="text-muted" style={mb4}>
-              <small>Packages</small>
-            </Form.Text>
-            <InputGroup>
-              <Form.Control
-                className="custom-select pr15rem"
-                as="select"
-                value={targetPackageId}
-                onChange={onChangePackageId}
-              >
-                {packageIds.map((packageId, idx) => {
-                  return (
-                    <option value={packageId} key={`packageId-${packageId}}`}>
-                      {packageId}
-                    </option>
-                  );
-                })}
-              </Form.Control>
-              <CopyToClipboard tip="Copy" content={targetPackageId} direction="auto-start" />
-            </InputGroup>
-          </Form.Group>
+          {queryMode === 'address' ? (
+            <Form.Group>
+              <Form.Text className="text-muted" style={mb4}>
+                <small>Packages</small>
+              </Form.Text>
+              <InputGroup>
+                <Form.Control
+                  className="custom-select pr15rem"
+                  as="select"
+                  value={targetPackageId}
+                  onChange={onChangePackageId}
+                >
+                  {packageIds.map((packageId, idx) => {
+                    return (
+                      <option value={packageId} key={`packageId-${packageId}}`}>
+                        {packageId}
+                      </option>
+                    );
+                  })}
+                </Form.Control>
+                <CopyToClipboard tip="Copy" content={targetPackageId} direction="auto-start" />
+              </InputGroup>
+            </Form.Group>
+          ) : null}
+
           <Form.Group>
             <Form.Text className="text-muted" style={mb4}>
               <small>Modules</small>
@@ -1527,6 +1557,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     </>
   );
 };
+
+function enabledStyle() {
+  return {
+    color: '#fff',
+    fontSize: '1.1em',
+    textShadow: '0 0 7px #fff, 0 0 10px #fff, 0 0 21px #fff',
+  };
+}
+
+function disabledStyle() {
+  return {
+    color: 'grey',
+    fontSize: '1.1em',
+  };
+}
 
 const mb4 = {
   marginBottom: '4px',

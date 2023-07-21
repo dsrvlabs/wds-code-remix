@@ -219,7 +219,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       setDeployedContract(accountID);
       setAtAddress(accountID);
       setInputAddress(accountID);
-      initContract(accountID, publishedChange?.packageId);
+      initContract(accountID, publishedChange?.packageId, 'address');
       await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txnHash}` });
     } catch (e: any) {
       log.error(e);

@@ -232,6 +232,7 @@ export function parseArgVal(argVal: any, argType: string, u8parseType?: string) 
 }
 
 export async function getModules(chainId: SuiChainId, packageId: string): Promise<SuiModule[]> {
+  log.info(`[getModules] chainId=${chainId}`);
   const suiMoveNormalizedModules = await getProvider(chainId).getNormalizedMoveModulesByPackage({
     package: packageId,
   });
