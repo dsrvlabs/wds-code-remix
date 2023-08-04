@@ -13,7 +13,12 @@ import {
   Types,
   TypeTagParser,
 } from 'aptos';
-import { aptosNodeUrl, extractVectorElementTypeTag, getVectorArgTypeStr } from './aptos-helper';
+import {
+  aptosNodeUrl,
+  extractVectorElementTypeTag,
+  getVectorArgTypeStr,
+  shortHex,
+} from './aptos-helper';
 import { TextEncoder } from 'util';
 import { serializeArg } from './transaction_builder/builder_utils';
 global.TextEncoder = TextEncoder;
@@ -177,6 +182,7 @@ describe('Aptos Helper', () => {
   it('isArray', async () => {
     console.log(Array.isArray('abc'));
   });
+
   it('split', async () => {
     const id = 'vec-arg-add-';
     console.log(`id`, id);
@@ -187,5 +193,29 @@ describe('Aptos Helper', () => {
       .map((i) => Number(i));
 
     console.log('indices', indices);
+  });
+
+  it('shortHex 0 prefix', async () => {
+    const addr = '0x0c64dfb1957dcf3ef7538b88816c0b0fdb212bf71ad09b3eed277bf788f9394d';
+    const result = shortHex(addr);
+    console.log(result);
+  });
+
+  it('shortHex 0 prefix without 0x', async () => {
+    const addr = '0c64dfb1957dcf3ef7538b88816c0b0fdb212bf71ad09b3eed277bf788f9394d';
+    const result = shortHex(addr);
+    console.log(result);
+  });
+
+  it('shortHex full', async () => {
+    const addr = '0xac64dfb1957dcf3ef7538b88816c0b0fdb212bf71ad09b3eed277bf788f9394d';
+    const result = shortHex(addr);
+    console.log(result);
+  });
+
+  it('shortHex without 0x', async () => {
+    const addr = 'ac64dfb1957dcf3ef7538b88816c0b0fdb212bf71ad09b3eed277bf788f9394d';
+    const result = shortHex(addr);
+    console.log(result);
   });
 });

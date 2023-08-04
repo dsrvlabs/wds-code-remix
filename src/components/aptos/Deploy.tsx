@@ -11,6 +11,7 @@ import {
   getAccountResources,
   getTx,
   metadataSerializedBytes,
+  shortHex,
   waitForTransactionWithResult,
 } from './aptos-helper';
 
@@ -158,11 +159,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           txnHash,
           dapp.networks.aptos.chain,
         )) as Types.Transaction_UserTransaction;
+
         const change = tx.changes.find((change) => {
           const change_: Types.WriteSetChange_WriteResource =
             change as Types.WriteSetChange_WriteResource;
           return (
-            change_.address === accountID &&
+            change_.address === shortHex(accountID) &&
             change_.type === 'write_resource' &&
             change_.data.type === '0x1::code::PackageRegistry'
           );

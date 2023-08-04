@@ -324,3 +324,26 @@ export function aptosNodeUrl(chainId: string) {
 
   throw new Error(`Invalid chainId=${chainId}`);
 }
+
+export function shortHex(hex: string) {
+  let hex_ = hex.slice(0);
+  if (hex_.startsWith('0x')) {
+    hex_ = hex_.slice(2);
+  }
+
+  const buf = Buffer.from(hex_, 'hex');
+  console.log(buf);
+  const arr = toArrayBuffer(buf);
+  console.log(arr);
+  const short = HexString.fromUint8Array(arr).toShortString();
+  return short;
+}
+
+function toArrayBuffer(buffer: Buffer) {
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < buffer.length; ++i) {
+    view[i] = buffer[i];
+  }
+  return Uint8Array.from(view);
+}
