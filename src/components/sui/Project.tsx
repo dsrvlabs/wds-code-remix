@@ -35,6 +35,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [gas, setGas] = useState<string>(DEFAULT_GAS);
   const templateList = [
     'forge',
+    'dynamic_field',
     'dynamic_object_field',
     'objects_tutorial',
     'basics',
