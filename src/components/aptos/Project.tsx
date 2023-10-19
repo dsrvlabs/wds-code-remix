@@ -31,6 +31,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello_blockchain');
+
   const templateList = ['hello_blockchain', 'ticket', 'hello_prover', 'marketplace', 'moon_coin'];
 
   useEffect(() => {

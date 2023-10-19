@@ -49,6 +49,12 @@ interface InterfaceProps {
   setTargetResource: Function;
   setParameters: Function;
   getAccountModulesFromAccount: Function;
+  estimatedGas?: string;
+  setEstimatedGas: Function;
+  gasUnitPrice: string;
+  setGasUnitPrice: Function;
+  maxGasAmount: string;
+  setMaxGasAmount: Function;
 }
 
 interface WriteResourcePackageModule {
@@ -80,6 +86,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setTargetResource,
   setParameters,
   getAccountModulesFromAccount,
+  estimatedGas,
+  setEstimatedGas,
+  gasUnitPrice,
+  setGasUnitPrice,
+  maxGasAmount,
+  setMaxGasAmount,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -128,6 +140,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         [],
         [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
         dapp,
+        gasUnitPrice,
+        maxGasAmount,
       );
 
       const txnHash = await dapp.request('aptos', {

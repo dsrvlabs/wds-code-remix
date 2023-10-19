@@ -28,10 +28,15 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
+  aptosNodeUrl,
   ArgTypeValuePair,
+  codeBytes,
   dappTxn,
+  getEstimateGas,
+  genPayload,
   getAccountModules,
   getAccountResources,
+  metadataSerializedBytes,
   serializedArgs,
   viewFunction,
 } from './aptos-helper';
@@ -39,7 +44,7 @@ import {
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { TxnBuilderTypes, Types } from 'aptos';
+import { AptosClient, HexString, TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
@@ -59,6 +64,7 @@ import {
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import copy from 'copy-to-clipboard';
+import EntryButton from './EntryButton';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -110,6 +116,30 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetResource, setTargetResource] = useState<string>('');
 
   const [copyMsg, setCopyMsg] = useState<string>('Copy');
+
+  const [estimatedGas, setEstimatedGas] = useState<string | undefined>();
+  const [gasUnitPrice, setGasUnitPrice] = useState<string>('0');
+  const [maxGasAmount, setMaxGasAmount] = useState<string>('0');
+
+  const [entryEstimatedGas, setEntryEstimatedGas] = useState<string | undefined>();
+  const [entryGasUnitPrice, setEntryGasUnitPrice] = useState<string>('0');
+  const [entryMaxGasAmount, setEntryMaxGasAmount] = useState<string>('0');
+
+  const setGasUnitPriceValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setGasUnitPrice(e.target.value);
+  };
+
+  const setMaxGasAmountValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setMaxGasAmount(e.target.value);
+  };
+
+  const setEntryGasUnitPriceValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setEntryGasUnitPrice(e.target.value);
+  };
+
+  const setEntryMaxGasAmountValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setEntryMaxGasAmount(e.target.value);
+  };
 
   const findArtifacts = async () => {
     let artifacts = {};
@@ -382,6 +412,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
+          // -------------------------------------------------------------------------------------
+          const aptosClient = new AptosClient(aptosNodeUrl(dapp.networks.aptos.chain));
+
+          const rawTransaction = await aptosClient.generateRawTransaction(
+            new HexString(accountID),
+            genPayload(
+              '0x1::code',
+              'publish_package_txn',
+              [],
+              [
+                metadataSerializedBytes(metaData64),
+                codeBytes([...moduleWrappers.map((mw) => mw.module)]),
+              ],
+            ),
+          );
+          const estimatedGas = await getEstimateGas(
+            `https://fullnode.${dapp.networks.aptos.chain}.aptoslabs.com/v1`,
+            dapp.networks.aptos.account.pubKey,
+            rawTransaction,
+          );
+          console.log(`@@@ estimatedGas`, estimatedGas);
+
+          setEstimatedGas(estimatedGas.gas_used);
+          setGasUnitPrice(estimatedGas.gas_unit_price);
+          setMaxGasAmount(estimatedGas.gas_used);
+          // -------------------------------------------------------------------------------------
 
           socket.disconnect();
           setLoading(false);
@@ -643,25 +699,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
-  const entry = async () => {
-    log.info('parameters', JSON.stringify(parameters, null, 2));
-    const dappTxn_ = await dappTxn(
-      accountID,
-      dapp.networks.aptos.chain,
-      deployedContract + '::' + targetModule,
-      moveFunction?.name || '',
-      genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
-      serializedArgs(parameters),
-      dapp,
-    );
-
-    const txHash = await dapp.request('aptos', {
-      method: 'dapp:signAndSendTransaction',
-      params: [dappTxn_],
-    });
-    log.debug(`@@@ txHash=${txHash}`);
-  };
-
   const view = async () => {
     console.log(parameters);
 
@@ -872,23 +909,67 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <hr />
       {metaData64 ? (
-        <Deploy
-          wallet={'Dsrv'}
-          accountID={accountID}
-          compileTimestamp={compileTimestamp}
-          packageName={packageName}
-          moduleWrappers={moduleWrappers}
-          metaData64={metaData64}
-          moduleBase64s={moduleBase64s}
-          dapp={dapp}
-          client={client}
-          setDeployedContract={setDeployedContract}
-          setAtAddress={setAtAddress}
-          setAccountResources={setAccountResources}
-          setTargetResource={setTargetResource}
-          setParameters={setParameters}
-          getAccountModulesFromAccount={getAccountModulesFromAccount}
-        />
+        <div style={{ marginTop: '-1.5em' }}>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Gas Unit Price</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="number"
+                placeholder="0"
+                size="sm"
+                onChange={setGasUnitPriceValue}
+                value={gasUnitPrice}
+              />
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>
+                Max Gas Amount
+                {estimatedGas ? (
+                  <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
+                    {' '}
+                    ( Estimated Gas {estimatedGas} )
+                  </span>
+                ) : undefined}
+              </small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="number"
+                placeholder="0"
+                size="sm"
+                onChange={setMaxGasAmountValue}
+                value={maxGasAmount}
+              />
+            </InputGroup>
+          </Form.Group>
+          <Deploy
+            wallet={'Dsrv'}
+            accountID={accountID}
+            compileTimestamp={compileTimestamp}
+            packageName={packageName}
+            moduleWrappers={moduleWrappers}
+            metaData64={metaData64}
+            moduleBase64s={moduleBase64s}
+            dapp={dapp}
+            client={client}
+            setDeployedContract={setDeployedContract}
+            setAtAddress={setAtAddress}
+            setAccountResources={setAccountResources}
+            setTargetResource={setTargetResource}
+            setParameters={setParameters}
+            getAccountModulesFromAccount={getAccountModulesFromAccount}
+            estimatedGas={estimatedGas}
+            setEstimatedGas={setEstimatedGas}
+            gasUnitPrice={gasUnitPrice}
+            setGasUnitPrice={setGasUnitPrice}
+            maxGasAmount={maxGasAmount}
+            setMaxGasAmount={setMaxGasAmount}
+          />
+        </div>
       ) : (
         <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
           <small>NO COMPILED CONTRACT</small>
@@ -1035,16 +1116,66 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   setGenericParameters={setGenericParameters}
                   setParameters={setParameters}
                 />
-                <div>
+                <div style={{ width: '100%' }}>
                   {moveFunction.is_entry ? (
-                    <Button
-                      style={{ marginTop: '10px', minWidth: '70px' }}
-                      variant="primary"
-                      size="sm"
-                      onClick={entry}
-                    >
-                      <small>{moveFunction.name}</small>
-                    </Button>
+                    <div>
+                      {entryEstimatedGas ? (
+                        <div>
+                          <Form.Group style={mt8}>
+                            <Form.Text className="text-muted" style={mb4}>
+                              <small>Gas Unit Price</small>
+                            </Form.Text>
+                            <InputGroup>
+                              <Form.Control
+                                type="number"
+                                placeholder="0"
+                                size="sm"
+                                onChange={setEntryGasUnitPriceValue}
+                                value={entryGasUnitPrice}
+                              />
+                            </InputGroup>
+                          </Form.Group>
+                          <Form.Group style={mt8}>
+                            <Form.Text className="text-muted" style={mb4}>
+                              <small>
+                                Max Gas Amount
+                                {entryEstimatedGas ? (
+                                  <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
+                                    {' '}
+                                    ( Estimated Gas {entryEstimatedGas} )
+                                  </span>
+                                ) : undefined}
+                              </small>
+                            </Form.Text>
+                            <InputGroup>
+                              <Form.Control
+                                type="number"
+                                placeholder="0"
+                                size="sm"
+                                onChange={setEntryMaxGasAmountValue}
+                                value={entryMaxGasAmount}
+                              />
+                            </InputGroup>
+                          </Form.Group>
+                        </div>
+                      ) : null}
+
+                      <EntryButton
+                        accountId={accountID}
+                        dapp={dapp}
+                        atAddress={atAddress}
+                        targetModule={targetModule}
+                        moveFunction={moveFunction}
+                        genericParameters={genericParameters}
+                        parameters={parameters}
+                        entryEstimatedGas={entryEstimatedGas}
+                        setEntryEstimatedGas={setEntryEstimatedGas}
+                        entryGasUnitPrice={entryGasUnitPrice}
+                        setEntryGasUnitPrice={setEntryGasUnitPrice}
+                        entryMaxGasAmount={entryMaxGasAmount}
+                        setEntryMaxGasAmount={setEntryMaxGasAmount}
+                      />
+                    </div>
                   ) : (
                     <div>
                       <Button
@@ -1077,4 +1208,8 @@ const mb4 = {
 };
 const mr6 = {
   marginRight: '6px',
+};
+
+const mt8 = {
+  marginTop: '8px',
 };

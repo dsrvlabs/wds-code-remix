@@ -29,6 +29,8 @@ export async function dappTxn(
   type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
   args: BCS.Seq<BCS.Bytes>,
   dapp: any,
+  gasUnitPrice: string,
+  maxGasAmount: string,
 ) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
 
@@ -37,21 +39,16 @@ export async function dappTxn(
     genPayload(module, func, type_args, args),
   );
   log.info(`rawTransaction`, rawTransaction);
-  // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
-  const estimatedGas = await estimateGas(
-    `https://fullnode.${chainId}.aptoslabs.com/v1`,
-    dapp.networks.aptos.account.pubKey,
-    rawTransaction,
-  );
 
   const sendingRawTransaction = await aptosClient.generateRawTransaction(
     new HexString(accountId),
     genPayload(module, func, type_args, args),
     {
-      gasUnitPrice: BigInt(estimatedGas.gas_unit_price),
-      maxGasAmount: BigInt(estimatedGas.max_gas_amount),
+      gasUnitPrice: gasUnitPrice ? BigInt(gasUnitPrice) : rawTransaction.gas_unit_price,
+      maxGasAmount: maxGasAmount ? BigInt(maxGasAmount) : rawTransaction.max_gas_amount,
     },
   );
+  log.info(`sendingRawTransaction`, sendingRawTransaction);
 
   const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
   return (
@@ -61,7 +58,7 @@ export async function dappTxn(
   );
 }
 
-function genPayload(
+export function genPayload(
   module: string,
   func: string,
   type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
@@ -313,11 +310,11 @@ export async function viewFunction(
   }
 }
 
-export const estimateGas = async (
+export const getEstimateGas = async (
   url: string,
   pubKey: string,
   rawTransaction: TxnBuilderTypes.RawTransaction,
-): Promise<{ gas_unit_price: string; max_gas_amount: string }> => {
+): Promise<{ gas_unit_price: string; max_gas_amount: string; gas_used: string }> => {
   // eslint-disable-next-line no-unused-vars
   const txnBuilder = new TransactionBuilderEd25519(
     (_signingMessage: TxnBuilderTypes.SigningMessage) => {
@@ -339,7 +336,12 @@ export const estimateGas = async (
   });
 
   const result = await response.json();
-  return { gas_unit_price: result[0].gas_unit_price, max_gas_amount: result[0].max_gas_amount };
+  // console.log(`simulation result=${JSON.stringify(result, null, 2)}`);
+  return {
+    gas_unit_price: result[0].gas_unit_price,
+    max_gas_amount: result[0].max_gas_amount,
+    gas_used: result[0].gas_used,
+  };
 };
 
 export function aptosNodeUrl(chainId: string) {
