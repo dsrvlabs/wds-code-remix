@@ -127,6 +127,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         'publish_package_txn',
         [],
         [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
+        dapp,
       );
 
       const txnHash = await dapp.request('aptos', {

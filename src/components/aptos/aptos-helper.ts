@@ -1,4 +1,12 @@
-import { AptosClient, BCS, HexString, TxnBuilderTypes, Types, TypeTagParser } from 'aptos';
+import {
+  AptosClient,
+  BCS,
+  HexString,
+  TransactionBuilderEd25519,
+  TxnBuilderTypes,
+  Types,
+  TypeTagParser,
+} from 'aptos';
 import { sha3_256 } from 'js-sha3';
 import { log } from '../../utils/logger';
 import { ensureBigInt, ensureNumber, serializeArg } from './transaction_builder/builder_utils';
@@ -20,18 +28,36 @@ export async function dappTxn(
   func: string,
   type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
   args: BCS.Seq<BCS.Bytes>,
+  dapp: any,
 ) {
   const aptosClient = new AptosClient(aptosNodeUrl(chainId));
+
   const rawTransaction = await aptosClient.generateRawTransaction(
     new HexString(accountId),
     genPayload(module, func, type_args, args),
   );
   log.info(`rawTransaction`, rawTransaction);
   // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
+  const estimatedGas = await estimateGas(
+    'https://fullnode.devnet.aptoslabs.com/v1',
+    dapp.networks.aptos.account.pubKey,
+    rawTransaction,
+  );
+
+  const sendingRawTransaction = await aptosClient.generateRawTransaction(
+    new HexString(accountId),
+    genPayload(module, func, type_args, args),
+    {
+      gasUnitPrice: BigInt(estimatedGas.gas_unit_price),
+      maxGasAmount: BigInt(estimatedGas.max_gas_amount),
+    },
+  );
 
   const header = Buffer.from(sha3_256(Buffer.from('APTOS::RawTransaction', 'ascii')), 'hex');
   return (
-    '0x' + header.toString('hex') + Buffer.from(BCS.bcsToBytes(rawTransaction)).toString('hex')
+    '0x' +
+    header.toString('hex') +
+    Buffer.from(BCS.bcsToBytes(sendingRawTransaction)).toString('hex')
   );
 }
 
@@ -287,27 +313,34 @@ export async function viewFunction(
   }
 }
 
-// export const estimateGas = async (url: string, account: Account, rawTransaction: TxnBuilderTypes.RawTransaction): Promise<string> => {
-//   // eslint-disable-next-line no-unused-vars
-//   const txnBuilder = new TransactionBuilderEd25519((_signingMessage: TxnBuilderTypes.SigningMessage) => {
-//     // @ts-ignore
-//     const invalidSigBytes = new Uint8Array(64);
-//     return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
-//   }, Buffer.from(account.pubKey.replace('0x', ''), 'hex'));
-//   const signedTxn = txnBuilder.sign(rawTransaction);
+export const estimateGas = async (
+  url: string,
+  pubKey: string,
+  rawTransaction: TxnBuilderTypes.RawTransaction,
+): Promise<{ gas_unit_price: string; max_gas_amount: string }> => {
+  // eslint-disable-next-line no-unused-vars
+  const txnBuilder = new TransactionBuilderEd25519(
+    (_signingMessage: TxnBuilderTypes.SigningMessage) => {
+      // @ts-ignore
+      const invalidSigBytes = new Uint8Array(64);
+      return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
+    },
+    Buffer.from(pubKey.replace('0x', ''), 'hex'),
+  );
+  const signedTxn = txnBuilder.sign(rawTransaction);
 
-//   const response = await fetch(`${url}/transactions/simulate`, {
-//     method: 'POST',
-//     headers: {
-//       // https://github.com/aptos-labs/aptos-core/blob/e7d5f952afe3afcf5d1415b67e167df6d49019bf/ecosystem/typescript/sdk/src/aptos_client.ts#L336
-//       'Content-Type': 'application/x.aptos.signed_transaction+bcs',
-//     },
-//     body: signedTxn,
-//   });
+  const response = await fetch(`${url}/transactions/simulate`, {
+    method: 'POST',
+    headers: {
+      // https://github.com/aptos-labs/aptos-core/blob/e7d5f952afe3afcf5d1415b67e167df6d49019bf/ecosystem/typescript/sdk/src/aptos_client.ts#L336
+      'Content-Type': 'application/x.aptos.signed_transaction+bcs',
+    },
+    body: signedTxn,
+  });
 
-//   const result = await response.json();
-//   return result[0].max_gas_amount;
-// };
+  const result = await response.json();
+  return { gas_unit_price: result[0].gas_unit_price, max_gas_amount: result[0].max_gas_amount };
+};
 
 export function aptosNodeUrl(chainId: string) {
   if (chainId === 'mainnet') {

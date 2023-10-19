@@ -652,6 +652,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       moveFunction?.name || '',
       genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
       serializedArgs(parameters),
+      dapp,
     );
 
     const txHash = await dapp.request('aptos', {
