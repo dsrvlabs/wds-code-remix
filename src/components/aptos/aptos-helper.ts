@@ -39,7 +39,7 @@ export async function dappTxn(
   log.info(`rawTransaction`, rawTransaction);
   // log.info(`raw args`, JSON.stringify((rawTransaction as any).payload.value.args, null, 2));
   const estimatedGas = await estimateGas(
-    'https://fullnode.devnet.aptoslabs.com/v1',
+    `https://fullnode.${chainId}.aptoslabs.com/v1`,
     dapp.networks.aptos.account.pubKey,
     rawTransaction,
   );
