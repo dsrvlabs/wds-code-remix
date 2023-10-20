@@ -817,6 +817,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
+    setEstimatedGas(undefined);
+    setGasUnitPrice('0');
+    setMaxGasAmount('0');
+
     // const moduleFiles = await prepareModules();
     // if (isNotEmptyList(moduleFiles)) {
     //   await client.terminal.log({
