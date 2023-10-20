@@ -67,7 +67,7 @@ const EntryButton: React.FunctionComponent<Props> = ({
       entryGasUnitPrice: '0',
       entryMaxGasAmount: '0',
     };
-  }, []);
+  }, [moveFunction]);
 
   const entry = async (gasUnitPrice: string, maxGasAmount: string) => {
     log.info('parameters', JSON.stringify(parameters, null, 2));

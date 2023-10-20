@@ -611,6 +611,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setModules([]);
         setTargetModule('');
         setMoveFunction(undefined);
+        setEntryEstimatedGas(undefined);
+        setEntryGasUnitPrice('0');
+        setEntryMaxGasAmount('0');
         return;
       }
       setModules(accountModules);
@@ -658,6 +661,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setParameters([]);
     setGenericParameters([]);
     setMoveFunction(undefined);
+    setEntryEstimatedGas(undefined);
+    setEntryGasUnitPrice('0');
+    setEntryMaxGasAmount('0');
 
     const module = modules.find((m) => m.abi?.name === targetModule);
     if (!module) {
