@@ -942,7 +942,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
                     {' '}
                     ( Estimated Gas {estimatedGas}. If the transaction fails, try again with a
-                    higher gas fee.")
+                    higher gas fee. )
                   </span>
                 ) : undefined}
               </small>
@@ -1154,7 +1154,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                                   <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
                                     {' '}
                                     ( Estimated Gas {entryEstimatedGas}. If the transaction fails,
-                                    try again with a higher gas fee." )
+                                    try again with a higher gas fee. )
                                   </span>
                                 ) : undefined}
                               </small>
