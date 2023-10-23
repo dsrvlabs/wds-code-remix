@@ -71,14 +71,27 @@ const EntryButton: React.FunctionComponent<Props> = ({
 
   const entry = async (gasUnitPrice: string, maxGasAmount: string) => {
     log.info('parameters', JSON.stringify(parameters, null, 2));
+    const refinedParameters = parameters.map((p) => {
+      if (p.type !== 'vector<u8>') {
+        return p;
+      }
 
+      return {
+        type: p.type,
+        val: Buffer.from(p.val, 'hex'),
+      };
+    });
+    log.info('refinedParameters', JSON.stringify(refinedParameters, null, 2));
+
+    const serializedArgs_ = serializedArgs(refinedParameters);
+    log.info('serializedArgs_', JSON.stringify(serializedArgs_, null, 2));
     const dappTxn_ = await dappTxn(
       accountId,
       dapp.networks.aptos.chain,
       atAddress + '::' + targetModule,
       moveFunction?.name || '',
       genericParameters.map((typeTag) => TxnBuilderTypes.StructTag.fromString(typeTag)),
-      serializedArgs(parameters),
+      serializedArgs_, // serializedArgs_,
       dapp,
       gasUnitPrice,
       maxGasAmount,
@@ -114,8 +127,8 @@ const EntryButton: React.FunctionComponent<Props> = ({
             dapp.networks.aptos.account.pubKey,
             rawTransaction,
           );
+          console.log(`estimatedGas${JSON.stringify(estimatedGas, null, 2)}`);
 
-          console.log(`@@@@@@@@@@@@@@@@@@@@`);
           console.log(`gasRef.current=${JSON.stringify(gasRef.current, null, 2)}`);
           setEntryEstimatedGas_(estimatedGas.gas_used);
           setEntryGasUnitPrice_(estimatedGas.gas_unit_price);

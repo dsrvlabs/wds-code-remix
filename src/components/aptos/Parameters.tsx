@@ -65,7 +65,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
       {singerRemovedParams.map((parameterType: string, idx: number) => {
-        if (parameterType.startsWith('vector')) {
+        if (parameterType.startsWith('vector') && parameterType !== 'vector<u8>') {
           return (
             <VectorArgForm
               func={func}
@@ -81,7 +81,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
             className={'aptos-parameter'}
             style={{ width: '100%', marginBottom: '5px' }}
             type="text"
-            placeholder={parameterType}
+            placeholder={aptosParameterPlaceHolder(parameterType)}
             size="sm"
             onChange={(e) => {
               updateParam(e.target.value, idx, parameterType);
@@ -92,3 +92,15 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
     </div>
   );
 };
+
+function aptosParameterPlaceHolder(parameterType: string) {
+  if (parameterType === 'vector<u8>') {
+    return `vector<u8> (ex. 616263)`;
+  }
+
+  if (parameterType === 'bool') {
+    return `bool (true / false)`;
+  }
+
+  return parameterType;
+}

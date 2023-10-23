@@ -346,7 +346,7 @@ export const getEstimateGas = async (
   });
 
   const result = await response.json();
-  // console.log(`simulation result=${JSON.stringify(result, null, 2)}`);
+  console.log(`simulation result=${JSON.stringify(result, null, 2)}`);
   return {
     gas_unit_price: result[0].gas_unit_price,
     max_gas_amount: result[0].max_gas_amount,
