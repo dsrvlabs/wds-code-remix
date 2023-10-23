@@ -290,10 +290,20 @@ export async function viewFunction(
   const payload = {
     function: account + '::' + moduleName + '::' + functionName,
     type_arguments: typeArg,
-    arguments: param.map((p) => p.val),
-  };
+    arguments: param.map((p) => {
+      if (p.type === 'vector<u8>') {
+        const vals: number[] = p.val;
+        return Buffer.from(vals).toString();
+      }
 
-  log.debug(payload);
+      if (p.type === 'bool') {
+        return p.val === 'true' ? true : false;
+      }
+
+      return p.val;
+    }),
+  };
+  console.log(`viewFunction payload=${JSON.stringify(payload, null, 2)}`);
 
   try {
     const res = await aptosClient.view(payload);
