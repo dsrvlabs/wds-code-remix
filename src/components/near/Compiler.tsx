@@ -112,7 +112,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         finality: 'optimistic',
         request_type: 'view_code',
       });
-      const methodNames = parseContract(code_base64).methodNames;
+      const methodNames = parseContract(code_base64).methodNames; // todo
       // in case wasm had embeded abi
       if (methodNames.includes('__contract_abi')) {
         abi = await getEmbedAbi(contractId);
@@ -123,7 +123,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setIsProgress(false);
     } catch (e) {
       setIsProgress(false);
-      await client.terminal.log({ type: 'error', value: (e as any).data.toString() });
+      await client.terminal.log({
+        type: 'error',
+        value: (e as Error).stack?.toString() || (e as Error).message,
+      });
     }
   };
 
