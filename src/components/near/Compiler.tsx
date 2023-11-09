@@ -357,9 +357,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
-        await client.terminal.log({ type: 'info', value: data.logMsg });
-
-        if (data.logMsg.includes('error')) {
+        if (!(data.logMsg.includes('error') || data.logMsg.includes('Error'))) {
+          await client.terminal.log({ type: 'info', value: data.logMsg });
+        } else {
+          await client.terminal.log({ type: 'error', value: data.logMsg });
           const { file, annotation, highlightPosition, positionDetail } = getPositionDetails(
             data.logMsg,
           );
