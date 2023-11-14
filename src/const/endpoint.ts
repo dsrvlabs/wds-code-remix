@@ -16,9 +16,8 @@ export const NEAR_COMPILER_CONSUMER_ENDPOINT = NEAR_COMPILER_CONSUMER_ENDPOINT_P
 
 const JUNO_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',
-  dev: 'wss://dev.compiler.welldonestudio.io',
-  prod: 'wss://prod.juno.compiler.welldonestudio.io',
-  // prod: 'ws://wds-compiler-juno-nlb-b70797c28b548aa5.elb.us-east-2.amazonaws.com:8000',
+  dev: 'wss://dev.neutron.compiler.welldonestudio.io',
+  prod: 'wss://prod.neutron.compiler.welldonestudio.io',
 };
 export const JUNO_COMPILER_CONSUMER_ENDPOINT = JUNO_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
 
