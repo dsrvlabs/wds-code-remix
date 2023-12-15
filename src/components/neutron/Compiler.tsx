@@ -27,6 +27,7 @@ import { io } from 'socket.io-client';
 import { CHAIN_NAME } from '../../const/chain';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
+import { convertToRealChainId } from './neutron-helper';
 
 interface InterfaceProps {
   fileName: string;
@@ -235,7 +236,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+            compileIdV2(
+              CHAIN_NAME.neutron,
+              convertToRealChainId(dapp.networks.neutron.chain),
+              address,
+              timestamp,
+            )
           ) {
             return;
           }
@@ -255,7 +261,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+            compileIdV2(
+              CHAIN_NAME.neutron,
+              convertToRealChainId(dapp.networks.neutron.chain),
+              address,
+              timestamp,
+            )
           ) {
             return;
           }
@@ -303,7 +314,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
           if (
             data.compileId !==
-            compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp)
+            compileIdV2(
+              CHAIN_NAME.neutron,
+              convertToRealChainId(dapp.networks.neutron.chain),
+              address,
+              timestamp,
+            )
           ) {
             return;
           }
@@ -315,7 +331,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               bucket: S3Path.bucket(),
               fileKey: S3Path.outKey(
                 CHAIN_NAME.neutron,
-                dapp.networks.neutron.chain,
+                convertToRealChainId(dapp.networks.neutron.chain),
                 account,
                 timestamp,
                 BUILD_FILE_TYPE.rs,
@@ -378,7 +394,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       const formData = new FormData();
       formData.append('chainName', CHAIN_NAME.neutron);
-      formData.append('chainId', dapp.networks.neutron.chain);
+      formData.append('chainId', convertToRealChainId(dapp.networks.neutron.chain));
       formData.append('account', address || 'noaddress');
       formData.append('timestamp', timestamp.toString() || '0');
       formData.append('fileType', 'neutron');
@@ -401,9 +417,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       }
 
       const remixNeutronCompileRequestedV1: RemixNeutronCompileRequestedV1 = {
-        compileId: compileIdV2(CHAIN_NAME.neutron, dapp.networks.neutron.chain, address, timestamp),
+        compileId: compileIdV2(
+          CHAIN_NAME.neutron,
+          convertToRealChainId(dapp.networks.neutron.chain),
+          address,
+          timestamp,
+        ),
         chainName: CHAIN_NAME.neutron,
-        chainId: dapp.networks.neutron.chain,
+        chainId: convertToRealChainId(dapp.networks.neutron.chain),
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'neutron',

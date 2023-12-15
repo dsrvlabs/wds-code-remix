@@ -1,4 +1,3 @@
-
 import { defaultRegistryTypes } from '@cosmjs/stargate';
 import { GeneratedType, Registry } from '@cosmjs/proto-signing';
 
@@ -39,4 +38,16 @@ export async function simulate(
     `${sequence}`,
   );
   return simulateResult.gasInfo.gasUsed;
+}
+
+export function convertToRealChainId(chainId: string) {
+  if (chainId === 'testnet') {
+    return 'pion-1';
+  }
+
+  if (chainId === 'mainnet') {
+    return 'neutron-1';
+  }
+
+  throw new Error(`Invalid chainId=${chainId}`);
 }
