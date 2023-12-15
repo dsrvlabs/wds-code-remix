@@ -209,12 +209,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             };
             try {
               const res = await axios.post(
-                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/neutron-deploy-histories',
+                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
                 neutronDeployHistoryCreateDto,
               );
-              log.info(`neutron-deploy-histories api res`, res);
+              log.info(`deploy-histories api res`, res);
             } catch (e) {
-              log.error(`neutron-deploy-histories api error`);
+              log.error(`deploy-histories api error`);
             }
           }
 
@@ -336,12 +336,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
             };
             try {
               const res = await axios.post(
-                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/neutron-deploy-histories',
+                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
                 neutronDeployHistoryCreateDto,
               );
-              log.info(`neutron-deploy-histories api res`, res);
+              log.info(`deploy-histories api res`, res);
             } catch (e) {
-              log.error(`neutron-deploy-histories api error`);
+              log.error(`deploy-histories api error`);
             }
           }
 
