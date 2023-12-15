@@ -56,6 +56,18 @@ export interface NeutronDeployHistoryCreateDto {
   createdBy: string;
 }
 
+function convertToRealChainId(chainId: string) {
+  if (chainId === 'testnet') {
+    return 'pion-1';
+  }
+
+  if (chainId === 'mainnet') {
+    return 'neutron-1';
+  }
+
+  throw new Error(`Invalid chainId=${chainId}`);
+}
+
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   client,
   dapp,
@@ -184,7 +196,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           const contract = await waitGetContract(txHash);
           if (contract) {
             const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: dapp.networks.neutron.chain,
+              chainId: convertToRealChainId(dapp.networks.neutron.chain),
               account: account,
               codeId: codeID,
               contractAddress: contract as string,
@@ -311,7 +323,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           if (contract) {
             const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: dapp.networks.neutron.chain,
+              chainId: convertToRealChainId(dapp.networks.neutron.chain),
               account: account,
               codeId: codeID,
               contractAddress: contract as string,
