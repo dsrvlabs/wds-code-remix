@@ -43,7 +43,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   account,
   timestamp,
 }) => {
-  const [gasPrice, setGasPrice] = useState<number>(0.025);
+  const [gasPrice, setGasPrice] = useState<number>(0.035);
   const [fund, setFund] = useState<number>(0);
 
   const waitGetCodeID = async (hash: string) => {
