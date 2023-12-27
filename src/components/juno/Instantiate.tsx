@@ -360,7 +360,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           waitGetContract(hash);
           return;
         }
-        log.info('!!! waitGetContract', JSON.stringify(result, null, 2));
+        console.log('!!! waitGetContract', result);
 
         if (result.code !== 0) {
           log.debug(`rawLog=${result?.rawLog}`);

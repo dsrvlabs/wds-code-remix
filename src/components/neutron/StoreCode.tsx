@@ -61,7 +61,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await stargateClient.getTx(hash);
-        log.info('!!! waitGetCodeID interval', JSON.stringify(result, null, 2));
+        console.log('!!! waitGetCodeID interval', result);
         if (result) {
           const code_id = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
           log.debug(code_id);
