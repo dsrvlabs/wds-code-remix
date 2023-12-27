@@ -170,12 +170,12 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             params: [JSON.stringify(rawTx)],
           });
 
-          log.debug('@@@ dapp res', res);
+          log.info('@@@ dapp res', JSON.stringify(res, null, 2));
 
           const code_id = await waitGetCodeID(res[0]);
           await client.terminal.log({ type: 'info', value: `Code ID is ${code_id}` });
 
-          log.debug('code_id', code_id);
+          log.info('code_id', code_id);
           setCodeID(code_id as any);
         } catch (error: any) {
           log.error('signAndSendTransaction error', error);
