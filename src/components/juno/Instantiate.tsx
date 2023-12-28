@@ -363,8 +363,8 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         console.log('!!! waitGetContract', result);
 
         if (result.code !== 0) {
-          log.debug(`rawLog=${result?.rawLog}`);
-          setInitMsgErr(result?.rawLog || '');
+          log.info(`rawLog=${JSON.stringify(result.events, null, 2)}`);
+          setInitMsgErr(JSON.stringify(result.events, null, 2));
           clearInterval(id);
           resolve('');
           return;
@@ -373,9 +373,13 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         let contractAddress;
 
         if (callMsg === 'Instantiate') {
-          contractAddress = JSON.parse(result.rawLog)[0].events[0].attributes[0].value;
+          const instantiateEvent = result.events.find((e: any) => e.type === 'instantiate');
+          const attr = instantiateEvent?.attributes.find((a: any) => a.key === '_contract_address');
+          contractAddress = attr?.value || '';
         } else if (callMsg === 'Migrate') {
-          contractAddress = JSON.parse(result.rawLog)[0].events[1].attributes[1].value;
+          const migrateEvent = result.events.find((e: any) => e.type === 'migrate');
+          const attr = migrateEvent?.attributes.find((a: any) => a.key === '_contract_address');
+          contractAddress = attr?.value || '';
         }
         resolve(contractAddress);
         clearInterval(id);
