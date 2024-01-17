@@ -28,6 +28,8 @@ import { CHAIN_NAME } from '../../const/chain';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { convertToRealChainId } from './neutron-helper';
+import { FileInfo, FileUtil } from '../../utils/FileUtil';
+import { isEmptyList } from '../../utils/ListUtil';
 
 interface InterfaceProps {
   fileName: string;
@@ -38,6 +40,16 @@ interface InterfaceProps {
   dapp: any;
   client: any;
   reset: () => void;
+}
+
+interface UploadUrlDto {
+  fileKey: UploadTargetPath;
+  url: string;
+}
+
+interface UploadTargetPath {
+  path: string; // Move.toml, sources, sources/executor_cap.move
+  isDirectory: boolean;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -122,28 +134,52 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     await removeArtifacts();
     init();
 
-    // if (await exists()) {
-    //   await setSchemaObj();
-    // } else {
+    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+    log.info(
+      `@@@ compile compileTarget=${compileTarget}, projFiles=${JSON.stringify(projFiles, null, 2)}`,
+    );
+    if (isEmptyList(projFiles)) {
+      return;
+    }
 
-    const toml = compileTarget + '/Cargo.toml';
-    const schema = compileTarget + '/examples/schema.rs';
+    // const existsOutFolder = projFiles.find((f) => f.path.startsWith(`${compileTarget}/artifacts`));
+    // if (existsOutFolder) {
+    //   await client.terminal.log({
+    //     type: 'error',
+    //     value:
+    //       "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
+    //   });
+    //   return;
+    // }
 
-    const sourceFiles = await client?.fileManager.readdir('browser/' + compileTarget + '/src');
-    const sourceFilesName = Object.keys(sourceFiles || {});
+    const blob = await generateZip(projFiles);
+    if (!blob) {
+      return;
+    }
 
-    const filesName = sourceFilesName.concat(toml, schema);
+    await compile(blob, projFiles);
+  };
 
-    let code;
-    const fileList = await Promise.all(
-      filesName.map(async (f) => {
-        code = await client?.fileManager.getFile(f);
-        return createFile(code || '', f.substring(f.lastIndexOf('/') + 1));
+  const generateZip = async (fileInfos: Array<FileInfo>) => {
+    const zip = new JSZip();
+
+    await Promise.all(
+      fileInfos.map(async (fileinfo: FileInfo) => {
+        if (!fileinfo.isDirectory) {
+          const content = await client?.fileManager.readFile(fileinfo.path);
+          const f = createFile(
+            content || '',
+            fileinfo.path.substring(fileinfo.path.lastIndexOf('/') + 1),
+          );
+          const chainFolderExcluded = fileinfo.path.substring(fileinfo.path.indexOf('/') + 1);
+          const projFolderExcluded = chainFolderExcluded.substring(
+            chainFolderExcluded.indexOf('/') + 1,
+          );
+          zip.file(projFolderExcluded, f);
+        }
       }),
     );
-
-    generateZip(fileList);
-    // }
+    return await zip.generateAsync({ type: 'blob' });
   };
 
   const createFile = (code: string, name: string) => {
@@ -151,24 +187,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return new File([blob], name, { type: 'text/plain' });
   };
 
-  const generateZip = (fileList: Array<any>) => {
-    const zip = new JSZip();
-    // eslint-disable-next-line array-callback-return
-    fileList.map((file) => {
-      if (file.name === 'Cargo.toml') {
-        zip.file(file.name, file as any);
-      } else if (file.name === 'schema.rs') {
-        zip.folder('examples')?.file(file.name, file as any);
-      } else {
-        zip.folder('src')?.file(file.name, file as any);
-      }
-    });
-    zip.generateAsync({ type: 'blob' }).then((blob) => {
-      compile(blob);
-    });
-  };
-
-  const compile = async (blob: Blob) => {
+  const compile = async (blob: Blob, projFiles: FileInfo[]) => {
     const editorClient = new EditorClient(client);
     await editorClient.discardHighlight();
     await editorClient.clearAnnotations();
@@ -408,6 +427,40 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       log.info(res);
 
+      const projFiles_ = projFiles.map((pf) => ({
+        path: pf.path.replace(compileTarget + '/', ''),
+        isDirectory: pf.isDirectory,
+      }));
+
+      const uploadUrlsRes = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/upload-urls', {
+        chainName: CHAIN_NAME.neutron,
+        chainId: convertToRealChainId(dapp.networks.neutron.chain),
+        account: address || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        paths: projFiles_.map((f) => ({
+          path: f.path,
+          isDirectory: f.isDirectory,
+        })),
+      });
+
+      if (uploadUrlsRes.status === 201) {
+        console.log(`@@@ Upload files`);
+        const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
+
+        const contents = await Promise.all(
+          projFiles_.map(async (u) => {
+            if (u.isDirectory) {
+              return '';
+            }
+            return await client.fileManager.readFile('browser/' + compileTarget + '/' + u.path);
+          }),
+        );
+        console.log(`@@@ contents`, contents);
+        const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
+        const uploadResults = await Promise.all(promises);
+        console.log(`@@@ uploadResults`, uploadResults);
+      }
+
       if (res.status !== 201) {
         log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
         socket.disconnect();
@@ -500,7 +553,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
         <FaSyncAlt className={iconSpin} />
-        <span> Compile</span>
+        <span>Compile</span>
       </Button>
       {compileError !== '' && (
         <Alert
