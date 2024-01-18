@@ -208,21 +208,21 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control type="text" placeholder="" value={'untrn'} size="sm" readOnly />
           </InputGroup>
         </Form>
-        <Form>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>GAS PRICE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              type="number"
-              placeholder={gasPrice.toString()}
-              value={gasPrice}
-              size="sm"
-              onChange={(e) => setGasPrice(Number(e.target.value))}
-            />
-            <Form.Control type="text" placeholder="" value={'untrn'} size="sm" readOnly />
-          </InputGroup>
-        </Form>
+        {/*<Form>*/}
+        {/*  <Form.Text className="text-muted" style={mb4}>*/}
+        {/*    <small>GAS PRICE</small>*/}
+        {/*  </Form.Text>*/}
+        {/*  <InputGroup>*/}
+        {/*    <Form.Control*/}
+        {/*      type="number"*/}
+        {/*      placeholder={gasPrice.toString()}*/}
+        {/*      value={gasPrice}*/}
+        {/*      size="sm"*/}
+        {/*      onChange={(e) => setGasPrice(Number(e.target.value))}*/}
+        {/*    />*/}
+        {/*    <Form.Control type="text" placeholder="" value={'untrn'} size="sm" readOnly />*/}
+        {/*  </InputGroup>*/}
+        {/*</Form>*/}
         <hr />
         <Button
           variant="primary"
