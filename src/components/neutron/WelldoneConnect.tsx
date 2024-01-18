@@ -123,7 +123,9 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network ? <NetworkUI networkName={convertToRealChainId(network)} /> : null}
+      {network ? (
+        <NetworkUI networkName={convertToRealChainId(dappProvider.networks.neutron.chain)} />
+      ) : null}
       <Form>
         <Form.Text className="text-muted" style={mb4}>
           <small>ACCOUNT</small>
