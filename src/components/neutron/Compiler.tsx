@@ -165,6 +165,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     await Promise.all(
       fileInfos.map(async (fileinfo: FileInfo) => {
+        if (fileinfo.path.startsWith(`${compileTarget}/artifacts`)) {
+          return;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/schema`)) {
+          return;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
+          return;
+        }
+
         if (!fileinfo.isDirectory) {
           const content = await client?.fileManager.readFile(fileinfo.path);
           const f = createFile(
@@ -172,9 +184,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             fileinfo.path.substring(fileinfo.path.lastIndexOf('/') + 1),
           );
           const chainFolderExcluded = fileinfo.path.substring(fileinfo.path.indexOf('/') + 1);
+          // console.log(`chainFolderExcluded=${chainFolderExcluded}`);
           const projFolderExcluded = chainFolderExcluded.substring(
             chainFolderExcluded.indexOf('/') + 1,
           );
+          // console.log(`projFolderExcluded=${projFolderExcluded}`);
           zip.file(projFolderExcluded, f);
         }
       }),
@@ -427,10 +441,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
       log.info(res);
 
-      const projFiles_ = projFiles.map((pf) => ({
-        path: pf.path.replace(compileTarget + '/', ''),
-        isDirectory: pf.isDirectory,
-      }));
+      const projFiles_ = projFiles
+        .filter((fileinfo) => {
+          if (fileinfo.path.startsWith(`${compileTarget}/artifacts`)) {
+            return false;
+          }
+
+          if (fileinfo.path.startsWith(`${compileTarget}/schema`)) {
+            return false;
+          }
+
+          if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
+            return false;
+          }
+          return true;
+        })
+        .map((pf) => ({
+          path: pf.path.replace(compileTarget + '/', ''),
+          isDirectory: pf.isDirectory,
+        }));
 
       const uploadUrlsRes = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/upload-urls', {
         chainName: CHAIN_NAME.neutron,
