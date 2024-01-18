@@ -46,7 +46,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             });
 
             dappProvider
-              .request('sui', {
+              .request('neutron', {
                 method: 'dapp:chainId',
               })
               .then((networkName: any) => {
