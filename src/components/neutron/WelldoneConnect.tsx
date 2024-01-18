@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
+import { NetworkUI } from '../common/Network';
+import { convertToRealChainId } from './neutron-helper';
 
 interface InterfaceProps {
   active: boolean;
@@ -26,6 +28,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
 }) => {
   const [balance, setBalance] = useState<null | string>();
   const [error, setError] = useState<String>('');
+  const [network, setNetwork] = useState<string>('');
 
   const dappProvider = (window as any).dapp;
 
@@ -41,6 +44,14 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
             dappProvider.on('dapp:accountsChanged', (provider: any) => {
               window.location.reload();
             });
+
+            dappProvider
+              .request('sui', {
+                method: 'dapp:chainId',
+              })
+              .then((networkName: any) => {
+                setNetwork(networkName);
+              });
 
             dappProvider
               .request('neutron', {
@@ -112,6 +123,7 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
+      {network ? <NetworkUI networkName={convertToRealChainId(network)} /> : null}
       <Form>
         <Form.Text className="text-muted" style={mb4}>
           <small>ACCOUNT</small>
