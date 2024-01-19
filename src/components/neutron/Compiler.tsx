@@ -416,6 +416,73 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 }
               }),
             );
+
+            const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+            log.info(
+              `@@@ compile compileTarget=${compileTarget}, projFiles=${JSON.stringify(
+                projFiles,
+                null,
+                2,
+              )}`,
+            );
+
+            const schemaFiles = projFiles
+              .filter(
+                (fileinfo) =>
+                  fileinfo.path.startsWith(`${compileTarget}/schema`) &&
+                  !(fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory),
+              )
+              .map((pf) => ({
+                path: pf.path.replace(compileTarget + '/schema/', ''),
+                isDirectory: pf.isDirectory,
+              }));
+
+            log.info(
+              `@@@ compile compileTarget=${compileTarget}, schemaFiles=${JSON.stringify(
+                schemaFiles,
+                null,
+                2,
+              )}`,
+            );
+
+            if (isEmptyList(schemaFiles)) {
+              log.info(`@@@ schemaFiles empty`);
+              return;
+            }
+
+            const uploadUrlsRes = await axios.post(
+              COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
+              {
+                chainName: CHAIN_NAME.neutron,
+                chainId: convertToRealChainId(dapp.networks.neutron.chain),
+                account: address || 'noaddress',
+                timestamp: timestamp.toString() || '0',
+                paths: schemaFiles.map((f) => ({
+                  path: f.path,
+                  isDirectory: f.isDirectory,
+                })),
+              },
+            );
+
+            if (uploadUrlsRes.status === 201) {
+              console.log(`@@@ schemaFiles Upload files`);
+              const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
+
+              const contents = await Promise.all(
+                schemaFiles.map(async (u) => {
+                  if (u.isDirectory) {
+                    return '';
+                  }
+                  return await client.fileManager.readFile(
+                    'browser/' + compileTarget + '/schema/' + u.path,
+                  );
+                }),
+              );
+              console.log(`@@@ schemaFiles contents`, contents);
+              const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
+              const uploadResults = await Promise.all(promises);
+              console.log(`@@@ schemaFiles uploadResults`, uploadResults);
+            }
           } catch (e) {
             log.error(e);
           } finally {
