@@ -72,7 +72,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       event_category: 'near',
       method: 'new_project',
     });
-    if (await wrappedIsExists(projectName)) {
+    if (await isExists(projectName)) {
       await client.terminal.log({
         type: 'error',
         value: 'The folder "near/' + projectName + '" already exists',
@@ -98,9 +98,17 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         await client.fileManager.writeFile(path + '/package.json', '');
         await client.fileManager.writeFile(path + '/babel.config.json', '');
       }
-      wrappedGetList();
+      await wrappedGetList();
+      await client.terminal.log({
+        type: 'info',
+        value: projectName + ' is created successfully.',
+      });
     } catch (e: any) {
-      await client.terminal.log({ type: 'error', value: e.message });
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
   };
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
@@ -119,8 +127,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const isExists = async (dir: string) => {
     try {
-      log.debug(await client.fileManager.readdir('browser/near/' + dir));
-      return true;
+      const read: object = await client.fileManager.readdir('browser/near/' + dir);
+      return Object.keys(read).length > 0;
     } catch (e) {
       log.error(e);
       return false;
@@ -135,7 +143,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       method: 'create_template',
     });
 
-    if (await wrappedIsExists(template)) {
+    if (await isExists(template)) {
       await client.terminal.log({
         type: 'error',
         value: 'The folder "near/' + template + '" already exists',
@@ -169,8 +177,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         type: 'info',
         value: template + ' is created successfully.',
       });
-    } catch (e) {
-      log.error(e);
+    } catch (e: any) {
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
   };
 
@@ -215,7 +227,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             <small>SELECT A TEMPLATE</small>
           </Form.Text>
           <InputGroup>
-            <Form.Control className="custom-select" as="select" value={template} onChange={setTargetTemplate}>
+            <Form.Control
+              className="custom-select"
+              as="select"
+              value={template}
+              onChange={setTargetTemplate}
+            >
               {templateList.map((temp, idx) => {
                 return (
                   <option value={temp} key={idx}>
