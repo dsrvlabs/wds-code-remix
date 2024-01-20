@@ -56,7 +56,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const createProject = async () => {
     if (await isExists(projectName)) {
-      await client.terminal.log('The folder "juno/' + projectName + '" already exists');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The folder "juno/' + projectName + '" already exists',
+      });
       return;
     }
 
@@ -86,8 +89,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const isExists = async (dir: string) => {
     try {
-      log.debug(await client.fileManager.readdir('browser/juno/' + dir));
-      return true;
+      const read: object = await client.fileManager.readdir('browser/juno/' + dir);
+      return Object.keys(read).length > 0;
     } catch (e) {
       log.error(e);
       return false;
@@ -98,7 +101,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     log.debug('create ' + template);
 
     if (await isExists(template)) {
-      await client.terminal.log('The folder "juno/' + template + '" already exists');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The folder "juno/' + template + '" already exists',
+      });
       return;
     }
 

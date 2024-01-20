@@ -56,7 +56,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const createProject = async () => {
     if (await isExists(projectName)) {
-      await client.terminal.log('The folder "neutron/' + projectName + '" already exists');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The folder "neutron/' + projectName + '" already exists',
+      });
       return;
     }
 
@@ -84,10 +87,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     return [];
   };
 
-  const isExists = async (dir: string) => {
+  const isExists = async (dir: string): Promise<boolean> => {
     try {
-      log.debug(await client.fileManager.readdir('browser/neutron/' + dir));
-      return true;
+      const read: object = await client.fileManager.readdir('browser/neutron/' + dir);
+      return Object.keys(read).length > 0;
     } catch (e) {
       log.error(e);
       return false;
@@ -98,7 +101,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     log.debug('create ' + template);
 
     if (await isExists(template)) {
-      await client.terminal.log('The folder "neutron/' + template + '" already exists');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The folder "neutron/' + template + '" already exists',
+      });
       return;
     }
 

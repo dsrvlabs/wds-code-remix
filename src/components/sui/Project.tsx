@@ -77,7 +77,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       event_category: 'sui',
       method: 'new_project',
     });
-    if (await wrappedIsExists(projectName)) {
+    if (await isExists(projectName)) {
       await client.terminal.log({
         type: 'error',
         value: 'The folder "sui/' + projectName + '" already exists',
@@ -110,8 +110,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const isExists = async (dir: string) => {
     try {
-      log.debug(await client.fileManager.readdir('browser/sui/' + dir));
-      return true;
+      const read: object = await client.fileManager.readdir('browser/sui/' + dir);
+      return Object.keys(read).length > 0;
     } catch (e) {
       log.error(e);
       return false;
@@ -126,10 +126,11 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       method: 'create_template',
     });
 
-    if (await wrappedIsExists(template)) {
+    log.debug('create ' + template);
+    if (await isExists(template)) {
       await client.terminal.log({
         type: 'error',
-        value: `The folder "sui/${template} already exists`,
+        value: 'The folder "sui/' + template + '" already exists',
       });
       return;
     }

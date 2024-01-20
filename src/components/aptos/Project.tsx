@@ -63,7 +63,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       event_category: 'aptos',
       method: 'new_project',
     });
-    if (await wrappedIsExists(projectName)) {
+    if (await isExists(projectName)) {
       await client.terminal.log({
         type: 'error',
         value: 'The folder "aptos/' + projectName + '" already exists',
@@ -96,8 +96,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const isExists = async (dir: string) => {
     try {
-      log.debug(await client.fileManager.readdir('browser/aptos/' + dir));
-      return true;
+      const read: object = await client.fileManager.readdir('browser/aptos/' + dir);
+      return Object.keys(read).length > 0;
     } catch (e) {
       log.error(e);
       return false;
@@ -112,10 +112,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       method: 'create_template',
     });
 
-    if (await wrappedIsExists(template)) {
+    if (await isExists(template)) {
       await client.terminal.log({
         type: 'error',
-        value: `The folder "aptos/${template} already exists`,
+        value: 'The folder "aptos/' + template + '" already exists',
       });
       return;
     }
