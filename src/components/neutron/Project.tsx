@@ -69,12 +69,18 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       await client?.fileManager.mkdir(path + '/examples');
       await client?.fileManager.writeFile(path + '/examples/schema.rs', '');
       await client?.fileManager.writeFile(path + '/Cargo.toml', '');
-      getList();
+      await getList();
+      await client.terminal.log({
+        type: 'info',
+        value: projectName + ' is created successfully.',
+      });
     } catch (e: any) {
-      await client.terminal.log(e.message);
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
-
-    getList();
   };
 
   const getProjectList = async () => {
@@ -134,9 +140,16 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         }
       });
       await getList();
-      await client?.terminal.log((template + ' is created successfully.') as any);
-    } catch (e) {
-      log.error(e);
+      await client?.terminal.log({
+        type: 'info',
+        value: template + ' is created successfully.',
+      });
+    } catch (e: any) {
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
   };
 

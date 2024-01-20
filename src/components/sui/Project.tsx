@@ -89,9 +89,17 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       const path = 'browser/sui/' + projectName;
       await client?.fileManager.mkdir(path + '/sources');
       await client?.fileManager.writeFile(path + '/Move.toml', '');
-      wrappedGetList();
+      await wrappedGetList();
+      await client.terminal.log({
+        type: 'info',
+        value: projectName + ' is created successfully.',
+      });
     } catch (e: any) {
-      client.terminal.log(e.message);
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
   };
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
@@ -158,8 +166,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       });
       await wrappedGetList();
       await client.terminal.log({ type: 'info', value: template + ' is created successfully.' });
-    } catch (e) {
-      log.error(e);
+    } catch (e: any) {
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
     }
   };
 
