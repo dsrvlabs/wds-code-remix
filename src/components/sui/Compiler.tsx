@@ -348,8 +348,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         ) {
           return;
         }
-
-        await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
+        const terminalLog = stripAnsi(data.logMsg);
+        if (terminalLog.length > 0) {
+          await client.terminal.log({ value: terminalLog, type: 'info' });
+        }
       });
 
       socket.on(COMPILER_SUI_COMPILE_COMPLETED_V1, async (data: CompilerSuiCompileCompletedV1) => {
