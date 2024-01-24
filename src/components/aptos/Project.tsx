@@ -66,7 +66,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     if (await isExists(projectName)) {
       await client.terminal.log({
         type: 'error',
-        value: 'The folder "aptos/' + projectName + '" already exists',
+        value:
+          'The folder "aptos/' +
+          projectName +
+          '" already exists. Please delete the existing project.',
       });
       return;
     }
@@ -123,7 +126,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     if (await isExists(template)) {
       await client.terminal.log({
         type: 'error',
-        value: 'The folder "aptos/' + template + '" already exists',
+        value:
+          'The folder "aptos/' + template + '" already exists. Please delete the existing project.',
       });
       return;
     }
