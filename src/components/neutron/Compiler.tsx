@@ -29,7 +29,8 @@ import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { convertToRealChainId } from './neutron-helper';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { isEmptyList } from '../../utils/ListUtil';
+import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
+import { UploadUrlDto } from '../../types/dto/upload-url.dto';
 
 interface InterfaceProps {
   fileName: string;
@@ -40,16 +41,6 @@ interface InterfaceProps {
   dapp: any;
   client: any;
   reset: () => void;
-}
-
-interface UploadUrlDto {
-  fileKey: UploadTargetPath;
-  url: string;
-}
-
-interface UploadTargetPath {
-  path: string; // Move.toml, sources, sources/executor_cap.move
-  isDirectory: boolean;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -218,6 +209,75 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     //   reconnection: false,
     //   transports: ['websocket'],
     // });
+
+    // ------------------------------------------------------------------
+
+    const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
+      chainName: CHAIN_NAME.neutron,
+      chainId: convertToRealChainId(dapp.networks.neutron.chain),
+      account: address || 'noaddress',
+      timestamp: timestamp.toString() || '0',
+      fileType: 'neutron',
+      zipFile: blob,
+    });
+    if (!isSrcZipUploadSuccess) {
+      log.error(`src zip upload fail. address=${address}, timestamp=${timestamp}`);
+      setIconSpin('');
+      setLoading(false);
+      return;
+    }
+
+    const projFiles_ = projFiles
+      .filter((fileinfo) => {
+        if (fileinfo.path === `${compileTarget}/artifacts` && fileinfo.isDirectory) {
+          return false;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/artifacts/`)) {
+          return false;
+        }
+
+        if (fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory) {
+          return false;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/schema/`)) {
+          return false;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
+          return false;
+        }
+        return true;
+      })
+      .map((pf) => ({
+        path: pf.path.replace(compileTarget + '/', ''),
+        isDirectory: pf.isDirectory,
+      }));
+
+    const uploadUrls = await FileUtil.uploadUrls({
+      chainName: CHAIN_NAME.neutron,
+      chainId: convertToRealChainId(dapp.networks.neutron.chain),
+      account: address || 'noaddress',
+      timestamp: timestamp.toString() || '0',
+      projFiles: projFiles_,
+    });
+
+    if (uploadUrls.length === 0) {
+      log.error(`uploadUrls fail`);
+      setIconSpin('');
+      setLoading(false);
+      return;
+    }
+
+    const contents = await FileUtil.contents(client.fileManager, compileTarget, projFiles_);
+    console.log(`@@@ contents`, contents);
+    const uploadResults = await Promise.all(
+      uploadUrls.map((u, i) => axios.put(u.url, contents[i])),
+    );
+    console.log(`@@@ uploadResults`, uploadResults);
+
+    // ------------------------------------------------------------------
 
     const socket = io(NEUTRON_COMPILER_CONSUMER_ENDPOINT, {
       reconnection: false,
@@ -445,43 +505,40 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               )}`,
             );
 
-            if (isEmptyList(schemaFiles)) {
-              log.info(`@@@ schemaFiles empty`);
-              return;
-            }
-
-            const uploadUrlsRes = await axios.post(
-              COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
-              {
-                chainName: CHAIN_NAME.neutron,
-                chainId: convertToRealChainId(dapp.networks.neutron.chain),
-                account: address || 'noaddress',
-                timestamp: timestamp.toString() || '0',
-                paths: schemaFiles.map((f) => ({
-                  path: f.path,
-                  isDirectory: f.isDirectory,
-                })),
-              },
-            );
-
-            if (uploadUrlsRes.status === 201) {
-              console.log(`@@@ schemaFiles Upload files`);
-              const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
-
-              const contents = await Promise.all(
-                schemaFiles.map(async (u) => {
-                  if (u.isDirectory) {
-                    return '';
-                  }
-                  return await client.fileManager.readFile(
-                    'browser/' + compileTarget + '/schema/' + u.path,
-                  );
-                }),
+            if (isNotEmptyList(schemaFiles)) {
+              const uploadUrlsRes = await axios.post(
+                COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
+                {
+                  chainName: CHAIN_NAME.neutron,
+                  chainId: convertToRealChainId(dapp.networks.neutron.chain),
+                  account: address || 'noaddress',
+                  timestamp: timestamp.toString() || '0',
+                  paths: schemaFiles.map((f) => ({
+                    path: f.path,
+                    isDirectory: f.isDirectory,
+                  })),
+                },
               );
-              console.log(`@@@ schemaFiles contents`, contents);
-              const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
-              const uploadResults = await Promise.all(promises);
-              console.log(`@@@ schemaFiles uploadResults`, uploadResults);
+
+              if (uploadUrlsRes.status === 201) {
+                console.log(`@@@ schemaFiles Upload files`);
+                const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
+
+                const contents = await Promise.all(
+                  schemaFiles.map(async (u) => {
+                    if (u.isDirectory) {
+                      return '';
+                    }
+                    return await client.fileManager.readFile(
+                      'browser/' + compileTarget + '/schema/' + u.path,
+                    );
+                  }),
+                );
+                console.log(`@@@ schemaFiles contents`, contents);
+                const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
+                const uploadResults = await Promise.all(promises);
+                console.log(`@@@ schemaFiles uploadResults`, uploadResults);
+              }
             }
           } catch (e) {
             log.error(e);
@@ -491,79 +548,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           }
         },
       );
-
-      const formData = new FormData();
-      formData.append('chainName', CHAIN_NAME.neutron);
-      formData.append('chainId', convertToRealChainId(dapp.networks.neutron.chain));
-      formData.append('account', address || 'noaddress');
-      formData.append('timestamp', timestamp.toString() || '0');
-      formData.append('fileType', 'neutron');
-      formData.append('zipFile', blob || '');
-      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Accept: 'application/json',
-        },
-      });
-
-      log.info(res);
-
-      const projFiles_ = projFiles
-        .filter((fileinfo) => {
-          if (fileinfo.path.startsWith(`${compileTarget}/artifacts`)) {
-            return false;
-          }
-
-          if (fileinfo.path.startsWith(`${compileTarget}/schema`)) {
-            return false;
-          }
-
-          if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
-            return false;
-          }
-          return true;
-        })
-        .map((pf) => ({
-          path: pf.path.replace(compileTarget + '/', ''),
-          isDirectory: pf.isDirectory,
-        }));
-
-      const uploadUrlsRes = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/upload-urls', {
-        chainName: CHAIN_NAME.neutron,
-        chainId: convertToRealChainId(dapp.networks.neutron.chain),
-        account: address || 'noaddress',
-        timestamp: timestamp.toString() || '0',
-        paths: projFiles_.map((f) => ({
-          path: f.path,
-          isDirectory: f.isDirectory,
-        })),
-      });
-
-      if (uploadUrlsRes.status === 201) {
-        console.log(`@@@ Upload files`);
-        const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
-
-        const contents = await Promise.all(
-          projFiles_.map(async (u) => {
-            if (u.isDirectory) {
-              return '';
-            }
-            return await client.fileManager.readFile('browser/' + compileTarget + '/' + u.path);
-          }),
-        );
-        console.log(`@@@ contents`, contents);
-        const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
-        const uploadResults = await Promise.all(promises);
-        console.log(`@@@ uploadResults`, uploadResults);
-      }
-
-      if (res.status !== 201) {
-        log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
-        socket.disconnect();
-        setIconSpin('');
-        setLoading(false);
-        return;
-      }
 
       const remixNeutronCompileRequestedV1: RemixNeutronCompileRequestedV1 = {
         compileId: compileIdV2(
