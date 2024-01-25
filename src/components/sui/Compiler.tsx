@@ -140,6 +140,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [compiledModulesAndDeps, setCompiledModulesAndDeps] = useState<
     CompiledModulesAndDeps | undefined
   >();
+  const [cliVersion, setCliVersion] = useState<string>('');
 
   const [suiObjects, setSuiObjects] = useState<SuiObjectData[]>([]);
   const [targetObjectId, setTargetObjectId] = useState<string>('');
@@ -163,6 +164,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setModuleBase64s([]);
     setFileNames([]);
     setCompiledModulesAndDeps(undefined);
+    setCliVersion('');
   }, [compileTarget]);
 
   const handleCheckboxChange = (event: {
@@ -192,6 +194,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setModuleBase64s([]);
       setFileNames([]);
       setCompiledModulesAndDeps(undefined);
+      setCliVersion('');
     } catch (e) {
       log.info(`no out folder`);
     }
@@ -524,6 +527,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
         setFileNames([...filenames]);
         setCompiledModulesAndDeps(data.compiledModulesAndDeps);
+        setCliVersion(data.cliVersion);
 
         socket.disconnect();
         setLoading(false);
@@ -1084,22 +1088,30 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       Number(gas),
     );
 
-    const txnHash = await dapp.request('sui', {
+    const txnHash: string[] = await dapp.request('sui', {
       method: 'dapp:signAndSendTransaction',
       params: [dappTxn_],
     });
+    if (isEmptyList(txnHash)) {
+      console.error(`dapp:signAndSendTransaction fail`);
+      return;
+    }
     log.info('@@@ txnHash', txnHash);
 
-    const result = await waitForTransactionWithResult(
-      txnHash,
-      dapp.networks.sui.chain,
-      accountID,
-      packageName,
-      Number(compileTimestamp),
-    );
+    let result;
+    try {
+      result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
+    } catch (e) {
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: `Failed to get transaction block for ${txnHash}`,
+      });
+      return;
+    }
     log.info('tx result', result);
-    // log.info('tx result json', JSON.stringify(result, null, 2));
-    if (result?.effects?.status?.status !== 'success') {
+
+    if (result.effects?.status?.status !== 'success') {
       log.error(result as any);
       await client.terminal.log({
         type: 'error',
@@ -1158,6 +1170,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setModuleBase64s([]);
     setFileNames([]);
     setCompiledModulesAndDeps(undefined);
+    setCliVersion('');
 
     if (isEmptyList(artifactPaths)) {
       return [];
@@ -1351,6 +1364,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             wallet={'Dsrv'}
             accountID={accountID}
             compileTimestamp={compileTimestamp}
+            cliVersion={cliVersion}
             packageName={packageName}
             compiledModulesAndDeps={compiledModulesAndDeps}
             dapp={dapp}

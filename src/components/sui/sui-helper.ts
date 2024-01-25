@@ -8,13 +8,12 @@ import {
   normalizeSuiObjectId,
   TransactionBlock,
 } from '@mysten/sui.js';
-import { SuiModule, SuiFunc } from './sui-types';
+import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
 import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
 import { delay } from '../near/utils/waitForTransaction';
-import axios from 'axios';
-import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
-import { SuiDeployHistoryCreateDto } from './Deploy';
+import { SuiTransactionBlockResponse } from '@mysten/sui.js/src/types';
+
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
 
@@ -139,13 +138,9 @@ export function getProvider(chainId: SuiChainId): JsonRpcProvider {
 }
 
 export async function waitForTransactionWithResult(
-  txnHash: string,
+  txnHash: string[],
   chainId: SuiChainId,
-  accountID: string = '',
-  packageName: string = '',
-  compileTimestamp: number = 0,
-  uploadCodeChecked = false,
-) {
+): Promise<SuiTransactionBlockResponse> {
   await delay(5_000);
   const client = getProvider(chainId);
   log.info(`getTransactionBlock txHash`, txnHash);
@@ -165,43 +160,14 @@ export async function waitForTransactionWithResult(
         },
       });
       if (result) {
-        break;
+        return result;
       }
     } catch (e) {
-      log.error(e);
+      console.error(e);
     }
     await delay(5_000);
   }
-
-  if (!result) {
-    const suiDeployHistoryCreateTimeoutDto: SuiDeployHistoryCreateDto = {
-      chainId: chainId,
-      account: accountID,
-      packageId: '',
-      packageName: packageName,
-      compileTimestamp: Number(compileTimestamp),
-      deployTimestamp: 0,
-      txHash: txnHash,
-      isSrcUploaded: uploadCodeChecked,
-      status: null,
-      modules: [''],
-    };
-    log.info('suiDeployHistoryCreateTimeoutDto', suiDeployHistoryCreateTimeoutDto);
-
-    try {
-      const res = await axios.post(
-        COMPILER_API_ENDPOINT + '/sui-deploy-histories',
-        suiDeployHistoryCreateTimeoutDto,
-      );
-      log.info(`sui-deploy-histories api res`, res);
-    } catch (e) {
-      log.error(`sui-deploy-histories api error`);
-    }
-    throw new Error(`getTransactionBlock error. txnHash=${txnHash[0]}, chainId=${chainId}`);
-  }
-
-  log.info(`TransactionBlock`, result);
-  return result;
+  throw new Error(`sui client getTransactionBlock fail.`);
 }
 
 export function parseArgVal(argVal: any, argType: string, u8parseType?: string) {
