@@ -202,6 +202,17 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       console.error(e);
     }
 
+    try {
+      const res = await axios.post(
+        COMPILER_API_ENDPOINT + '/sui/packages',
+        suiDeployHistoryCreateDto,
+      );
+      log.info(`sui-packages api res`, res);
+    } catch (e) {
+      log.error(`sui-packages api error`);
+      console.error(e);
+    }
+
     log.info(`dsrvProceed accountID=${accountID}`);
     setDeployedContract(accountID);
     setAtAddress(accountID);
