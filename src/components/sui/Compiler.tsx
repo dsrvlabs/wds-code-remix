@@ -274,7 +274,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return zip.generateAsync({ type: 'blob' });
   };
 
-  const sendCompileReq = async (blob: Blob) => {
+  const sendCompileReq = async (blob: Blob, projFiles: FileInfo[]) => {
     setCompileError(null);
     sendCustomEvent('compile', {
       event_category: 'sui',
@@ -285,6 +285,61 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const address = accountID;
     const timestamp = Date.now().toString();
     setCompileTimestamp(timestamp);
+
+    // ------------------------------------------------------------------
+    const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
+      chainName: CHAIN_NAME.sui,
+      chainId: dapp.networks.sui.chain,
+      account: address || 'noaddress',
+      timestamp: timestamp.toString() || '0',
+      fileType: 'sui',
+      zipFile: blob,
+    });
+    if (!isSrcZipUploadSuccess) {
+      log.error(`src zip upload fail. address=${address}, timestamp=${timestamp}`);
+      setLoading(false);
+      return;
+    }
+
+    const projFiles_ = projFiles
+      .filter((fileinfo) => {
+        if (fileinfo.path.startsWith(`${compileTarget}/Move.lock`)) {
+          return false;
+        }
+        if (fileinfo.path === `${compileTarget}/out` && fileinfo.isDirectory) {
+          return false;
+        }
+        if (fileinfo.path.startsWith(`${compileTarget}/out/`)) {
+          return false;
+        }
+        return true;
+      })
+      .map((pf) => ({
+        path: pf.path.replace(compileTarget + '/', ''),
+        isDirectory: pf.isDirectory,
+      }));
+
+    const uploadUrls = await FileUtil.uploadUrls({
+      chainName: CHAIN_NAME.sui,
+      chainId: dapp.networks.sui.chain,
+      account: address || 'noaddress',
+      timestamp: timestamp.toString() || '0',
+      projFiles: projFiles_,
+    });
+
+    if (uploadUrls.length === 0) {
+      log.error(`uploadUrls fail`);
+      setLoading(false);
+      return;
+    }
+
+    const contents = await FileUtil.contents(client.fileManager, compileTarget, projFiles_);
+    console.log(`@@@ contents`, contents);
+    const uploadResults = await Promise.all(
+      uploadUrls.map((u, i) => axios.put(u.url, contents[i])),
+    );
+    console.log(`@@@ uploadResults`, uploadResults);
+
     try {
       // socket connect
       let socket: Socket;
@@ -532,29 +587,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         socket.disconnect();
         setLoading(false);
       });
-
-      const formData = new FormData();
-      formData.append('chainName', CHAIN_NAME.sui);
-      formData.append('chainId', dapp.networks.sui.chain); // todo sui
-      // formData.append('chainId', 'devnet');
-      formData.append('account', address || 'noaddress');
-      formData.append('timestamp', timestamp.toString() || '0');
-      formData.append('fileType', 'move');
-      formData.append('zipFile', blob || '');
-
-      const res = await axios.post(COMPILER_API_ENDPOINT + '/s3Proxy/src-v2', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Accept: 'application/json',
-        },
-      });
-
-      if (res.status !== 201) {
-        log.error(`src upload fail. address=${address}, timestamp=${timestamp}`);
-        socket.disconnect();
-        setLoading(false);
-        return;
-      }
 
       const remixSuiCompileRequestedV1: RemixSuiCompileRequestedV1 = {
         compileId: (CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp), // todo sui
@@ -866,7 +898,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const wrappedCompile = (blob: Blob) => wrapPromise(sendCompileReq(blob), client);
+  const wrappedCompile = (blob: Blob, projFiles: FileInfo[]) =>
+    wrapPromise(sendCompileReq(blob, projFiles), client);
   const wrappedTest = (blob: Blob) => wrapPromise(sendTestReq(blob), client);
   const wrappedProve = (blob: Blob) => wrapPromise(sendProveReq(blob), client);
 
@@ -1271,7 +1304,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    await wrappedCompile(blob);
+    await wrappedCompile(blob, projFiles);
   };
 
   return (
