@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { Form } from 'react-bootstrap';
 import { SuiFunc } from './sui-types';
-import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { SuiMoveNormalizedType } from '@mysten/sui.js/client';
 import { log } from '../../utils/logger';
-import { parseArgVal, txCtxRemovedParameters } from './sui-helper';
+import { txCtxRemovedParameters } from './sui-helper';
 import {
   stringifySuiVectorElementType,
   stringifySuiVectorType,
@@ -33,7 +33,7 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
     }
   }, [func]);
 
-  const updateVecParam = (value: any, idx: number, parameterType: SuiMoveNormalizedType) => {
+  const updateVecParam = (value: any, idx: number, parameterType: string) => {
     console.log(`@@@ updateParam`, value, idx, parameterType);
     setParameters((existingParams: string[]) => {
       existingParams[idx] = value;

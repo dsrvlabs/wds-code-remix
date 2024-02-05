@@ -1,18 +1,17 @@
 import { log } from '../../utils/logger';
 import { ensureBigInt, ensureNumber } from './transaction_builder/builder_utils';
 import { CompiledModulesAndDeps } from 'wds-event';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { fromB64, normalizeSuiObjectId } from '@mysten/sui.js/utils';
 import {
-  Connection,
-  fromB64,
-  JsonRpcProvider,
-  normalizeSuiObjectId,
-  TransactionBlock,
-} from '@mysten/sui.js';
+  getFullnodeUrl,
+  SuiClient,
+  SuiTransactionBlockResponse,
+  SuiMoveNormalizedType,
+} from '@mysten/sui.js/client';
 import { SuiFunc, SuiModule } from './sui-types';
-import { SuiObjectData } from '@mysten/sui.js/src/types/objects';
-import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
+import { SuiObjectData } from '@mysten/sui.js/client';
 import { delay } from '../near/utils/waitForTransaction';
-import { SuiTransactionBlockResponse } from '@mysten/sui.js/src/types';
 
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';
@@ -99,29 +98,19 @@ export async function moveCallTxn(
   return tx.serialize();
 }
 
-const PROVIDER_MAINNET = new JsonRpcProvider(
-  new Connection({
-    fullnode: 'https://fullnode.mainnet.sui.io:443/',
-    faucet: 'https://faucet.mainnet.sui.io/gas',
-  }),
-);
+const PROVIDER_MAINNET = new SuiClient({
+  url: getFullnodeUrl('mainnet'),
+});
 
-const PROVIDER_TESTNET = new JsonRpcProvider(
-  new Connection({
-    fullnode: 'https://fullnode.testnet.sui.io:443/',
-    faucet: 'https://faucet.testnet.sui.io/gas',
-  }),
-);
+const PROVIDER_TESTNET = new SuiClient({
+  url: getFullnodeUrl('testnet'),
+});
 
-const PROVIDER_DEVNET = new JsonRpcProvider(
-  new Connection({
-    // fullnode: 'https://fullnode.devnet.sui.io:443/',
-    fullnode: 'https://wallet-rpc.devnet.sui.io/',
-    faucet: 'https://faucet.devnet.sui.io/gas',
-  }),
-);
+const PROVIDER_DEVNET = new SuiClient({
+  url: getFullnodeUrl('devnet'),
+});
 
-export function getProvider(chainId: SuiChainId): JsonRpcProvider {
+export function getProvider(chainId: SuiChainId): SuiClient {
   if (chainId === 'mainnet') {
     return PROVIDER_MAINNET;
   }
@@ -265,7 +254,7 @@ export async function getOwnedObjects(
 ): Promise<SuiObjectData[]> {
   const provider = await getProvider(chainId);
   log.info('getOwnedObjects account', account);
-  const { data } = await provider.getOwnedObjects({
+  const { data: suiObjectResponses } = await provider.getOwnedObjects({
     owner: account,
     options: {
       showType: true,
@@ -274,8 +263,11 @@ export async function getOwnedObjects(
       showDisplay: true,
     },
   });
-
-  return data.map((d) => d.data) as SuiObjectData[];
+  return suiObjectResponses
+    .map((d) => d.data)
+    .filter((d): d is SuiObjectData => {
+      return !(d === null || d === undefined);
+    });
 }
 
 export function parseYaml(str: string) {

@@ -1,6 +1,6 @@
 import { log } from '../../utils/logger';
-import { SuiMoveNormalizedType } from '@mysten/sui.js/dist/types/normalized';
-import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
+import { SuiMoveAbilitySet, SuiMoveNormalizedType } from '@mysten/sui.js/client';
+
 export type SuiTypeParameter = {
   abilities: string[];
 };

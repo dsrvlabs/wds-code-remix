@@ -1,5 +1,5 @@
 import { SuiMoveModuleId } from '@mysten/sui.js/src/types/normalized';
-import { SuiMoveNormalizedFunction, SuiMoveNormalizedStruct } from '@mysten/sui.js';
+import { SuiMoveNormalizedFunction, SuiMoveNormalizedStruct } from '@mysten/sui.js/client';
 
 export type SuiFunc = SuiMoveNormalizedFunction & { name: string };
 export type SuiStruct = SuiMoveNormalizedStruct & { name: string };

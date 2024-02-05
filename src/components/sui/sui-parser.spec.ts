@@ -10,7 +10,7 @@ import {
   stringifySuiVectorType,
   suiTypeName,
 } from './sui-parser';
-import { SuiMoveAbilitySet } from '@mysten/sui.js/src/types/normalized';
+import { SuiMoveAbilitySet, SuiMoveNormalizedType } from '@mysten/sui.js/client';
 
 describe('Sui Parser', () => {
   it('isHexadecimal', async () => {
@@ -18,7 +18,7 @@ describe('Sui Parser', () => {
   });
 
   it('suiTypeName', () => {
-    const t = {
+    const t: SuiMoveNormalizedType = {
       Vector: {
         Vector: 'U8',
       },
