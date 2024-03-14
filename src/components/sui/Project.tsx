@@ -42,6 +42,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     'my_coin',
     'fungible_tokens',
     'vec_test',
+    'bridge',
   ];
 
   useEffect(() => {
