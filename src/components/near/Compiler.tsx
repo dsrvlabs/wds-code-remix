@@ -643,7 +643,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="primary"
-          disabled={account.address === ''}
+          disabled={account.address === '' || !compileTarget}
           onClick={() => {
             wrappedReadCode('compile');
           }}

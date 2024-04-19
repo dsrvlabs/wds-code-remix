@@ -876,7 +876,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       <div className="d-grid gap-2">
         <Button
           variant="primary"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -889,7 +889,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || proveLoading || loading}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestProve();
           }}
