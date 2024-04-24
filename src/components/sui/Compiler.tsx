@@ -416,6 +416,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_SUI_COMPILE_COMPLETED_V1} data=${stringify(data)}`,
         );
+
+        await client.terminal.log({ value: 'Build completed.', type: 'info' });
+
         if (
           data.compileId !==
           compileIdV2(CHAIN_NAME.sui, dapp.networks.sui.chain, address, timestamp) // todo sui
