@@ -68,7 +68,14 @@ export async function moveCallTxn(
     typeArguments: typeArgs,
     arguments: args.map((arg, i) => {
       const parameter: any = func.parameters[i];
-      if (parameter.Vector?.Struct) {
+      if (
+        parameter.Vector?.Struct &&
+        !(
+          parameter.Vector.Struct.address === '0x1' &&
+          parameter.Vector.Struct.module === 'string' &&
+          parameter.Vector.Struct.name === 'String'
+        )
+      ) {
         return tx.makeMoveVec({
           objects: arg.map((a: any) => tx.pure(a)),
         });
