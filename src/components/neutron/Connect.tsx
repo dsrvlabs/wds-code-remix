@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { WelldoneConnect } from './WelldoneConnect';
+import { KeplrConnect } from './KeplrConnect';
 import { Project } from './Project';
 import { ListGroup } from 'react-bootstrap';
 
 import Welldone from '../../assets/dsrv_wallet_icon.png';
+import Keplr from '../../assets/Keplr-Big.svg';
 
 interface InterfaceProps {
     client: any
@@ -15,32 +17,50 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({client}) => {
   const [ wallet, setWallet ]= useState('')
   const [ account, setAccount ] = useState('')
   const [ walletRpcProvider, setWalletRpcProvider ] = useState<any>();
-  const [ active, setActive ] = useState<boolean>(false)
+  const [ activeWallet, setActiveWallet ] = useState('')
+  const [ active, setActive ] = useState(false)
+
 
   return (
     <div>
         <ListGroup>
-            <ListGroup.Item as="li" action active={active} onClick={()=>{setWallet('Welldone');setActive(true)}}>
+            <ListGroup.Item as="li" action active={activeWallet === 'Welldone'} onClick={()=>{setActiveWallet('Welldone');setActive(true)}}>
                 <img src={Welldone} style={ { 'width': '25px', 'marginRight': '10px'} } alt='WELLDONE logo'/>
                 <b>Connect to WELLDONE</b>
             </ListGroup.Item>
-            {/* <ListGroup.Item as="li" action active={wallet==='Near'} onClick={()=>{setWallet('Near')}}>
-                <img src={Near} style={ { 'width': '25px', 'marginRight': '10px'} } alt='Near logo'/>
-                <b>Near Wallet</b>
-            </ListGroup.Item> */}
+            <ListGroup.Item as="li" action active={activeWallet === 'Keplr'} onClick={()=>{setActiveWallet('Keplr');setActive(true)}}>
+                <img src={Keplr} style={ { 'width': '25px', 'marginRight': '10px'} } alt='Keplr logo'/>
+                <b>Connect to Keplr</b>
+            </ListGroup.Item>
         </ListGroup>
         <hr/>
         <div>
-            <WelldoneConnect 
-                active={active} 
-                account={account} 
-                setAccount={setAccount} 
-                walletRpcProvider={walletRpcProvider} 
-                setWalletRpcProvider={setWalletRpcProvider} 
-                setDapp={setDapp}
-                client={client}
-                setActive={setActive}
-            />
+            {
+                activeWallet === 'Welldone' ?
+                <WelldoneConnect 
+                    active={active} 
+                    account={account} 
+                    setAccount={setAccount} 
+                    walletRpcProvider={walletRpcProvider} 
+                    setWalletRpcProvider={setWalletRpcProvider} 
+                    setDapp={setDapp}
+                    client={client}
+                    setActive={setActive}
+                /> : false
+            }
+             {
+                activeWallet === 'Keplr' ?
+                <KeplrConnect 
+                    active={active} 
+                    account={account} 
+                    setAccount={setAccount} 
+                    walletRpcProvider={walletRpcProvider} 
+                    setWalletRpcProvider={setWalletRpcProvider} 
+                    setDapp={setDapp}
+                    client={client}
+                    setActive={setActive}
+                /> : false
+             }
             <Project 
                 dapp={dapp} 
                 wallet={wallet} 

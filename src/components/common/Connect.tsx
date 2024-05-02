@@ -25,6 +25,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
   wallet,
 }) => {
   const [error, setError] = useState<string>('');
+  console.log(chain)
   return (
     <ListGroup>
       <ListGroup.Item
@@ -79,6 +80,39 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
         >
           <img src={Petra} style={{ width: '25px', marginRight: '10px' }} alt="Petra logo" />
           <b>Connect to Petra</b>
+        </ListGroup.Item>
+      ) : (
+        false
+      )}
+      {chain === 'neutron' ? (
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          active={active && wallet === 'keplr'}
+          onClick={async () => {
+            if (!(window as any).keplr) {
+              await client.terminal.log({
+                value:
+                  'Please Install Keplr Wallet https://www.keplr.app/ . If you have installed it, please press the refresh button.',
+                type: 'error',
+              });
+              setError('Install Keplr Wallet');
+              // await client.terminal.log({
+              //   value: 'Keplr wallet will be supported soon.',
+              //   type: 'error',
+              // });
+              // setError('Keplr wallet will be supported soon.');
+
+              console.log('window.keplr', (window as any).keplr);
+            } else {
+              setActive(true);
+              setWallet('keplr');
+            }
+          }}
+        >
+          <img src={Petra} style={{ width: '25px', marginRight: '10px' }} alt="Neutron logo" />
+          <b>Connect to Neutron</b>
         </ListGroup.Item>
       ) : (
         false

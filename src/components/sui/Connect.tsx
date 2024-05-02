@@ -5,7 +5,6 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Connect as CommonConnect } from '../common/Connect';
-import { NetworkUI } from '../common/Network';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
