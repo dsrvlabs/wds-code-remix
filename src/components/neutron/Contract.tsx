@@ -11,7 +11,7 @@ import { simulate } from './neutron-helper';
 
 interface InterfaceProps {
   contractAddress: string;
-  dapp: any;
+  providerInstance: any;
   client: any;
   fund: number;
   gasPrice: number;
@@ -21,7 +21,7 @@ interface InterfaceProps {
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({
   contractAddress,
-  dapp,
+  providerInstance,
   client,
   fund,
   gasPrice,
@@ -40,11 +40,11 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   const execute = async () => {
     setExecuteResult('');
 
-    if (!dapp) {
+    if (!providerInstance) {
       return;
     }
 
-    dapp
+    providerInstance
       .request('neutron', {
         method: 'dapp:accounts',
       })
@@ -56,7 +56,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.neutron.chain;
+          const cid = providerInstance.networks.neutron.chain;
 
           let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
           // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
@@ -129,7 +129,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(rawTx);
 
-          const res = await dapp.request('neutron', {
+          const res = await providerInstance.request('neutron', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -145,7 +145,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
   // query
   const query = async () => {
-    const cid = dapp.networks.neutron.chain;
+    const cid = providerInstance.networks.neutron.chain;
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
     // let rpcUrl = 'https://neutron-node.welldonestudio.io/';

@@ -12,15 +12,17 @@ import { log } from '../../utils/logger';
 interface InterfaceProps {
   wallet: string;
   account: string;
-  dapp: any;
+  providerInstance: any;
   client: any;
+  providerNetwork: string;
 }
 
 export const Project: React.FunctionComponent<InterfaceProps> = ({
-  dapp,
+  providerInstance,
   wallet,
   account,
   client,
+  providerNetwork,
 }) => {
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
@@ -240,12 +242,13 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Compiler
         fileName={fileName}
         setFileName={setFileName}
-        dapp={dapp}
+        providerInstance={providerInstance}
         compileTarget={compileTarget}
         wallet={wallet}
         account={account}
         client={client}
         reset={reset}
+        providerNetwork={providerNetwork}
       />
 
       {/* need not this 'at address' feature */}

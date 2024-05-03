@@ -6,10 +6,10 @@ import { Instantiate } from './Instantiate';
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
 import { Decimal } from '@cosmjs/math';
-import { simulate } from './neutron-helper';
+import { simulate, convertToRealChainId } from './neutron-helper';
 
 interface InterfaceProps {
-  dapp: any;
+  providerInstance: any;
   wallet: string;
   compileTarget: string;
   client: any;
@@ -25,10 +25,11 @@ interface InterfaceProps {
   schemaQuery: { [key: string]: any };
   account: string;
   timestamp: string;
+  providerNetwork: string;
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
-  dapp,
+  providerInstance,
   wasm,
   checksum,
   wallet,
@@ -42,17 +43,22 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   schemaQuery,
   account,
   timestamp,
+  providerNetwork
 }) => {
   const [gasPrice, setGasPrice] = useState<number>(0.035);
   const [fund, setFund] = useState<number>(0);
 
   const waitGetCodeID = async (hash: string) => {
-    const cid = dapp.networks.neutron.chain;
+    
+    let realChainId = providerNetwork;
+
+    if(wallet == 'Welldone') {
+      realChainId = convertToRealChainId(providerInstance.networks.neutron.chain);
+    }
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-    // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
 
-    if (cid === 'mainnet') {
+    if (realChainId === 'neutron-1') {
       rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
 
@@ -82,8 +88,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const dsrvProceed = async () => {
-    if (!dapp) {
+  const welldoneProceed = async () => {
+    if (!providerInstance) {
       return;
     }
 
@@ -91,7 +97,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
     if (!wasm) {
     }
 
-    dapp
+    providerInstance
       .request('neutron', {
         method: 'dapp:accounts',
       })
@@ -103,7 +109,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.neutron.chain;
+          const cid = providerInstance.networks.neutron.chain;
 
           let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
           // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
@@ -169,7 +175,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
           // log.debug(JSON.stringify(rawTx));
 
-          const res = await dapp.request('neutron', {
+          const res = await providerInstance.request('neutron', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -188,6 +194,20 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       });
   };
 
+  const keplrProceed = async () => {
+    if (!providerInstance) {
+      return;
+    }
+
+    console.log('KeplrProceed')
+    // wasm이 없을 경우 현재 프로젝트 경로의 wasm 파일 읽어오도록
+    if (!wasm) {
+    }
+
+    // address, pubkey, denom, chainid, rpcUrl, sequence, account Number
+    
+  };
+  
   return (
     <>
       <Form>
@@ -226,7 +246,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         <hr />
         <Button
           variant="primary"
-          onClick={dsrvProceed}
+          onClick={ wallet=='Welldone' ? welldoneProceed : keplrProceed}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
           <span>Store Code</span>
@@ -238,7 +258,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
           <>
             <Instantiate
               client={client}
-              dapp={dapp}
+              providerInstance={providerInstance}
               wallet={wallet}
               codeID={codeID || ''}
               setCodeID={setCodeID}

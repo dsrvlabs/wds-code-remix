@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
-import { log } from '../../utils/logger';
-import { NetworkUI } from '../common/Network';
-import { convertToRealChainId } from './neutron-helper';
+import { StargateClient } from '@cosmjs/stargate';
 
 interface InterfaceProps {
   active: boolean;
@@ -11,9 +9,10 @@ interface InterfaceProps {
   account: string;
   setWalletRpcProvider: Function;
   walletRpcProvider: any;
-  setDapp: Function;
+  setKeplr: Function;
   client: any;
   setActive: Function;
+  setProviderNetwork: Function;
 }
 
 export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
@@ -23,13 +22,13 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
   setAccount,
   walletRpcProvider,
   setWalletRpcProvider,
-  setDapp,
+  setKeplr,
   setActive,
+  setProviderNetwork
 }) => {
   const [balance, setBalance] = useState<null | string>();
   const [error, setError] = useState<String>('');
-  const [network, setNetwork] = useState<string>('');
-  const [keplr, setKeplr] = useState(undefined);
+  const [network, setNetwork] = useState<string>('neutron-1');
 
   const networks = [
     { name: 'Mainnet', value: 'neutron-1' },
@@ -59,18 +58,19 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
     });
   }
 
+  const keplrInstance = (window as any).keplr;
+
   useEffect(() => {
     const connect = async () => {
       if (active) {
         try {
-          const keplrInstance = await getKeplr();
           if (!keplrInstance) {
             console.log('Keplr not found.');
             setActive(false); 
           } else {
             setKeplr(keplrInstance);
             console.log('Keplr is ready.'); 
-            console.log(keplr);
+            enableKeplr()
           }
         } catch (error) {
           console.error('Failed to connect Keplr:', error);
@@ -78,7 +78,46 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
       }
     };
     connect();
-  }, [active, keplr]);
+  }, [active, keplrInstance]);
+
+  useEffect(() => {
+    const updateKeplr = async () => {
+      if (keplrInstance) {
+        await enableKeplr();
+      }
+    };
+    updateKeplr();
+  }, [network, keplrInstance]);
+
+  const enableKeplr = async () => {
+    await (keplrInstance as any).enable(network);
+    const offlineSigner = (keplrInstance as any).getOfflineSigner(network);
+    const accounts = await offlineSigner.getAccounts();
+
+    let rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
+    
+    let denom = 'untrn';
+    if (network === 'pion-1') {
+      rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+      denom = 'untrn';
+    }
+
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    const bal = await stargateClient.getBalance(accounts[0].address, 'untrn')
+
+    setAccount(accounts[0].address)
+    setBalance(formatDecimal(Number(bal.amount)))
+  }
+
+  const handleNetwork = (e: any) => {
+    setNetwork(e.target.value);
+    setProviderNetwork(e.target.value)
+  }
+
+  const formatDecimal = (value: number, decimalPlaces = 6) => {
+    const num = value / Math.pow(10, decimalPlaces);
+    return num.toFixed(3);
+  }
 
   return (
     <div>
@@ -88,7 +127,7 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
       </Alert>
       <Form.Group>
         <Form.Label>Network</Form.Label>
-        <Form.Control as="select" value={network} onChange={(e) => {setNetwork(e.target.value);(keplr as any).enable(network);}} size="sm">
+        <Form.Control as="select" value={network} onChange={handleNetwork} size="sm">
           {networks.map((net, idx) => (
             <option key={idx} value={net.value}>{net.name}</option>
           ))}

@@ -28,7 +28,7 @@ export interface MsgMigrateContractEncodeObject extends EncodeObject {
 }
 
 interface InterfaceProps {
-  dapp: any;
+  providerInstance: any;
   wallet: string;
   codeID: string;
   client: any;
@@ -70,7 +70,7 @@ function convertToRealChainId(chainId: string) {
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   client,
-  dapp,
+  providerInstance,
   codeID,
   setCodeID,
   fund,
@@ -102,11 +102,11 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const instantiate = async () => {
     setContractAddress('');
 
-    if (!dapp) {
+    if (!providerInstance) {
       return;
     }
 
-    dapp
+    providerInstance
       .request('neutron', {
         method: 'dapp:accounts',
       })
@@ -118,7 +118,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.neutron.chain;
+          const cid = providerInstance.networks.neutron.chain;
 
           let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
           // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
@@ -185,7 +185,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
 
-          const res = await dapp.request('neutron', {
+          const res = await providerInstance.request('neutron', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -196,7 +196,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           const contract = await waitGetContract(txHash);
           if (contract) {
             const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: convertToRealChainId(dapp.networks.neutron.chain),
+              chainId: convertToRealChainId(providerInstance.networks.neutron.chain),
               account: account,
               codeId: codeID,
               contractAddress: contract as string,
@@ -230,7 +230,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const migrate = async () => {
-    dapp
+    providerInstance
       .request('neutron', {
         method: 'dapp:accounts',
       })
@@ -242,7 +242,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         log.debug('sendTx');
         try {
           // mainnet or testnet
-          const cid = dapp.networks.neutron.chain;
+          const cid = providerInstance.networks.neutron.chain;
 
           let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
           let denom = 'untrn';
@@ -311,7 +311,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
 
-          const res = await dapp.request('neutron', {
+          const res = await providerInstance.request('neutron', {
             method: 'dapp:signAndSendTransaction',
             params: [JSON.stringify(rawTx)],
           });
@@ -323,7 +323,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
 
           if (contract) {
             const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: convertToRealChainId(dapp.networks.neutron.chain),
+              chainId: convertToRealChainId(providerInstance.networks.neutron.chain),
               account: account,
               codeId: codeID,
               contractAddress: contract as string,
@@ -355,7 +355,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const waitGetContract = async (hash: string) => {
-    const cid = dapp.networks.neutron.chain;
+    const cid = providerInstance.networks.neutron.chain;
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
     // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
@@ -592,7 +592,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       {contractAddress ? (
         <Contract
           contractAddress={contractAddress || ''}
-          dapp={dapp}
+          providerInstance={providerInstance}
           client={client}
           fund={fund}
           gasPrice={gasPrice}
