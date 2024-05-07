@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { StargateClient } from '@cosmjs/stargate';
@@ -30,33 +30,33 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
   const [error, setError] = useState<String>('');
   const [network, setNetwork] = useState<string>('neutron-1');
 
-  const networks = [
+  const networks = useMemo(() => [
     { name: 'Mainnet', value: 'neutron-1' },
     { name: 'Testnet', value: 'pion-1' }
-  ];
+  ], []);
 
-  const getKeplr = async () => {
-    if ((window as any).keplr) {
-      return (window as any).keplr;
-    }
+  // const getKeplr = async () => {
+  //   if ((window as any).keplr) {
+  //     return (window as any).keplr;
+  //   }
     
-    if (document.readyState === "complete") {
-      return (window as any).keplr;
-    }
+  //   if (document.readyState === "complete") {
+  //     return (window as any).keplr;
+  //   }
     
-    return new Promise((resolve) => {
-      const documentStateChange = (event: Event) => {
-        if (
-          event.target &&
-          (event.target as Document).readyState === "complete"
-        ) {
-          resolve((window as any).keplr);
-          document.removeEventListener("readystatechange", documentStateChange);
-        }
-      };
-      document.addEventListener("readystatechange", documentStateChange);
-    });
-  }
+  //   return new Promise((resolve) => {
+  //     const documentStateChange = (event: Event) => {
+  //       if (
+  //         event.target &&
+  //         (event.target as Document).readyState === "complete"
+  //       ) {
+  //         resolve((window as any).keplr);
+  //         document.removeEventListener("readystatechange", documentStateChange);
+  //       }
+  //     };
+  //     document.addEventListener("readystatechange", documentStateChange);
+  //   });
+  // }
 
   const keplrInstance = (window as any).keplr;
 
@@ -90,23 +90,36 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
   }, [network, keplrInstance]);
 
   const enableKeplr = async () => {
-    await (keplrInstance as any).enable(network);
-    const offlineSigner = (keplrInstance as any).getOfflineSigner(network);
-    const accounts = await offlineSigner.getAccounts();
+    try {
+      await (keplrInstance as any).enable(network);
+      const offlineSigner = (keplrInstance as any).getOfflineSigner(network);
+      const accounts = await offlineSigner.getAccounts();
 
-    let rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
-    
-    let denom = 'untrn';
-    if (network === 'pion-1') {
-      rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-      denom = 'untrn';
-    }
+      let rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
+      
+      let denom = 'untrn';
+      if (network === 'pion-1') {
+        rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
+        denom = 'untrn';
+      }
 
-    const stargateClient = await StargateClient.connect(rpcUrl);
-    const bal = await stargateClient.getBalance(accounts[0].address, 'untrn')
+      const stargateClient = await StargateClient.connect(rpcUrl);
+      const bal = await stargateClient.getBalance(accounts[0].address, 'untrn');
 
-    setAccount(accounts[0].address)
-    setBalance(formatDecimal(Number(bal.amount)))
+      setAccount(accounts[0].address);
+      setBalance(formatDecimal(Number(bal.amount)));
+
+      gtag('event', 'login', {
+        event_category: 'authentication',
+        event_label: 'keplr_wallet_connection',
+        method: 'neutron',
+      });
+      
+    } catch (error) {
+      console.error(error);
+      setError('Error! Check your Keplr Wallet');
+      setActive(false);
+  }
   }
 
   const handleNetwork = (e: any) => {

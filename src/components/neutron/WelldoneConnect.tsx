@@ -36,84 +36,64 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
     const connect = async () => {
       if (active) {
         try {
-          if (dappProvider) {
-            dappProvider.on('dapp:chainChanged', (provider: any) => {
-              window.location.reload();
-            });
+            if (dappProvider) {
+                dappProvider.on('dapp:chainChanged', () => window.location.reload());
+                dappProvider.on('dapp:accountsChanged', () => window.location.reload());
 
-            dappProvider.on('dapp:accountsChanged', (provider: any) => {
-              window.location.reload();
-            });
-
-            dappProvider
-              .request('neutron', {
-                method: 'dapp:chainId',
-              })
-              .then((networkName: any) => {
-                setNetwork(networkName);
-              });
-
-            dappProvider
-              .request('neutron', {
-                method: 'dapp:accounts',
-              })
-              .then((account: any) => {
-                if (account.constructor === Object && Object.keys(account).length === 0) {
-                  setAccount('');
-                  setBalance('');
-                  setActive(false);
+                // Try to get chain ID while wallet is locked
+                try {
+                    const networkName = await dappProvider.request('neutron', { method: 'dapp:chainId' });
+                    setNetwork(networkName);
+                } catch (error) {
+                    setError('The wallet is locked. Please unlock your wallet.');
+                    setActive(false);
+                    return;
                 }
 
-                if (account) {
-                  gtag('event', 'login', {
-                    method: 'neutron',
-                  });
-                }
-                dappProvider
-                  .request('neutron', {
-                    method: 'dapp:getBalance',
-                    params: [account['neutron'].address],
-                  })
-                  .then((balance: any) => {
-                    setAccount(account['neutron'].address);
-                    log.debug('bal: ', balance);
+                // Try to retrieve account information while wallet is locked
+                try {
+                    const accountData = await dappProvider.request('neutron', { method: 'dapp:accounts' });
+                    if (Object.keys(accountData).length === 0) {
+                        setError('No account information found. Please unlock the wallet or create an account.');
+                        setAccount('');
+                        setBalance('');
+                        setActive(false);
+                        return;
+                    } else {
+                      gtag('event', 'login', {
+                        event_category: 'authentication',
+                        event_label: 'welldone_wallet_connection',
+                        method: 'neutron',
+                      });
+                    }
+
+                    const balance = await dappProvider.request('neutron', {
+                        method: 'dapp:getBalance',
+                        params: [accountData['neutron'].address],
+                    });
+
+                    setAccount(accountData['neutron'].address);
                     setBalance(balance ?? '');
                     setDapp(dappProvider);
-                  })
-                  .catch(async (e: any) => {
+                } catch (error) {
+                    setError('Unable to retrieve account information. Please unlock your wallet.');
                     setAccount('');
                     setBalance('');
-                    await client.terminal.log({ type: 'error', value: e?.message?.toString() });
-                    await client.terminal.log({
-                      type: 'error',
-                      value: 'Please create account on chain',
-                    });
-                    setError('Create account on chain');
                     setActive(false);
-                  });
-              })
-              .catch(async (e: any) => {
+                }
+            } else {
+                setError('Unable to find the WELLDONE Wallet.');
                 setAccount('');
                 setBalance('');
-                await client.terminal.log({ type: 'error', value: e?.message?.toString() });
-                await client.terminal.log({
-                  type: 'error',
-                  value: 'Please Unlock your WELLDONE Wallet OR Create Account',
-                });
-                setError('Unlock your WELLDONE Wallet OR Create Account');
                 setActive(false);
-              });
-          } else {
-            setAccount('');
-            setBalance('');
-            setActive(false);
-          }
+            }
         } catch (e: any) {
-          log.error(e);
-          await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+            log.error(e);
+            setError('An unknown error occurred.');
+            setActive(false);
         }
       }
-    };
+    }
     connect();
   }, [active, dappProvider]);
 
@@ -123,9 +103,13 @@ export const WelldoneConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network ? (
+      {network && dappProvider && dappProvider.networks && dappProvider.networks.neutron ? (
         <NetworkUI networkName={convertToRealChainId(dappProvider.networks.neutron.chain)} />
-      ) : null}
+        ) : (
+            <Alert variant="warning">
+                <div>Unable to retrieve network information. Please ensure the wallet is unlocked and try again.</div>
+            </Alert>
+        )}
       <Form>
         <Form.Text className="text-muted" style={mb4}>
           <small>ACCOUNT</small>

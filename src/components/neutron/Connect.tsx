@@ -25,11 +25,26 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({client}) => {
     return (
         <div>
             <ListGroup>
-                <ListGroup.Item as="li" action active={activeWallet === 'Welldone'} onClick={()=>{setActiveWallet('Welldone');setActive(true)}}>
+                <ListGroup.Item as="li" action active={activeWallet === 'Welldone'} onClick={() => {
+                    try {
+                        setActiveWallet('Welldone');
+                        setActive(true);
+                    } catch (error) {
+                        console.error('WELLDONE Connection error', error);
+                        alert('Error, Check your WELLDONE Wallet');
+                    }
+                }}>
                     <img src={Welldone} style={ { 'width': '25px', 'marginRight': '10px'} } alt='WELLDONE logo'/>
                     <b>Connect to WELLDONE</b>
                 </ListGroup.Item>
-                <ListGroup.Item as="li" action active={activeWallet === 'Keplr'} onClick={()=>{setActiveWallet('Keplr');setActive(true)}}>
+                <ListGroup.Item as="li" action active={activeWallet === 'Keplr'} onClick={()=>{
+                    try {
+                        setActiveWallet('Keplr');
+                        setActive(true);
+                    } catch (error) {
+                        console.error('Keplr connection error:', error);
+                        alert('Error, Check your Keplr Wallet');
+                    }}}>
                     <img src={Keplr} style={ { 'width': '25px', 'marginRight': '10px'} } alt='Keplr logo'/>
                     <b>Connect to Keplr</b>
                 </ListGroup.Item>
