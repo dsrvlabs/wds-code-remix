@@ -1363,17 +1363,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <span> Test</span>
         </Button>
 
-        <Button
-          variant="warning"
-          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
-          onClick={async () => {
-            await wrappedRequestProve();
-          }}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
-          <span> Prove</span>
-        </Button>
+        {/*<Button*/}
+        {/*  variant="warning"*/}
+        {/*  disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}*/}
+        {/*  onClick={async () => {*/}
+        {/*    await wrappedRequestProve();*/}
+        {/*  }}*/}
+        {/*  className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"*/}
+        {/*>*/}
+        {/*  <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />*/}
+        {/*  <span> Prove</span>*/}
+        {/*</Button>*/}
 
         {fileNames.map((filename, i) => (
           <small key={`sui-module-file-${i}`}>
