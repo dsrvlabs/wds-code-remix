@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Form as ReactForm } from 'react-bootstrap';
-import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient, SigningStargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { log } from '../../utils/logger';
@@ -8,6 +8,8 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Decimal } from '@cosmjs/math';
 import { simulate } from './neutron-helper';
+import { Registry } from "@cosmjs/proto-signing";
+import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 
 interface InterfaceProps {
   contractAddress: string;
@@ -17,6 +19,9 @@ interface InterfaceProps {
   gasPrice: number;
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
+  wallet: string;
+  providerNetwork: string;
+  account: string;
 }
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({
@@ -27,6 +32,9 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   gasPrice,
   schemaExec,
   schemaQuery,
+  wallet,
+  providerNetwork,
+  account,
 }) => {
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
@@ -38,6 +46,22 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   const [executeMsg, setExecuteMsg] = useState({});
 
   const execute = async () => {
+    setExecuteResult('');
+    if (!providerInstance) return;
+  
+    try {
+      if (wallet === 'Welldone') {
+        await executeWelldone();
+      } else if (wallet === 'Keplr') {
+        await executeKeplr();
+      }
+    } catch (error: any) {
+      log.error(error);
+      setExecuteResult(`Error: ${error.message}`);
+    }
+  };
+
+  const executeWelldone = async () => {
     setExecuteResult('');
 
     if (!providerInstance) {
@@ -86,7 +110,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(`!!! executeMsg=${JSON.stringify(executeMsg, null, 2)}`);
           const executeMsg_ = { ...executeMsg };
-          recursiveValueChange(executeMsg_, ntos);
+          recursiveValueChange(executeMsg_, stringToNumber);
 
           const execContractMsg = {
             typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
@@ -143,8 +167,97 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
       });
   };
 
-  // query
+  const bufferToHex = (buffer: ArrayBuffer): string => {
+    const view = new DataView(buffer);
+    let hexStr = '';
+  
+    for (let i = 0; i < view.byteLength; i++) {
+      const byte = view.getUint8(i);
+      const hex = byte.toString(16).padStart(2, '0');
+      hexStr += hex;
+    }
+  
+    return hexStr;
+  }
+
+  const executeKeplr = async () => {
+    const rpcUrl = providerNetwork === 'neutron-1'
+      ? 'https://rpc-kralum.neutron-1.neutron.org'
+      : 'https://rpc-palvus.pion-1.ntrn.tech/';
+    const denom = 'untrn';
+  
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    const offlineSigner = providerInstance.getOfflineSigner(providerNetwork);
+
+    let chainid = providerNetwork;
+    log.debug('chainid', chainid);
+
+    let pubkey = await providerInstance.getEnigmaPubKey(chainid);
+    log.debug('pubkey', bufferToHex(pubkey.buffer));
+
+    const response = await stargateClient.getSequence(account);
+    const chainId = providerNetwork;
+  
+    const funds = fund ? [{ denom, amount: fund.toString() }] : [];
+    const executeMsg_ = { ...executeMsg };
+    recursiveValueChange(executeMsg_, stringToNumber);
+
+    console.log(executeMsg_)
+
+    const execContractMsg = {
+      typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
+      value: {
+        sender: account,
+        contract: contractAddress,
+        msg: toBase64(toUtf8(JSON.stringify(executeMsg_))) as any,
+        funds: funds,
+      },
+    };
+  
+    const memo = undefined;
+    const gasEstimation = await simulate(
+      stargateClient,
+      [execContractMsg],
+      memo,
+      bufferToHex(pubkey.buffer),
+      response.sequence
+    );
+      
+    const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+    const multiplier = 1.3;
+    const usedFee = calculateFee(Math.round(Number(gasEstimation) * multiplier), gas);
+    // const usedFee = calculateFee(Number(gasEstimation), gas);
+
+    // MsgInstantiateContract
+    const registry = new Registry();
+    registry.register('/cosmwasm.wasm.v1.MsgExecuteContract', MsgExecuteContract);
+
+    const signingClient = await SigningStargateClient.connectWithSigner(rpcUrl, offlineSigner, {registry});
+    try{
+      const res = await signingClient.signAndBroadcast(account, [execContractMsg], usedFee);
+      setExecuteResult(`Transaction hash: ${res.transactionHash}`);
+      log.debug(res.transactionHash);
+      await client.terminal.log({ type: 'info', value: `transaction hash : ${res.transactionHash}` });
+    } catch (error: any) {
+      log.error(error);
+      await client.terminal.log({ type: 'error', value: error?.message?.toString() });
+    }
+  };
+
   const query = async () => {
+    try {
+      if (wallet === 'Welldone') {
+        await queryWelldone();
+      } else if (wallet === 'Keplr') {
+        await queryKeplr();
+      }
+    } catch (e: any) {
+      setQueryResult(`Error: ${e.message}`);
+    }
+  };
+
+  // query
+  const queryWelldone = async () => {
     const cid = providerInstance.networks.neutron.chain;
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
@@ -155,6 +268,24 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     }
     const cosmwasmClient = await SigningCosmWasmClient.connect(rpcUrl);
 
+    try {
+      const res = await cosmwasmClient.queryContractSmart(contractAddress, queryMsg);
+      log.debug(res);
+      setQueryResult(JSON.stringify(res, null, 2));
+      await client.terminal.log({ type: 'info', value: res });
+    } catch (e: any) {
+      log.debug('error', e);
+      setQueryResult(e?.message);
+      await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+    }
+  };
+
+  const queryKeplr = async () => {
+    const rpcUrl = providerNetwork === 'neutron-1'
+      ? 'https://rpc-kralum.neutron-1.neutron.org'
+      : 'https://rpc-palvus.pion-1.ntrn.tech/';
+    const cosmwasmClient = await SigningCosmWasmClient.connect(rpcUrl);
+  
     try {
       const res = await cosmwasmClient.queryContractSmart(contractAddress, queryMsg);
       log.debug(res);
@@ -251,7 +382,15 @@ function recursiveValueChange(obj: any, callback: any) {
     }
   }
 }
-function ntos(value: any) {
-  if (typeof value === 'number') return value.toString();
+
+// function ntos(value: any) {
+//   if (typeof value === 'number') return value.toString();
+//   return value;
+// }
+
+function stringToNumber(value: any) {
+  if (!isNaN(value) && typeof value === 'string' && value.trim() !== '') {
+    return parseFloat(value);
+  }
   return value;
 }

@@ -1,16 +1,13 @@
 import React, { Dispatch, useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
-import { calculateFee, GasPrice, StargateClient, StdFee,  } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient, StdFee, SigningStargateClient} from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
 import { Decimal } from '@cosmjs/math';
 import { simulate, convertToRealChainId } from './neutron-helper';
-import {
-  SigningStargateClient,
-} from "@cosmjs/stargate";
-import { Registry, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { Registry } from "@cosmjs/proto-signing";
 
 interface InterfaceProps {
   providerInstance: any;
@@ -380,6 +377,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               account={account}
               timestamp={timestamp}
               checksum={checksum}
+              providerNetwork={providerNetwork}
             />
           </>
         )}

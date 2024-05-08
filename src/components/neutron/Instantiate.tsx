@@ -1,7 +1,7 @@
 import React, { Dispatch, useEffect, useState } from 'react';
 import { Button, Form as ReactForm, InputGroup } from 'react-bootstrap';
 import { Contract } from './Contract';
-import { calculateFee, GasPrice, StargateClient } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StargateClient, SigningStargateClient } from '@cosmjs/stargate';
 import { toBase64, toUtf8 } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import { log } from '../../utils/logger';
@@ -16,6 +16,7 @@ import axios from 'axios';
 
 import { CustomTooltip } from '../common/CustomTooltip';
 import { NEUTRON_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
+import { Registry } from "@cosmjs/proto-signing";
 
 export interface MsgInstantiateContractEncodeObject extends EncodeObject {
   readonly typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract';
@@ -41,6 +42,7 @@ interface InterfaceProps {
   account: string;
   timestamp: string;
   checksum: string;
+  providerNetwork: string;
 }
 
 export interface NeutronDeployHistoryCreateDto {
@@ -81,6 +83,8 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   account,
   timestamp,
   checksum,
+  wallet,
+  providerNetwork
 }) => {
   const [initMsgErr, setInitMsgErr] = useState('');
   const [contractAddress, setContractAddress] = useState<string>('');
@@ -106,261 +110,407 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    providerInstance
-      .request('neutron', {
-        method: 'dapp:accounts',
-      })
-      .then(async (result: any) => {
-        log.debug(result);
-        log.debug('account', result['neutron'].address);
-        log.debug('publicKey', result['neutron'].pubKey);
-
-        log.debug('sendTx');
-        try {
-          // mainnet or testnet
-          const cid = providerInstance.networks.neutron.chain;
-
-          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-          // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
-
-          let denom = 'untrn';
-          if (cid === 'mainnet') {
-            rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
-            denom = 'untrn';
-          }
-
-          const stargateClient = await StargateClient.connect(rpcUrl);
-          log.debug(stargateClient);
-
-          const response = await stargateClient.getSequence(result['neutron'].address);
-          log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
-          log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
-
-          const chainId = await stargateClient.getChainId();
-          log.debug('chainId: ' + chainId);
-          log.debug('fund: ' + fund);
-
-          const funds = fund ? [{ denom, amount: fund.toString() }] : [];
-
-          const instantiateContractMsg: MsgInstantiateContractEncodeObject = {
-            typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract',
-            value: {
-              sender: result['neutron'].address,
-              admin: immutableChecked ? '' : result['neutron'].address,
-              codeId: parseInt(codeID) as any,
-              label: 'contract init',
-              msg: toBase64(toUtf8(JSON.stringify(param))) as any,
-              funds,
-            },
-          };
-
-          log.debug(`instantiateContractMsg=${JSON.stringify(instantiateContractMsg, null, 2)}`);
-
-          const memo = undefined;
-          const gasEstimation = await simulate(
-            stargateClient,
-            [instantiateContractMsg],
-            memo,
-            result['neutron'].pubKey,
-            response.sequence,
-          );
-          log.debug('@@@ gasEstimation', gasEstimation);
-          log.debug('@@@ gasPrice', gasPrice);
-          log.debug('@@@ denom', gasEstimation);
-
-          const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
-
-          // const multiplier = 1.3;
-          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
-          const usedFee = calculateFee(Number(gasEstimation), gas);
-          log.debug('@@@ usedFee', usedFee);
-
-          const rawTx = {
-            account_number: response.accountNumber,
-            chain_id: chainId,
-            sequence: response.sequence,
-            fee: usedFee,
-            msgs: [instantiateContractMsg],
-          };
-
-          log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
-
-          const res = await providerInstance.request('neutron', {
-            method: 'dapp:signAndSendTransaction',
-            params: [JSON.stringify(rawTx)],
-          });
-
-          log.debug(res);
-          log.info('!!! instantiate', JSON.stringify(res, null, 2));
-          const txHash = res[0];
-          const contract = await waitGetContract(txHash);
-          if (contract) {
-            const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: convertToRealChainId(providerInstance.networks.neutron.chain),
-              account: account,
-              codeId: codeID,
-              contractAddress: contract as string,
-              compileTimestamp: Number(timestamp),
-              deployTimestamp: null, //todo
-              txHash: txHash,
-              checksum: checksum,
-              isSrcUploaded: true, // todo
-              createdBy: 'REMIX',
-            };
-            try {
-              const res = await axios.post(
-                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
-                neutronDeployHistoryCreateDto,
-              );
-              log.info(`deploy-histories api res`, res);
-            } catch (e) {
-              log.error(`deploy-histories api error`);
-            }
-          }
-
-          log.debug('contract address', contract);
-          setContractAddress(contract as any);
-          setDisabled(true);
-          await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
-        } catch (error: any) {
-          log.error(error);
-          await client.terminal.log({ type: 'error', value: error?.message?.toString() });
+    try {
+        if (wallet === 'Welldone') {
+            await instantiateWelldone();
+        } else if (wallet === 'Keplr') {
+            await instantiateKeplr();
         }
-      });
+    } catch (error: any) {
+        log.error(error);
+        await client.terminal.log({ type: 'error', value: error.message });
+    }
+  };
+
+  const instantiateKeplr = async () => {
+    const rpcUrl = providerNetwork === 'neutron-1'
+        ? 'https://rpc-kralum.neutron-1.neutron.org'
+        : 'https://rpc-palvus.pion-1.ntrn.tech/';
+
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    const offlineSigner = providerInstance.getOfflineSigner(providerNetwork);
+
+    let chainid = providerNetwork;
+    log.debug('chainid', chainid);
+
+    let pubkey = await providerInstance.getEnigmaPubKey(chainid);
+    log.debug('pubkey', bufferToHex(pubkey.buffer));
+
+    let denom = 'untrn';
+    log.debug('denom', denom);
+
+    const memo = undefined;
+
+    const response = await stargateClient.getSequence(account);
+    const gasEstimation = await simulate(
+        stargateClient,
+        [generateInstantiateContractMsg(account, null, response.sequence)],
+        memo,
+        bufferToHex(pubkey.buffer),
+        response.sequence
+    );
+
+    const gas = new GasPrice(Decimal.fromUserInput(String(gasPrice), 18), denom);
+
+    const multiplier = 1.3;
+    const usedFee = calculateFee(Math.round(Number(gasEstimation) * multiplier), gas);
+    // const usedFee = calculateFee(Math.round(Number(gasEstimation)), new GasPrice(Decimal.fromUserInput(String(gasPrice), 18), 'untrn'));
+
+    // MsgInstantiateContract
+    const registry = new Registry();
+    registry.register('/cosmwasm.wasm.v1.MsgInstantiateContract', MsgInstantiateContract);
+
+    const signingClient = await SigningStargateClient.connectWithSigner(rpcUrl, offlineSigner, { registry });
+    const res = await signingClient.signAndBroadcast(account, [generateInstantiateContractMsg(account, null, response.sequence)], usedFee);
+
+    log.debug(res);
+    log.info('!!! instantiate', JSON.stringify(res, null, 2));
+
+    const txHash = res.transactionHash;
+    const contract = await waitGetContract(txHash);
+    if (contract) {
+      const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
+        chainId: chainid,
+        account: account,
+        codeId: codeID,
+        contractAddress: contract as string,
+        compileTimestamp: Number(timestamp),
+        deployTimestamp: null, //todo
+        txHash: txHash,
+        checksum: checksum,
+        isSrcUploaded: true, // todo
+        createdBy: 'REMIX',
+      };
+      try {
+        const res = await axios.post(
+          NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
+          neutronDeployHistoryCreateDto,
+        );
+        log.info(`deploy-histories api res`, res);
+      } catch (e) {
+        log.error(`deploy-histories api error`);
+      }
+    }
+
+    log.debug('contract address', contract);
+    setContractAddress(contract as any);
+    setDisabled(true);
+    await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
+  }
+
+  const generateInstantiateContractMsg = (address: string, pubKey: any, sequence: number) => {
+    return {
+        typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract',
+        value: {
+            sender: address,
+            admin: immutableChecked ? '' : address,
+            codeId: parseInt(codeID) as any,
+            label: 'contract init',
+            msg: toBase64(toUtf8(JSON.stringify(param))) as any,
+            funds: fund ? [{ denom: 'untrn', amount: fund.toString() }] : [],
+        }
+    };
+  }
+
+  const bufferToHex = (buffer: ArrayBuffer): string => {
+    const view = new DataView(buffer);
+    let hexStr = '';
+  
+    for (let i = 0; i < view.byteLength; i++) {
+      const byte = view.getUint8(i);
+      const hex = byte.toString(16).padStart(2, '0');
+      hexStr += hex;
+    }
+  
+    return hexStr;
+  }
+
+  const instantiateWelldone = async () => {
+    
+    const result = await providerInstance.request('neutron', { method: 'dapp:accounts' });
+
+    const rpcUrl = providerInstance.networks.neutron.chain === 'mainnet'
+      ? 'https://rpc-kralum.neutron-1.neutron.org'
+      : 'https://rpc-palvus.pion-1.ntrn.tech/';
+
+    const denom = 'untrn';
+    
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    log.debug(stargateClient);
+
+    const response = await stargateClient.getSequence(result['neutron'].address);
+    log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
+    log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
+
+    const chainId = await stargateClient.getChainId();
+    log.debug('chainId: ' + chainId);
+    log.debug('fund: ' + fund);
+
+    const funds = fund ? [{ denom, amount: fund.toString() }] : [];
+
+    const instantiateContractMsg: MsgInstantiateContractEncodeObject = {
+      typeUrl: '/cosmwasm.wasm.v1.MsgInstantiateContract',
+      value: {
+        sender: result['neutron'].address,
+        admin: immutableChecked ? '' : result['neutron'].address,
+        codeId: parseInt(codeID) as any,
+        label: 'contract init',
+        msg: toBase64(toUtf8(JSON.stringify(param))) as any,
+        funds,
+      },
+    };
+
+    log.debug(`instantiateContractMsg=${JSON.stringify(instantiateContractMsg, null, 2)}`);
+
+    const memo = undefined;
+    const gasEstimation = await simulate(
+      stargateClient,
+      [instantiateContractMsg],
+      memo,
+      result['neutron'].pubKey,
+      response.sequence,
+    );
+    log.debug('@@@ gasEstimation', gasEstimation);
+    log.debug('@@@ gasPrice', gasPrice);
+    log.debug('@@@ denom', gasEstimation);
+
+    const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+
+    // const multiplier = 1.3;
+    // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
+    const usedFee = calculateFee(Number(gasEstimation), gas);
+    log.debug('@@@ usedFee', usedFee);
+
+    const rawTx = {
+      account_number: response.accountNumber,
+      chain_id: chainId,
+      sequence: response.sequence,
+      fee: usedFee,
+      msgs: [instantiateContractMsg],
+    };
+
+    log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
+
+    const res = await providerInstance.request('neutron', {
+      method: 'dapp:signAndSendTransaction',
+      params: [JSON.stringify(rawTx)],
+    });
+
+    log.debug(res);
+    log.info('!!! instantiate', JSON.stringify(res, null, 2));
+    const txHash = res[0];
+    const contract = await waitGetContract(txHash);
+    if (contract) {
+      const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
+        chainId: convertToRealChainId(providerInstance.networks.neutron.chain),
+        account: account,
+        codeId: codeID,
+        contractAddress: contract as string,
+        compileTimestamp: Number(timestamp),
+        deployTimestamp: null, //todo
+        txHash: txHash,
+        checksum: checksum,
+        isSrcUploaded: true, // todo
+        createdBy: 'REMIX',
+      };
+      try {
+        const res = await axios.post(
+          NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
+          neutronDeployHistoryCreateDto,
+        );
+        log.info(`deploy-histories api res`, res);
+      } catch (e) {
+        log.error(`deploy-histories api error`);
+      }
+    }
+
+    log.debug('contract address', contract);
+    setContractAddress(contract as any);
+    setDisabled(true);
+    await client.terminal.log({ type: 'info', value: `contract address is ${contract}` });
   };
 
   const migrate = async () => {
-    providerInstance
-      .request('neutron', {
-        method: 'dapp:accounts',
-      })
-      .then(async (result: any) => {
-        log.debug(result);
-        log.debug('account', result['neutron'].address);
-        log.debug('publicKey', result['neutron'].pubKey);
+    setContractAddress('');
+  
+    if (!providerInstance) {
+      return;
+    }
+  
+    try {
+      if (wallet === 'Welldone') {
+        await migrateWelldone();
+      } else if (wallet === 'Keplr') {
+        await migrateKeplr();
+      }
+    } catch (error: any) {
+      log.error(error);
+      await client.terminal.log({ type: 'error', value: error.message });
+    }
+  };
 
-        log.debug('sendTx');
-        try {
-          // mainnet or testnet
-          const cid = providerInstance.networks.neutron.chain;
+  const migrateWelldone = async () => {
+    
+    const result = await providerInstance.request('neutron', { method: 'dapp:accounts' });
 
-          let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-          let denom = 'untrn';
-          if (cid === 'mainnet') {
-            rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
-            denom = 'untrn';
-          }
+    const rpcUrl = providerInstance.networks.neutron.chain === 'mainnet'
+      ? 'https://rpc-kralum.neutron-1.neutron.org'
+      : 'https://rpc-palvus.pion-1.ntrn.tech/';
+    const denom = 'untrn';
 
-          const stargateClient = await StargateClient.connect(rpcUrl);
-          log.debug(stargateClient);
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    log.debug(stargateClient);
 
-          const response = await stargateClient.getSequence(result['neutron'].address);
-          log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
-          log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
+    const response = await stargateClient.getSequence(result['neutron'].address);
+    const chainId = await stargateClient.getChainId();
+    log.debug(`@@@ response=${JSON.stringify(response, null, 2)}`);
+    log.debug(`@@@ sequence=${response.sequence}, accountNumber=${response.accountNumber}`);
+    
+    const funds = fund ? [{ denom, amount: fund.toString() }] : [];
+    log.debug('chainId: ' + chainId);
+    log.debug('fund: ' + fund);
 
-          const chainId = await stargateClient.getChainId();
-          log.debug('chainId: ' + chainId);
-          log.debug('fund: ' + fund);
+    const migrateContractMsg: MsgMigrateContractEncodeObject = {
+      typeUrl: '/cosmwasm.wasm.v1.MsgMigrateContract',
+      value: {
+        sender: result['neutron'].address,
+        contract: migrateContractAddress,
+        codeId: parseInt(codeID) as any,
+        msg: toBase64(toUtf8(JSON.stringify({ new_format: 'New Format Description' }))) as any,
+      },
+    };
 
-          const funds = fund ? [{ denom, amount: fund.toString() }] : [];
+    log.debug(`migrateContractMsg=${JSON.stringify(migrateContractMsg, null, 2)}`);
 
-          const migrateContractMsg: MsgMigrateContractEncodeObject = {
-            typeUrl: '/cosmwasm.wasm.v1.MsgMigrateContract',
-            value: {
-              sender: result['neutron'].address,
-              contract: migrateContractAddress,
-              codeId: parseInt(codeID) as any,
-              msg: toBase64(
-                toUtf8(
-                  JSON.stringify({
-                    new_format: 'New Format Description',
-                  }),
-                ),
-              ) as any,
-            },
-          };
+    const memo = undefined;
+    const gasEstimation = await simulate(
+      stargateClient,
+      [migrateContractMsg],
+      memo,
+      result['neutron'].pubKey,
+      response.sequence
+    );
+    
+    log.debug('@@@ gasEstimation', gasEstimation);
+    log.debug('@@@ gasPrice', gasPrice);
+    log.debug('@@@ denom', gasEstimation);
 
-          log.debug(`migrateContractMsg=${JSON.stringify(migrateContractMsg, null, 2)}`);
+    const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+    const usedFee = calculateFee(Number(gasEstimation), gas);
+    log.debug('@@@ usedFee', usedFee);
 
-          const memo = undefined;
-          const gasEstimation = await simulate(
-            stargateClient,
-            [migrateContractMsg],
-            memo,
-            result['neutron'].pubKey,
-            response.sequence,
-          );
-          log.debug('@@@ gasEstimation', gasEstimation);
-          log.debug('@@@ gasPrice', gasPrice);
-          log.debug('@@@ denom', gasEstimation);
+    const rawTx = {
+      account_number: response.accountNumber,
+      chain_id: chainId,
+      sequence: response.sequence,
+      fee: usedFee,
+      msgs: [migrateContractMsg],
+    };
+    log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
+  
+    const res = await providerInstance.request('neutron', {
+      method: 'dapp:signAndSendTransaction',
+      params: [JSON.stringify(rawTx)],
+    });
+    log.info('!!! migrateContractMsg', JSON.stringify(res, null, 2));
+  
+    const txHash = res[0];
+    await handleMigrationResponse(txHash, chainId, result['neutron'].address);
+  };
 
-          const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+  const migrateKeplr = async () => {
+    const rpcUrl = providerNetwork === 'neutron-1'
+      ? 'https://rpc-kralum.neutron-1.neutron.org'
+      : 'https://rpc-palvus.pion-1.ntrn.tech/';
+    const denom = 'untrn';
 
-          // const multiplier = 1.3;
-          // const usedFee = calculateFee(Math.round(gasEstimation * multiplier), gas);
-          const usedFee = calculateFee(Number(gasEstimation), gas);
-          log.debug('@@@ usedFee', usedFee);
+    const stargateClient = await StargateClient.connect(rpcUrl);
+    const offlineSigner = providerInstance.getOfflineSigner(providerNetwork);
+    const response = await stargateClient.getSequence(account);
+    const chainId = providerNetwork;
 
-          const rawTx = {
-            account_number: response.accountNumber,
-            chain_id: chainId,
-            sequence: response.sequence,
-            fee: usedFee,
-            msgs: [migrateContractMsg],
-          };
+    let chainid = providerNetwork;
+    log.debug('chainid', chainid);
 
-          log.debug(`rawTx=${JSON.stringify(rawTx, null, 2)}`);
+    let pubkey = await providerInstance.getEnigmaPubKey(chainid);
+    log.debug('pubkey', bufferToHex(pubkey.buffer));
 
-          const res = await providerInstance.request('neutron', {
-            method: 'dapp:signAndSendTransaction',
-            params: [JSON.stringify(rawTx)],
-          });
+    const migrateContractMsg: MsgMigrateContractEncodeObject = {
+      typeUrl: '/cosmwasm.wasm.v1.MsgMigrateContract',
+      value: {
+        sender: account,
+        contract: migrateContractAddress,
+        codeId: parseInt(codeID) as any,
+        msg: toBase64(toUtf8(JSON.stringify({ new_format: 'New Format Description' }))) as any,
+      },
+    };
 
-          log.debug(res);
-          log.info('!!! migrateContractMsg', JSON.stringify(res, null, 2));
-          const txHash = res[0];
-          const contract = await waitGetContract(txHash);
+    const memo = undefined;
+    const gasEstimation = await simulate(
+      stargateClient,
+      [migrateContractMsg],
+      memo,
+      bufferToHex(pubkey.buffer),
+      response.sequence
+    );
+    const gas = new GasPrice(Decimal.fromUserInput(gasPrice.toString(), 18), denom);
+    const multiplier = 1.3;
+    const usedFee = calculateFee(Math.round(Number(gasEstimation) * multiplier), gas);
+    // const usedFee = calculateFee(Number(gasEstimation), gas);
 
-          if (contract) {
-            const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
-              chainId: convertToRealChainId(providerInstance.networks.neutron.chain),
-              account: account,
-              codeId: codeID,
-              contractAddress: contract as string,
-              compileTimestamp: Number(timestamp),
-              deployTimestamp: null, //todo
-              txHash: txHash,
-              isSrcUploaded: true, // todo
-              checksum: checksum,
-              createdBy: 'REMIX',
-            };
-            try {
-              const res = await axios.post(
-                NEUTRON_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
-                neutronDeployHistoryCreateDto,
-              );
-              log.info(`deploy-histories api res`, res);
-            } catch (e) {
-              log.error(`deploy-histories api error`);
-            }
-          }
+    // MsgMigrateContract
+    const registry = new Registry();
+    registry.register('/cosmwasm.wasm.v1.MsgMigrateContract', MsgMigrateContract);
 
-          log.debug('contract address', contract);
-          setContractAddress(contract as any);
-          setDisabled(true);
-        } catch (e) {
-          console.log(e);
-        }
-      });
+    const signingClient = await SigningStargateClient.connectWithSigner(rpcUrl, offlineSigner, {registry});
+    const res = await signingClient.signAndBroadcast(account, [migrateContractMsg], usedFee);
+
+    const txHash = res.transactionHash;
+    await handleMigrationResponse(txHash, chainId, account);
+  }
+
+  const handleMigrationResponse = async (txHash: string, chainId: string, sender: string) => {
+    const contract = await waitGetContract(txHash);
+    if (contract) {
+      const neutronDeployHistoryCreateDto: NeutronDeployHistoryCreateDto = {
+        chainId,
+        account: sender,
+        codeId: codeID,
+        contractAddress: contract as string,
+        compileTimestamp: Number(timestamp),
+        deployTimestamp: null, // todo
+        txHash: txHash,
+        checksum: checksum,
+        isSrcUploaded: true, // todo
+        createdBy: 'REMIX',
+      };
+      try {
+        const res = await axios.post(
+          `${NEUTRON_COMPILER_CONSUMER_API_ENDPOINT}/deploy-histories`,
+          neutronDeployHistoryCreateDto
+        );
+        log.info(`deploy-histories API response:`, res);
+      } catch (e) {
+        log.error(`deploy-histories API error`);
+      }
+    }
+  
+    log.debug('Contract address:', contract);
+    setContractAddress(contract as any);
+    setDisabled(true);
+    await client.terminal.log({ type: 'info', value: `Contract address is ${contract}` });
   };
 
   const waitGetContract = async (hash: string) => {
-    const cid = providerInstance.networks.neutron.chain;
+    let realChainId = providerNetwork;
+
+    if(wallet == 'Welldone') {
+      realChainId = convertToRealChainId(providerInstance.networks.neutron.chain);
+    }
 
     let rpcUrl = 'https://rpc-palvus.pion-1.ntrn.tech/';
-    // let rpcUrl = 'https://neutron-node.welldonestudio.io/';
 
-    if (cid === 'mainnet') {
+    if (realChainId === 'neutron-1') {
       rpcUrl = 'https://rpc-kralum.neutron-1.neutron.org';
     }
 
@@ -369,6 +519,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
     return new Promise(function (resolve) {
       const id = setInterval(async function () {
         const result = await stargateClient.getTx(hash);
+        setInitMsgErr('');
         if (!result) {
           // setInitMsgErr(`Not found transaction ${hash}`);
           // clearInterval(id);
@@ -598,6 +749,9 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
           gasPrice={gasPrice}
           schemaExec={schemaExec}
           schemaQuery={schemaQuery}
+          wallet={wallet}
+          providerNetwork={providerNetwork}
+          account={account}
         />
       ) : (
         <></>
