@@ -1,13 +1,19 @@
 import React, { Dispatch, useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
-import { calculateFee, GasPrice, StargateClient, StdFee, SigningStargateClient} from '@cosmjs/stargate';
+import {
+  calculateFee,
+  GasPrice,
+  StargateClient,
+  StdFee,
+  SigningStargateClient,
+} from '@cosmjs/stargate';
 import { Instantiate } from './Instantiate';
 
 import { MsgStoreCode } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { log } from '../../utils/logger';
 import { Decimal } from '@cosmjs/math';
 import { simulate, convertToRealChainId } from './neutron-helper';
-import { Registry } from "@cosmjs/proto-signing";
+import { Registry } from '@cosmjs/proto-signing';
 
 interface InterfaceProps {
   providerInstance: any;
@@ -44,16 +50,15 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   schemaQuery,
   account,
   timestamp,
-  providerNetwork
+  providerNetwork,
 }) => {
   const [gasPrice, setGasPrice] = useState<number>(0.035);
   const [fund, setFund] = useState<number>(0);
 
   const waitGetCodeID = async (hash: string) => {
-    
     let realChainId = providerNetwork;
 
-    if(wallet == 'Welldone') {
+    if (wallet == 'Welldone') {
       realChainId = convertToRealChainId(providerInstance.networks.neutron.chain);
     }
 
@@ -222,7 +227,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       let denom = 'untrn';
       log.debug('denom', denom);
 
-      log.debug('rpcUrl', rpcUrl)
+      log.debug('rpcUrl', rpcUrl);
 
       const stargateClient = await StargateClient.connect(rpcUrl);
 
@@ -234,8 +239,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
       // MsgStoreCode
       const registry = new Registry();
-      registry.register("/cosmwasm.wasm.v1.MsgStoreCode", MsgStoreCode);
-      
+      registry.register('/cosmwasm.wasm.v1.MsgStoreCode', MsgStoreCode);
+
       const messages = [
         {
           typeUrl: '/cosmwasm.wasm.v1.MsgStoreCode',
@@ -276,20 +281,18 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         msgs: messages,
       };
 
-      log.debug(JSON.stringify(rawTx));
+      // log.debug(JSON.stringify(rawTx)); // TypeError: Do not know how to serialize a BigInt
 
       const offlineSigner = providerInstance.getOfflineSigner(chainid);
 
-      const starClient = await SigningStargateClient.connectWithSigner(
-        rpcUrl,
-        offlineSigner,
-        { registry }
-      )
+      const starClient = await SigningStargateClient.connectWithSigner(rpcUrl, offlineSigner, {
+        registry,
+      });
 
       const res = await starClient.signAndBroadcast(account, messages, usedFee);
-      log.debug(res)
+      log.debug(res);
 
-      log.info('@@@ dapp res', JSON.stringify(res, null, 2));
+      // log.info('@@@ dapp res', JSON.stringify(res, null, 2)); // TypeError: Do not know how to serialize a BigInt
 
       const code_id = await waitGetCodeID(res.transactionHash);
       await client.terminal.log({ type: 'info', value: `Code ID is ${code_id}` });
@@ -301,19 +304,19 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
   };
-  
+
   const bufferToHex = (buffer: ArrayBuffer): string => {
     const view = new DataView(buffer);
     let hexStr = '';
-  
+
     for (let i = 0; i < view.byteLength; i++) {
       const byte = view.getUint8(i);
       const hex = byte.toString(16).padStart(2, '0');
       hexStr += hex;
     }
-  
+
     return hexStr;
-  }
+  };
 
   return (
     <>
@@ -353,7 +356,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         <hr />
         <Button
           variant="primary"
-          onClick={ wallet=='Welldone' ? welldoneProceed : keplrProceed}
+          onClick={wallet == 'Welldone' ? welldoneProceed : keplrProceed}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
           <span>Store Code</span>
