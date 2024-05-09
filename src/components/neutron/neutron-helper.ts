@@ -28,6 +28,7 @@ export async function simulate(
 ) {
   const registry = new Registry([...defaultRegistryTypes, ...wasmTypes]);
   const anyMsgs = messages.map((m) => registry.encodeAsAny(m));
+
   const simulateResult = await client.queryClient.tx.simulate(
     anyMsgs,
     memo,
@@ -37,6 +38,7 @@ export async function simulate(
     },
     `${sequence}`,
   );
+
   return simulateResult.gasInfo.gasUsed;
 }
 

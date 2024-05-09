@@ -38,9 +38,10 @@ interface InterfaceProps {
   compileTarget: string;
   wallet: string;
   account: string;
-  dapp: any;
+  providerInstance: any;
   client: any;
   reset: () => void;
+  providerNetwork: string;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -50,11 +51,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   fileName,
   setFileName,
   client,
-  dapp,
+  providerInstance,
   compileTarget,
   wallet,
   account,
   reset,
+  providerNetwork,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
@@ -212,9 +214,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     // ------------------------------------------------------------------
 
+    let realChainId = providerNetwork
+
+    if(wallet == 'Welldone') {
+      realChainId = convertToRealChainId(providerInstance.networks.neutron.chain);
+    }
+
     const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
       chainName: CHAIN_NAME.neutron,
-      chainId: convertToRealChainId(dapp.networks.neutron.chain),
+      chainId: realChainId,
       account: address || 'noaddress',
       timestamp: timestamp.toString() || '0',
       fileType: 'neutron',
@@ -257,7 +265,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     const uploadUrls = await FileUtil.uploadUrls({
       chainName: CHAIN_NAME.neutron,
-      chainId: convertToRealChainId(dapp.networks.neutron.chain),
+      chainId: realChainId,
       account: address || 'noaddress',
       timestamp: timestamp.toString() || '0',
       projFiles: projFiles_,
@@ -331,7 +339,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             data.compileId !==
             compileIdV2(
               CHAIN_NAME.neutron,
-              convertToRealChainId(dapp.networks.neutron.chain),
+              realChainId,
               address,
               timestamp,
             )
@@ -356,7 +364,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             data.compileId !==
             compileIdV2(
               CHAIN_NAME.neutron,
-              convertToRealChainId(dapp.networks.neutron.chain),
+              realChainId,
               address,
               timestamp,
             )
@@ -409,7 +417,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             data.compileId !==
             compileIdV2(
               CHAIN_NAME.neutron,
-              convertToRealChainId(dapp.networks.neutron.chain),
+              realChainId,
               address,
               timestamp,
             )
@@ -424,7 +432,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               bucket: S3Path.bucket(),
               fileKey: S3Path.outKey(
                 CHAIN_NAME.neutron,
-                convertToRealChainId(dapp.networks.neutron.chain),
+                realChainId,
                 account,
                 timestamp,
                 BUILD_FILE_TYPE.rs,
@@ -510,7 +518,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
                 {
                   chainName: CHAIN_NAME.neutron,
-                  chainId: convertToRealChainId(dapp.networks.neutron.chain),
+                  chainId: realChainId,
                   account: address || 'noaddress',
                   timestamp: timestamp.toString() || '0',
                   paths: schemaFiles.map((f) => ({
@@ -552,12 +560,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       const remixNeutronCompileRequestedV1: RemixNeutronCompileRequestedV1 = {
         compileId: compileIdV2(
           CHAIN_NAME.neutron,
-          convertToRealChainId(dapp.networks.neutron.chain),
+          realChainId,
           address,
           timestamp,
         ),
         chainName: CHAIN_NAME.neutron,
-        chainId: convertToRealChainId(dapp.networks.neutron.chain),
+        chainId: realChainId,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'neutron',
@@ -654,8 +662,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {wasm && !loading ? (
         <StoreCode
-          dapp={dapp}
-          wallet={'Dsrv'}
+          providerInstance={providerInstance}
+          wallet={wallet}
           compileTarget={compileTarget}
           client={client}
           wasm={wasm}
@@ -670,6 +678,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           schemaQuery={schemaQuery}
           account={account}
           timestamp={timestamp}
+          providerNetwork={providerNetwork}
         />
       ) : (
         <>
