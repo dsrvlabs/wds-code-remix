@@ -7,6 +7,7 @@ import Near from '../assets/Near-Big.png';
 import Celo from '../assets/Celo-Big.png';
 import Juno from '../assets/Juno-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
+import Arbitrum from '../assets/Arbitrum.png';
 import RefreshButton from './common/RefreshButton';
 import { FunctionComponent } from 'react';
 import { EditorClient } from '../utils/editor';
@@ -46,14 +47,25 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           style={{ cursor: 'pointer' }}
           action
           onClick={() => {
+            setChain('Arbitrum');
+          }}
+        >
+          <img src={Arbitrum} style={{ width: '35px', marginRight: '20px' }} alt="Arbitrum logo" />
+          <b>Arbitrum (Stylus)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            Beta
+          </Badge>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
             setChain('Neutron');
           }}
         >
           <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
-          <b>NEUTRON (CosmWasm)</b>
-          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-            Beta
-          </Badge>
+          <b>Neutron (CosmWasm)</b>
         </ListGroup.Item>
         <ListGroup.Item
           as="li"
@@ -64,7 +76,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           }}
         >
           <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
-          <b>SUI (MoveVM)</b>
+          <b>Sui (MoveVM)</b>
         </ListGroup.Item>
         <ListGroup>
           <ListGroup.Item
@@ -76,7 +88,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             }}
           >
             <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
-            <b>APTOS (MoveVM)</b>
+            <b>Aptos (MoveVM)</b>
           </ListGroup.Item>
 
           <ListGroup.Item
@@ -88,7 +100,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             }}
           >
             <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
-            <b>JUNO (CosmWasm)</b>
+            <b>Juno (CosmWasm)</b>
           </ListGroup.Item>
           <ListGroup.Item
             as="li"
@@ -121,7 +133,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             }}
           >
             <img src={Klaytn} style={{ width: '35px', marginRight: '20px' }} alt="Klaytn logo" />
-            <b>KLAYTN (EVM)</b>
+            <b>Klaytn (EVM)</b>
           </ListGroup.Item>
         </ListGroup>
       </Form.Group>
