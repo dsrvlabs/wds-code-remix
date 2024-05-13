@@ -344,18 +344,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerNeutronCompileErrorOccurredV1) => {
           if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: CHAIN_NAME.neutron,
-                chainId: realChainId,
-                account: account,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.neutron,
+                  chainId: realChainId,
+                  account: account,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
           }
 
           log.info(
@@ -448,18 +452,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
           if (!uploadCodeChecked) {
             console.log(`Delete source files.`);
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: CHAIN_NAME.neutron,
-                chainId: realChainId,
-                account: account,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.neutron,
+                  chainId: realChainId,
+                  account: account,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
           }
 
           const zip = await new JSZip().loadAsync(res.data);

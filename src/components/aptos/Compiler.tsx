@@ -262,18 +262,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
 
           if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: CHAIN_NAME.aptos,
-                chainId: data.chainId,
-                account: data.address,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.aptos,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
           }
 
           if (
@@ -313,18 +317,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           );
 
           if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: CHAIN_NAME.aptos,
-                chainId: data.chainId,
-                account: data.address,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.aptos,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
           }
 
           if (
@@ -566,18 +574,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             )}`,
           );
           if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: CHAIN_NAME.aptos,
-                chainId: data.chainId,
-                account: data.address,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.aptos,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
           }
 
           if (
@@ -609,18 +621,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         );
 
         if (!uploadCodeChecked) {
-          await axios.request({
-            method: 'DELETE',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-            params: {
-              chainName: CHAIN_NAME.aptos,
-              chainId: data.chainId,
-              account: data.address,
-              timestamp: timestamp,
-            },
-            responseType: 'arraybuffer',
-            responseEncoding: 'null',
-          });
+          try {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.aptos,
+                chainId: data.chainId,
+                account: data.address,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          } catch (e) {
+            console.log(`Failed to delete.`);
+          }
         }
 
         if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
