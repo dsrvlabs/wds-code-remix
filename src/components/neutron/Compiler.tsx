@@ -343,18 +343,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerNeutronCompileErrorOccurredV1) => {
-          await axios.request({
-            method: 'DELETE',
-            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-            params: {
-              chainName: CHAIN_NAME.neutron,
-              chainId: realChainId,
-              account: account,
-              timestamp: timestamp,
-            },
-            responseType: 'arraybuffer',
-            responseEncoding: 'null',
-          });
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.neutron,
+                chainId: realChainId,
+                account: account,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
 
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
