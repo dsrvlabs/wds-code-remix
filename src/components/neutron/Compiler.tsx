@@ -1,4 +1,4 @@
-import React, { Dispatch, useState } from 'react';
+import React, { Dispatch, useEffect, useState } from 'react';
 import { Alert, Button } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -31,6 +31,7 @@ import { convertToRealChainId } from './neutron-helper';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { UploadUrlDto } from '../../types/dto/upload-url.dto';
+import { CustomTooltip } from '../common/CustomTooltip';
 
 interface InterfaceProps {
   fileName: string;
@@ -70,6 +71,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
   const [schemaExec, setSchemaExec] = useState<Object>({});
   const [schemaQuery, setSchemaQuery] = useState<Object>({});
+
+  const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
+
+  useEffect(() => {
+    init();
+  }, [compileTarget]);
 
   const exists = async () => {
     try {
@@ -116,6 +123,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setSchemaInit({});
     setSchemaQuery({});
     setTimestamp('');
+  };
+
+  const handleCheckboxChange = (event: {
+    target: { checked: boolean | ((prevState: boolean) => boolean) };
+  }) => {
+    setUploadCodeChecked(event.target.checked);
   };
 
   const readCode = async () => {
@@ -214,9 +227,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     // ------------------------------------------------------------------
 
-    let realChainId = providerNetwork
+    let realChainId = providerNetwork;
 
-    if(wallet == 'Welldone') {
+    if (wallet === 'Welldone') {
       realChainId = convertToRealChainId(providerInstance.networks.neutron.chain);
     }
 
@@ -330,20 +343,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on(
         COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1,
         async (data: CompilerNeutronCompileErrorOccurredV1) => {
+          await axios.request({
+            method: 'DELETE',
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              chainName: CHAIN_NAME.neutron,
+              chainId: realChainId,
+              account: account,
+              timestamp: timestamp,
+            },
+            responseType: 'arraybuffer',
+            responseEncoding: 'null',
+          });
+
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_NEUTRON_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
               data,
             )}`,
           );
-          if (
-            data.compileId !==
-            compileIdV2(
-              CHAIN_NAME.neutron,
-              realChainId,
-              address,
-              timestamp,
-            )
-          ) {
+          if (data.compileId !== compileIdV2(CHAIN_NAME.neutron, realChainId, address, timestamp)) {
             return;
           }
           await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
@@ -360,15 +378,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           log.info(
             `${RCV_EVENT_LOG_PREFIX} ${COMPILER_NEUTRON_COMPILE_LOGGED_V1} data=${stringify(data)}`,
           );
-          if (
-            data.compileId !==
-            compileIdV2(
-              CHAIN_NAME.neutron,
-              realChainId,
-              address,
-              timestamp,
-            )
-          ) {
+          if (data.compileId !== compileIdV2(CHAIN_NAME.neutron, realChainId, address, timestamp)) {
             return;
           }
 
@@ -413,15 +423,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
-          if (
-            data.compileId !==
-            compileIdV2(
-              CHAIN_NAME.neutron,
-              realChainId,
-              address,
-              timestamp,
-            )
-          ) {
+          if (data.compileId !== compileIdV2(CHAIN_NAME.neutron, realChainId, address, timestamp)) {
             return;
           }
 
@@ -441,6 +443,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             responseType: 'arraybuffer',
             responseEncoding: 'null',
           });
+
+          if (!uploadCodeChecked) {
+            console.log(`Delete source files.`);
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.neutron,
+                chainId: realChainId,
+                account: account,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
 
           const zip = await new JSZip().loadAsync(res.data);
 
@@ -558,12 +576,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       );
 
       const remixNeutronCompileRequestedV1: RemixNeutronCompileRequestedV1 = {
-        compileId: compileIdV2(
-          CHAIN_NAME.neutron,
-          realChainId,
-          address,
-          timestamp,
-        ),
+        compileId: compileIdV2(CHAIN_NAME.neutron, realChainId, address, timestamp),
         chainName: CHAIN_NAME.neutron,
         chainId: realChainId,
         address: address || 'noaddress',
@@ -634,6 +647,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   return (
     <>
+      <div className="mb-2 form-check">
+        <input
+          type="checkbox"
+          className="form-check-input"
+          id="uploadCodeCheckbox"
+          checked={uploadCodeChecked}
+          onChange={handleCheckboxChange}
+          disabled={loading || !!fileName || !!codeID}
+        />
+        <CustomTooltip
+          placement="top"
+          tooltipId="overlay-ataddresss"
+          tooltipText="When you upload the code, a code verification feature will be provided in the future."
+        >
+          <label
+            className="form-check-label"
+            htmlFor="uploadCodeCheckbox"
+            style={{ verticalAlign: 'top' }}
+          >
+            Upload Code
+          </label>
+        </CustomTooltip>
+      </div>
       <Button
         variant="primary"
         disabled={account === '' || loading || !compileTarget}
