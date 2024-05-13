@@ -316,25 +316,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             )}`,
           );
 
-          if (!uploadCodeChecked) {
-            try {
-              await axios.request({
-                method: 'DELETE',
-                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-                params: {
-                  chainName: CHAIN_NAME.aptos,
-                  chainId: data.chainId,
-                  account: data.address,
-                  timestamp: timestamp,
-                },
-                responseType: 'arraybuffer',
-                responseEncoding: 'null',
-              });
-            } catch (e) {
-              console.log(`Failed to delete.`);
-            }
-          }
-
           if (
             data.compileId !==
             compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
@@ -379,6 +360,25 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           let moduleWrappers: ModuleWrapper[] = [];
 
           log.debug(zip.files);
+
+          if (!uploadCodeChecked) {
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.aptos,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
+          }
 
           // ABI
           // await Promise.all(
