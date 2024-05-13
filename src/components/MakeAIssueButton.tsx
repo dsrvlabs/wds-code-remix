@@ -5,7 +5,7 @@ export const MakeAIssueButton: React.FunctionComponent = () => {
   return (
     <Button
       onClick={() => {
-        window.open('https://support.welldonestudio.io/');
+        window.open('https://github.com/dsrvlabs/wds-code-remix/issues');
       }}
       style={{ marginTop: '20px', width: '100%' }}
     >
