@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -65,6 +65,7 @@ import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import copy from 'copy-to-clipboard';
 import EntryButton from './EntryButton';
+import { CustomTooltip } from '../common/CustomTooltip';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -124,6 +125,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [entryEstimatedGas, setEntryEstimatedGas] = useState<string | undefined>();
   const [entryGasUnitPrice, setEntryGasUnitPrice] = useState<string>('0');
   const [entryMaxGasAmount, setEntryMaxGasAmount] = useState<string>('0');
+  const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
+
+  useEffect(() => {
+    setPackageName('');
+    setCompileTimestamp('');
+    setModuleBase64s([]);
+    setFileNames([]);
+    setModuleWrappers([]);
+    setMetaDataBase64('');
+  }, [compileTarget]);
+  const handleCheckboxChange = (event: {
+    target: { checked: boolean | ((prevState: boolean) => boolean) };
+  }) => {
+    setUploadCodeChecked(event.target.checked);
+  };
 
   const setGasUnitPriceValue = (e: { target: { value: React.SetStateAction<string> } }) => {
     setGasUnitPrice(e.target.value);
@@ -244,6 +260,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
+
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.aptos,
+                chainId: data.chainId,
+                account: data.address,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
+
           if (
             data.compileId !==
             compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
@@ -279,6 +311,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
+
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.aptos,
+                chainId: data.chainId,
+                account: data.address,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
+
           if (
             data.compileId !==
             compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
@@ -517,6 +565,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               data,
             )}`,
           );
+          if (!uploadCodeChecked) {
+            await axios.request({
+              method: 'DELETE',
+              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+              params: {
+                chainName: CHAIN_NAME.aptos,
+                chainId: data.chainId,
+                account: data.address,
+                timestamp: timestamp,
+              },
+              responseType: 'arraybuffer',
+              responseEncoding: 'null',
+            });
+          }
 
           if (
             data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
@@ -545,6 +607,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         log.debug(
           `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_PROVE_COMPLETED_V2} data=${stringify(data)}`,
         );
+
+        if (!uploadCodeChecked) {
+          await axios.request({
+            method: 'DELETE',
+            url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+            params: {
+              chainName: CHAIN_NAME.aptos,
+              chainId: data.chainId,
+              account: data.address,
+              timestamp: timestamp,
+            },
+            responseType: 'arraybuffer',
+            responseEncoding: 'null',
+          });
+        }
+
         if (data.id !== reqIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)) {
           return;
         }
@@ -874,6 +952,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   return (
     <>
       <div className="d-grid gap-2">
+        <div className="mb-2 form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="uploadCodeCheckbox"
+            checked={uploadCodeChecked}
+            onChange={handleCheckboxChange}
+            disabled={loading || (!!moduleWrappers && moduleWrappers.length > 0)}
+          />
+          <CustomTooltip
+            placement="top"
+            tooltipId="overlay-ataddresss"
+            tooltipText="When you upload the code, a code verification feature will be provided in the future."
+          >
+            <label
+              className="form-check-label"
+              htmlFor="uploadCodeCheckbox"
+              style={{ verticalAlign: 'top' }}
+            >
+              Upload Code
+            </label>
+          </CustomTooltip>
+        </div>
         <Button
           variant="primary"
           disabled={accountID === '' || proveLoading || loading || !compileTarget}
