@@ -13,24 +13,28 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
+import { Compiler } from './Compiler';
 
 interface InterfaceProps {
   wallet: string;
   account: string;
   client: Client<Api, Readonly<IRemixApi>>;
   injectedProvider: any;
+  providerNetwork: string;
 }
 
 export const Project: React.FunctionComponent<InterfaceProps> = ({
   wallet,
   account,
   injectedProvider,
+  providerNetwork,
   client,
 }) => {
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello-world');
+  const [fileName, setFileName] = useState<string>('');
 
   const templateList = ['hello-world'];
 
@@ -81,7 +85,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     } catch (e: any) {
       await client.terminal.log(e.message);
     }
-    
   };
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
 
@@ -115,7 +118,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       method: 'create_template',
     });
 
-    
     if (await wrappedIsExists(template)) {
       await client.terminal.log({
         type: 'error',
@@ -127,7 +129,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     const res = await axios.request({
       method: 'GET',
       url:
-        `https://api.welldonestudio.io/compiler/s3Proxy?bucket=code-template&fileKey=arbitrum/` + template + '.zip',
+        `https://api.welldonestudio.io/compiler/s3Proxy?bucket=code-template&fileKey=arbitrum/` +
+        template +
+        '.zip',
       responseType: 'arraybuffer',
       responseEncoding: 'null',
     });
@@ -221,6 +225,16 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
       <hr />
       {/* <Compiler compileTarget={compileTarget} accountID={account} dapp={dapp} client={client} /> */}
+      <Compiler
+        fileName={fileName}
+        setFileName={setFileName}
+        providerInstance={injectedProvider}
+        compileTarget={compileTarget}
+        wallet={wallet}
+        account={account}
+        client={client}
+        providerNetwork={providerNetwork}
+      />
     </div>
   );
 };

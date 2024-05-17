@@ -71,7 +71,7 @@
     "typescript": "^4.7.2",
     "util": "^0.12.4",
     "wasm-walrus-tools": "github:AhaLabs/wasm-walrus-tools#v0.1.0",
-    "wds-event": "^1.0.33",
+    "wds-event": "^1.0.34",
     "wds-near-contract-parser": "^0.1.5",
     "web-vitals": "^2.1.4",
     "web3": "^1.3.6"

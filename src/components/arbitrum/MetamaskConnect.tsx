@@ -15,6 +15,7 @@ interface InterfaceProps {
   setAccount: Function;
   account: string;
   setInjectedProvider: Function;
+  setProviderNetwork: Function;
   client: Client<Api, Readonly<IRemixApi>>;
   setActive: Function;
 }
@@ -25,6 +26,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
   account,
   setAccount,
   setInjectedProvider,
+  setProviderNetwork,
   setActive,
 }) => {
   const [balance, setBalance] = useState<string>('');
@@ -59,9 +61,10 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
           fetchBalance(accounts[0]);
 
           const chainId = await ethereum.request({ method: 'eth_chainId' });
-          console.log('chainId', chainId)
+          console.log('chainId', chainId);
           setNetwork(chainId);
           setInjectedProvider(ethereum);
+          setProviderNetwork(chainId);
         } catch (error: any) {
           setError(error.message);
           log.error(error);
@@ -73,7 +76,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
     const fetchBalance = async (account: string) => {
       const balance = await ethereum.request({
         method: 'eth_getBalance',
-        params: [account, 'latest']
+        params: [account, 'latest'],
       });
       const formattedBalance = web3.utils.fromWei(balance, 'ether');
       setBalance(parseFloat(formattedBalance).toFixed(4));
@@ -88,7 +91,9 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network ? <NetworkUI networkName={network} /> : null}
+      {network ? (
+        <NetworkUI networkName={network === '0xcb6bab' ? 'Stylus testnet (v2)' : network} />
+      ) : null}
       <Form>
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
@@ -107,13 +112,13 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
             <small>BALANCE</small>
           </Form.Text>
           <InputGroup>
-          <Form.Control
-            type="text"
-            placeholder="Balance"
-            value={account ? balance : '0'}
-            size="sm"
-            readOnly
-          />
+            <Form.Control
+              type="text"
+              placeholder="Balance"
+              value={account ? balance : '0'}
+              size="sm"
+              readOnly
+            />
           </InputGroup>
         </Form.Group>
       </Form>
