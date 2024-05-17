@@ -7,6 +7,7 @@ import { Connect as AptosConnect } from './aptos/Connect';
 import { Connect as SuiConnect } from './sui/Connect';
 import { Connect as JunoConnect } from './juno/Connect';
 import { Connect as NeutronConnect } from './neutron/Connect';
+import { Connect as ArbitrumConnect } from './arbitrum/Connect';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -39,7 +40,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   setChain,
 }) => {
   log.debug(chain);
-  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn', 'neutron'];
+  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn', 'neutron', 'arbitrum'];
 
   const handleLeftBtn = async () => {
     setChain('');
@@ -109,6 +110,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <JunoConnect client={client} />;
       case 'Neutron':
         return <NeutronConnect client={client} />;
+      case 'Arbitrum':
+        return <ArbitrumConnect client={client} />;
       default:
         return <></>;
     }
