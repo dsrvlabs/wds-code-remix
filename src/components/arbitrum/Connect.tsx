@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MetamaskConnect } from './MetamaskConnect';
-// import { Project } from './Project';
+import { Project } from './Project';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -16,8 +16,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
   const [injectedProvider, setInjectedProvider] = useState();
   const [active, setActive] = useState<boolean>(false);
   
-  const [dapp, setDapp] = useState();
-
   return (
     <div>
       <CommonConnect client={client} active={active} setActive={setActive} chain={'arbitrum'} setWallet={setWallet} wallet={wallet} />
@@ -29,9 +27,9 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
           setAccount={setAccount}
           client={client}
           setActive={setActive}
-          setDapp={setDapp}
+          setInjectedProvider={setInjectedProvider}
         />
-        {/* <Project wallet={wallet} account={account} dapp={dapp} client={client} /> */}
+        <Project wallet={wallet} account={account} injectedProvider={injectedProvider} client={client} />
       </div>
     </div>
   );

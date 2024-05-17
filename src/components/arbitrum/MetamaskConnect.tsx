@@ -14,7 +14,7 @@ interface InterfaceProps {
   active: boolean;
   setAccount: Function;
   account: string;
-  setDapp: Function;
+  setInjectedProvider: Function;
   client: Client<Api, Readonly<IRemixApi>>;
   setActive: Function;
 }
@@ -24,7 +24,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
   active,
   account,
   setAccount,
-  setDapp,
+  setInjectedProvider,
   setActive,
 }) => {
   const [balance, setBalance] = useState<string>('');
@@ -61,7 +61,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
           const chainId = await ethereum.request({ method: 'eth_chainId' });
           console.log('chainId', chainId)
           setNetwork(chainId);
-
+          setInjectedProvider(ethereum);
         } catch (error: any) {
           setError(error.message);
           log.error(error);
