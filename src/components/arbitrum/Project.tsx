@@ -3,12 +3,10 @@ import { Button, Form, InputGroup } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 // import { Compiler } from './Compiler';
-
 import axios from 'axios';
 import JSZip from 'jszip';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
-import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -162,69 +160,75 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   return (
     <div>
       <Form>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>NEW PROJECT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
-            <Button variant="success" size="sm" onClick={wrappedCreateProject}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>SELECT A TEMPLATE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={template}
-              onChange={setTargetTemplate}
-            >
-              {templateList.map((temp, idx) => {
-                return (
-                  <option value={temp} key={idx}>
-                    {temp}
-                  </option>
-                );
-              })}
-            </Form.Control>
-            <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>TARGET PROJECT </small>
-            <span onClick={wrappedGetList}>
-              <FaSyncAlt />
-            </span>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={compileTarget}
-              onChange={setTarget}
-            >
-              {projectList?.map((projectName, idx) => {
-                return (
-                  <option value={projectName} key={idx}>
-                    {projectName}
-                  </option>
-                );
-              })}
-            </Form.Control>
-          </InputGroup>
-        </Form.Group>
+        <div>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>NEW PROJECT</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                placeholder="Project Name"
+                size="sm"
+                onChange={setProject}
+              />
+              <Button variant="success" size="sm" onClick={wrappedCreateProject}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>SELECT A TEMPLATE</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={template}
+                onChange={setTargetTemplate}
+              >
+                {templateList.map((temp, idx) => {
+                  return (
+                    <option value={temp} key={idx}>
+                      {temp}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+              <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>TARGET PROJECT </small>
+              <span onClick={wrappedGetList}>
+                <FaSyncAlt />
+              </span>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={compileTarget}
+                onChange={setTarget}
+              >
+                {projectList?.map((projectName, idx) => {
+                  return (
+                    <option value={projectName} key={idx}>
+                      {projectName}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
+        </div>
       </Form>
 
       <hr />
-      {/* <Compiler compileTarget={compileTarget} accountID={account} dapp={dapp} client={client} /> */}
       <Compiler
         fileName={fileName}
         setFileName={setFileName}

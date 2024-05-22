@@ -30,6 +30,10 @@ import { FileInfo, FileUtil } from '../../utils/FileUtil';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { UploadUrlDto } from '../../types/dto/upload-url.dto';
 import { CustomTooltip } from '../common/CustomTooltip';
+import { Deploy } from './Deploy';
+import stripAnsi from 'strip-ansi';
+import Web3 from 'web3';
+import BigNumber from 'bignumber.js';
 
 interface InterfaceProps {
   fileName: string;
@@ -56,17 +60,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   providerNetwork,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
-  const [wasm, setWasm] = useState<string>('');
+  const [deploymentTx, setDeploymentTx] = useState<string>('');
+  const [isReadyToActivate, setIsReadToActivate] = useState<boolean>(false);
+  const [dataFee, setDataFee] = useState<string>('');
   const [checksum, setChecksum] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
-  const [codeID, setCodeID] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
-
-  const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
-  const [schemaExec, setSchemaExec] = useState<Object>({});
-  const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
@@ -74,50 +75,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     init();
   }, [compileTarget]);
 
-  const exists = async () => {
-    try {
-      const artifacts = await client?.fileManager.readdir(
-        'browser/' + compileTarget + '/artifacts',
-      );
-      await client.terminal.log({
-        type: 'error',
-        value:
-          "If you want to run a new compilation, delete the 'artifacts' and 'schema' directory and click the Compile button again.",
-      });
-      const filesName = Object.keys(artifacts || {});
-      await Promise.all(
-        filesName.map(async (f) => {
-          if (getExtensionOfFilename(f) === '.wasm') {
-            const wasmFile = await client?.fileManager.readFile('browser/' + f);
-            setWasm(wasmFile || '');
-            setFileName(f);
-          }
-        }),
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const removeArtifacts = async () => {
-    log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+    log.info(`removeArtifacts ${'browser/' + compileTarget + '/output'}`);
     try {
-      await client?.fileManager.remove('browser/' + compileTarget + '/out');
+      await client?.fileManager.remove('browser/' + compileTarget + '/output');
     } catch (e) {
       log.info(`no out folder`);
     }
   };
 
   const init = () => {
-    setWasm('');
+    setDeploymentTx('');
+    setIsReadToActivate(false);
+    setDataFee('');
     setChecksum('');
     setFileName('');
-    setCodeID('');
     setTxHash('');
-    setSchemaExec({});
-    setSchemaInit({});
-    setSchemaQuery({});
     setTimestamp('');
   };
 
@@ -175,10 +148,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return;
         }
 
-        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
-          return;
-        }
-
         if (!fileinfo.isDirectory) {
           const content = await client?.fileManager.readFile(fileinfo.path);
           const f = createFile(
@@ -221,19 +190,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     // });
 
     // ------------------------------------------------------------------
-
-    const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
-      chainName: CHAIN_NAME.arbitrum,
-      chainId: providerNetwork,
-      account: account || 'noaddress',
-      timestamp: timestamp.toString() || '0',
-      fileType: 'arbitrum',
-      zipFile: blob,
-    });
-    if (!isSrcZipUploadSuccess) {
+    try {
+      const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
+        chainName: CHAIN_NAME.arbitrum,
+        chainId: providerNetwork,
+        account: account || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        fileType: 'arbitrum',
+        zipFile: blob,
+      });
+      if (!isSrcZipUploadSuccess) {
+        log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
+        setIconSpin('');
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
       log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
       setIconSpin('');
       setLoading(false);
+      client.terminal.log({ type: 'error', value: `compile error.` });
       return;
     }
 
@@ -255,9 +231,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           return false;
         }
 
-        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
-          return false;
-        }
         return true;
       })
       .map((pf) => ({
@@ -383,8 +356,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
-          // client?.terminal.log({ value: data.logMsg, type: 'info' }); // todo remix v0.28.0
-          await client.terminal.log({ type: 'info', value: data.logMsg });
+          client.terminal.log({ type: 'info', value: stripAnsi(data.logMsg) });
 
           if (data.logMsg.includes('error')) {
             const { file, annotation, highlightPosition, positionDetail } = getPositionDetails(
@@ -410,6 +382,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 return;
               }
             }
+          }
+
+          if (data.logMsg.includes('wasm data fee:')) {
+            setIsReadToActivate(true);
+            const msg = stripAnsi(data.logMsg);
+            console.log(`msg=${msg}`);
+            const idx = msg.indexOf('Ξ');
+            const lineFeedIdx = msg.indexOf('\n');
+            const dataFee = msg.slice(idx + 1, lineFeedIdx);
+            const web3 = new Web3();
+            const wei = web3.utils.toWei(dataFee, 'ether');
+            const finalWei = new BigNumber(wei).multipliedBy(120).div(100).toString();
+            const hex = web3.utils.toHex(finalWei.toString());
+            console.log(
+              `dataFee=${dataFee}, len=${dataFee.length}, wei=${wei}, finalWei=${finalWei}, finalWeiHex=${hex}`,
+            );
+            setDataFee(hex);
           }
         },
       );
@@ -473,27 +462,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             await Promise.all(
               Object.keys(zip.files).map(async (filename) => {
                 log.info(`arbitrum build result filename=${filename}`);
-                if (getExtensionOfFilename(filename) === '.wasm') {
+                if (filename.endsWith('deployment_tx_data')) {
                   const fileData = await zip.files[filename].async('blob');
-
-                  const wasmFile = await readFile(new File([fileData], filename));
-                  log.info(wasmFile);
-
-                  // wasm 파일 base64 형태로 저장했다가 쉽게 재사용
+                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
-                    wasmFile,
+                    hex,
                   );
-                  setWasm(wasmFile);
+                  setDeploymentTx(hex);
                   setFileName(filename);
-
-                  // schema obj
-                  await setSchemaObj();
-                } else if (getExtensionOfFilename(filename) === '.json') {
-                  const fileData = await zip.files[filename].async('string');
+                } else if (filename.endsWith('activation_tx_data')) {
+                  const fileData = await zip.files[filename].async('blob');
+                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
-                    fileData,
+                    hex,
                   );
                 } else {
                   const fileData = await zip.files[filename].async('string');
@@ -604,48 +587,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const getExtensionOfFilename = (filename: string) => {
-    const _fileLen = filename.length;
-    const _lastDot = filename.lastIndexOf('.');
-    return filename.substring(_lastDot, _fileLen).toLowerCase();
-  };
-
-  const setSchemaObj = async () => {
-    try {
-      log.info(compileTarget);
-      const schemaPath = await client?.fileManager.readdir('browser/' + compileTarget + '/schema');
-      log.info(schemaPath);
-
-      const schemaFiles = Object.keys(schemaPath || ['']);
-      const arr: Object[] = [];
-
-      await Promise.all(
-        schemaFiles.map(async (filename: string) => {
-          if (getExtensionOfFilename(filename) === '.json') {
-            arr.push(JSON.parse((await client?.fileManager.readFile('browser/' + filename)) || {}));
-          }
-        }),
-      );
-
-      arr.map((schema: { [key: string]: any }) => {
-        if (schema.title === 'InstantiateMsg') {
-          setSchemaInit(schema);
-        } else if (schema.title === 'ExecuteMsg') {
-          setSchemaExec(schema);
-        } else if (schema.title === 'QueryMsg') {
-          setSchemaQuery(schema);
-          // using new schema
-        } else if (schema.instantiate || schema.query || schema.exeucte) {
-          setSchemaInit(schema.instantiate || {});
-          setSchemaQuery(schema.query || {});
-          setSchemaExec(schema.execute || {});
-        }
-      });
-    } catch (e) {
-      log.error(e);
-    }
-  };
-
   const handleAlertClose = () => {
     setCompileError('');
     client.call('editor', 'discardHighlight');
@@ -661,7 +602,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           id="uploadCodeCheckbox"
           checked={uploadCodeChecked}
           onChange={handleCheckboxChange}
-          disabled={loading || !!fileName || !!codeID}
+          disabled={loading || !!fileName}
         />
         <CustomTooltip
           placement="top"
@@ -700,40 +641,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <div>
           <small>{fileName}</small>
         </div>
-      ) : (
-        false
-      )}
-      {/*{wasm && !loading ? (*/}
-      {/*  <StoreCode*/}
-      {/*    providerInstance={providerInstance}*/}
-      {/*    wallet={wallet}*/}
-      {/*    compileTarget={compileTarget}*/}
-      {/*    client={client}*/}
-      {/*    wasm={wasm}*/}
-      {/*    setWasm={setWasm}*/}
-      {/*    checksum={checksum}*/}
-      {/*    txHash={txHash}*/}
-      {/*    setTxHash={setTxHash}*/}
-      {/*    codeID={codeID}*/}
-      {/*    setCodeID={setCodeID}*/}
-      {/*    schemaInit={schemaInit}*/}
-      {/*    schemaExec={schemaExec}*/}
-      {/*    schemaQuery={schemaQuery}*/}
-      {/*    account={account}*/}
-      {/*    timestamp={timestamp}*/}
-      {/*    providerNetwork={providerNetwork}*/}
-      {/*  />*/}
-      {/*) : (*/}
-      {/*  <>*/}
-      {/*    /!* need not this feature now *!/*/}
-      {/*    /!* <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>*/}
-      {/*      <small>NO COMPILED CONTRACT</small>*/}
-      {/*    </p>*/}
-      {/*    <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>*/}
-      {/*      <small>OR</small>*/}
-      {/*    </p> *!/*/}
-      {/*  </>*/}
-      {/*)}*/}
+      ) : null}
+      {deploymentTx && !loading ? (
+        <Deploy
+          providerInstance={providerInstance}
+          client={client}
+          deploymentTx={deploymentTx}
+          setDeploymentTx={setDeploymentTx}
+          checksum={checksum}
+          txHash={txHash}
+          setTxHash={setTxHash}
+          account={account}
+          providerNetwork={providerNetwork}
+          isReadyToActivate={isReadyToActivate}
+          dataFee={dataFee}
+        />
+      ) : null}
     </>
   );
 };
