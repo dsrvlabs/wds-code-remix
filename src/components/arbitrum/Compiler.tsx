@@ -217,25 +217,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const projFiles_ = projFiles
-      // .filter((fileinfo) => {
-      //   if (fileinfo.path === `${compileTarget}/artifacts` && fileinfo.isDirectory) {
-      //     return false;
-      //   }
-      //
-      //   if (fileinfo.path.startsWith(`${compileTarget}/artifacts/`)) {
-      //     return false;
-      //   }
-      //
-      //   if (fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory) {
-      //     return false;
-      //   }
-      //
-      //   if (fileinfo.path.startsWith(`${compileTarget}/schema/`)) {
-      //     return false;
-      //   }
-      //
-      //   return true;
-      // })
+      .filter((fileinfo) => {
+        if (fileinfo.path === `${compileTarget}/output` && fileinfo.isDirectory) {
+          return false;
+        }
+
+        if (fileinfo.path.startsWith(`${compileTarget}/output/`)) {
+          return false;
+        }
+
+        return true;
+      })
       .map((pf) => ({
         path: pf.path.replace(compileTarget + '/', ''),
         isDirectory: pf.isDirectory,
