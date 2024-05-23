@@ -1,10 +1,12 @@
-import React, { Dispatch, useState } from 'react';
+import React, { Dispatch } from 'react';
 import { Button, Form } from 'react-bootstrap';
 // import { Instantiate } from './Instantiate';
 // import { simulate, convertToRealChainId } from './arbitrum-helper';
 import Web3 from 'web3';
 import { delay } from '../near/utils/waitForTransaction';
 import { Activate } from './Activate';
+import { InterfaceContract } from '../../utils/Types';
+import { AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
   providerInstance: any;
@@ -18,6 +20,11 @@ interface InterfaceProps {
   providerNetwork: string;
   isReadyToActivate: boolean;
   dataFee: string;
+  contractAddr: string;
+  setContractAddr: Dispatch<React.SetStateAction<string>>;
+  setContractName: Dispatch<React.SetStateAction<string>>;
+  addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
+  abi: AbiItem[];
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -27,9 +34,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   account,
   isReadyToActivate,
   dataFee,
+  contractAddr,
+  setContractAddr,
+  setContractName,
+  addNewContract,
+  abi,
 }) => {
-  const [contractAddr, setContractAddr] = useState<string>('');
-
   const onDeploy = async () => {
     if (!providerInstance) {
       return;
@@ -87,6 +97,23 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     }
 
     setContractAddr(txReceipt.contractAddress || '');
+    if (txReceipt.contractAddress) {
+      if (isReadyToActivate) {
+        const contract = new web3.eth.Contract(abi, txReceipt.contractAddress);
+        try {
+          const name = await contract.methods.name().call();
+          setContractName(name);
+          addNewContract({
+            name: name,
+            address: txReceipt.contractAddress,
+            abi: abi,
+          });
+          console.log('Contract Name:', name);
+        } catch (error) {
+          console.error('Error interacting with contract:', error);
+        }
+      }
+    }
 
     client.terminal.log({
       type: 'info',
@@ -118,6 +145,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             account={account}
             client={client}
             dataFee={dataFee}
+            setContractName={setContractName}
+            abi={abi}
+            addNewContract={addNewContract}
           ></Activate>
         ) : null}
       </Form>

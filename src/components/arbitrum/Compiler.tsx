@@ -15,8 +15,8 @@ import {
   REMIX_ARBITRUM_COMPILE_REQUESTED_V1,
   RemixArbitrumCompileRequestedV1,
 } from 'wds-event';
-import { COMPILER_API_ENDPOINT, ARBITRUM_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
-import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
+import { ARBITRUM_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { getPositionDetails, isRealError, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
 import { EditorClient } from '../../utils/editor';
 import AlertCloseButton from '../common/AlertCloseButton';
@@ -27,13 +27,14 @@ import { CHAIN_NAME } from '../../const/chain';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { UploadUrlDto } from '../../types/dto/upload-url.dto';
+import { isEmptyList } from '../../utils/ListUtil';
 import { CustomTooltip } from '../common/CustomTooltip';
 import { Deploy } from './Deploy';
 import stripAnsi from 'strip-ansi';
 import Web3 from 'web3';
 import BigNumber from 'bignumber.js';
+import { InterfaceContract } from '../../utils/Types';
+import { AbiInput, AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
   fileName: string;
@@ -44,6 +45,13 @@ interface InterfaceProps {
   providerInstance: any;
   client: any;
   providerNetwork: string;
+  abi: AbiItem[];
+  setAbi: Dispatch<React.SetStateAction<AbiItem[]>>;
+  contractAddr: string;
+  setContractAddr: Dispatch<React.SetStateAction<string>>;
+  setContractName: Dispatch<React.SetStateAction<string>>;
+  addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
+  setSelected: (select: InterfaceContract) => void; // for At Address
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -58,6 +66,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   wallet,
   account,
   providerNetwork,
+  abi,
+  setAbi,
+  contractAddr,
+  setContractAddr,
+  setContractName,
+  addNewContract,
+  setSelected,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [deploymentTx, setDeploymentTx] = useState<string>('');
@@ -68,6 +83,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
+
+  const [constructor, setConstructor] = React.useState<AbiItem | null>(null);
+  const [args, setArgs] = React.useState<{ [key: string]: string }>({});
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
@@ -93,6 +111,32 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTxHash('');
     setTimestamp('');
   };
+
+  function select(name: string, abi: AbiItem[]) {
+    setConstructor(null);
+    setArgs({});
+    abi.forEach((element0: AbiItem) => {
+      if (element0.type === 'constructor') {
+        const temp: { [key: string]: string } = {};
+        element0.inputs?.forEach((element1: AbiInput) => {
+          temp[element1.name] = '';
+        });
+        setArgs(temp);
+        setConstructor(element0);
+      }
+    });
+    setSelected({ name, address: '', abi: getFunctions(abi) });
+  }
+
+  function getFunctions(abi: AbiItem[]): AbiItem[] {
+    const temp: AbiItem[] = [];
+    abi.forEach((element: AbiItem) => {
+      if (element.type === 'function') {
+        temp.push(element);
+      }
+    });
+    return temp;
+  }
 
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
@@ -214,30 +258,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     const projFiles_ = projFiles
-      .filter((fileinfo) => {
-        if (fileinfo.path === `${compileTarget}/artifacts` && fileinfo.isDirectory) {
-          return false;
-        }
-
-        if (fileinfo.path.startsWith(`${compileTarget}/artifacts/`)) {
-          return false;
-        }
-
-        if (fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory) {
-          return false;
-        }
-
-        if (fileinfo.path.startsWith(`${compileTarget}/schema/`)) {
-          return false;
-        }
-
-        return true;
-      })
+      // .filter((fileinfo) => {
+      //   if (fileinfo.path === `${compileTarget}/artifacts` && fileinfo.isDirectory) {
+      //     return false;
+      //   }
+      //
+      //   if (fileinfo.path.startsWith(`${compileTarget}/artifacts/`)) {
+      //     return false;
+      //   }
+      //
+      //   if (fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory) {
+      //     return false;
+      //   }
+      //
+      //   if (fileinfo.path.startsWith(`${compileTarget}/schema/`)) {
+      //     return false;
+      //   }
+      //
+      //   return true;
+      // })
       .map((pf) => ({
         path: pf.path.replace(compileTarget + '/', ''),
         isDirectory: pf.isDirectory,
       }));
-
     const uploadUrls = await FileUtil.uploadUrls({
       chainName: CHAIN_NAME.arbitrum,
       chainId: providerNetwork,
@@ -462,7 +505,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             await Promise.all(
               Object.keys(zip.files).map(async (filename) => {
                 log.info(`arbitrum build result filename=${filename}`);
-                if (filename.endsWith('deployment_tx_data')) {
+                if (filename.endsWith('output/deployment_tx_data')) {
                   const fileData = await zip.files[filename].async('blob');
                   const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
@@ -471,7 +514,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   );
                   setDeploymentTx(hex);
                   setFileName(filename);
-                } else if (filename.endsWith('activation_tx_data')) {
+                } else if (filename.endsWith('output/activation_tx_data')) {
                   const fileData = await zip.files[filename].async('blob');
                   const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
@@ -480,11 +523,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   );
                 } else {
                   const fileData = await zip.files[filename].async('string');
-                  if (filename === 'artifacts/checksums.txt') {
-                    const checksum = fileData.slice(0, 64);
-                    console.log(`@@@ checksum=${checksum}`);
-                    setChecksum(checksum);
+                  if (filename === 'output/abi.json') {
+                    const abi = JSON.parse(fileData) as AbiItem[];
+                    console.log(`@@@ abi`, abi);
+                    setAbi(abi);
+                    select('', abi);
+                    client.terminal.log({
+                      type: 'info',
+                      value: `======================== ABI ========================`,
+                    });
+                    client.terminal.log({
+                      type: 'info',
+                      value: `${JSON.stringify(abi, null, 2)}`,
+                    });
                   }
+
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     fileData,
@@ -501,61 +554,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 2,
               )}`,
             );
-
-            const schemaFiles = projFiles
-              .filter(
-                (fileinfo) =>
-                  fileinfo.path.startsWith(`${compileTarget}/schema`) &&
-                  !(fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory),
-              )
-              .map((pf) => ({
-                path: pf.path.replace(compileTarget + '/schema/', ''),
-                isDirectory: pf.isDirectory,
-              }));
-
-            log.info(
-              `@@@ compile compileTarget=${compileTarget}, schemaFiles=${JSON.stringify(
-                schemaFiles,
-                null,
-                2,
-              )}`,
-            );
-
-            if (isNotEmptyList(schemaFiles)) {
-              const uploadUrlsRes = await axios.post(
-                COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
-                {
-                  chainName: CHAIN_NAME.arbitrum,
-                  chainId: providerNetwork,
-                  account: account || 'noaddress',
-                  timestamp: timestamp.toString() || '0',
-                  paths: schemaFiles.map((f) => ({
-                    path: f.path,
-                    isDirectory: f.isDirectory,
-                  })),
-                },
-              );
-
-              if (uploadUrlsRes.status === 201) {
-                console.log(`@@@ schemaFiles Upload files`);
-                const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
-
-                const contents = await Promise.all(
-                  schemaFiles.map(async (u) => {
-                    if (u.isDirectory) {
-                      return '';
-                    }
-                    return await client.fileManager.readFile(
-                      'browser/' + compileTarget + '/schema/' + u.path,
-                    );
-                  }),
-                );
-                console.log(`@@@ schemaFiles contents`, contents);
-                const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
-                const uploadResults = await Promise.all(promises);
-                console.log(`@@@ schemaFiles uploadResults`, uploadResults);
-              }
-            }
           } catch (e) {
             log.error(e);
           } finally {
@@ -655,6 +653,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           providerNetwork={providerNetwork}
           isReadyToActivate={isReadyToActivate}
           dataFee={dataFee}
+          contractAddr={contractAddr}
+          setContractAddr={setContractAddr}
+          setContractName={setContractName}
+          addNewContract={addNewContract}
+          abi={abi}
         />
       ) : null}
     </>

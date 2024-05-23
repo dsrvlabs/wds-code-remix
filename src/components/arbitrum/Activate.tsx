@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { Dispatch, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
 import Web3 from 'web3';
 import axios from 'axios';
 import { ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
 import { delay } from '../near/utils/waitForTransaction';
+import { AbiItem } from 'web3-utils';
+import { InterfaceContract } from '../../utils/Types';
 
 const ACTIVATION_TO_ADDR = '0x0000000000000000000000000000000000000071';
 
@@ -13,6 +15,9 @@ interface InterfaceProps {
   contractAddr: string;
   client: any;
   dataFee: string;
+  abi: AbiItem[];
+  setContractName: Dispatch<React.SetStateAction<string>>;
+  addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
 }
 
 export const Activate: React.FunctionComponent<InterfaceProps> = ({
@@ -21,6 +26,9 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
   contractAddr,
   client,
   dataFee,
+  abi,
+  setContractName,
+  addNewContract,
 }) => {
   const [isActivated, setIsActivated] = useState<boolean>(false);
 
@@ -89,6 +97,19 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
     }
     if (activation_txReceipt.status) {
       setIsActivated(true);
+      const contract = new web3.eth.Contract(abi, contractAddr);
+      try {
+        const name = await contract.methods.name().call();
+        setContractName(name);
+        addNewContract({
+          name: name,
+          address: contractAddr,
+          abi: abi,
+        });
+        console.log('Contract Name:', name);
+      } catch (error) {
+        console.error('Error interacting with contract:', error);
+      }
     }
 
     client.terminal.log({
