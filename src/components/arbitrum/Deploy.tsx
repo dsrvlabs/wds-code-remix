@@ -1,15 +1,29 @@
 import React, { Dispatch } from 'react';
 import { Button, Form } from 'react-bootstrap';
-// import { Instantiate } from './Instantiate';
-// import { simulate, convertToRealChainId } from './arbitrum-helper';
 import Web3 from 'web3';
 import { delay } from '../near/utils/waitForTransaction';
 import { Activate } from './Activate';
 import { InterfaceContract } from '../../utils/Types';
 import { AbiItem } from 'web3-utils';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { log } from '../../utils/logger';
+
+export interface ArbitrumContractCreateDto {
+  chainId: string;
+  account: string;
+  address: string;
+  compileTimestamp: number;
+  deployTimestamp: number;
+  txHash: string;
+  isSrcUploaded: boolean;
+  status: string;
+  cliVersion: string | null;
+}
 
 interface InterfaceProps {
   providerInstance: any;
+  timestamp: string;
   client: any;
   deploymentTx: string;
   setDeploymentTx: Dispatch<React.SetStateAction<string>>;
@@ -25,10 +39,13 @@ interface InterfaceProps {
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   abi: AbiItem[];
+  uploadCodeChecked: boolean;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   providerInstance,
+  timestamp,
+  providerNetwork,
   deploymentTx,
   client,
   account,
@@ -39,6 +56,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setContractName,
   addNewContract,
   abi,
+  uploadCodeChecked,
 }) => {
   const onDeploy = async () => {
     if (!providerInstance) {
@@ -76,6 +94,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     client.terminal.log({ type: 'info', value: JSON.stringify(tx, null, 2) });
 
     let txReceipt = await web3.eth.getTransactionReceipt(hash);
+
     console.log(`@@@ tx_receipt`, txReceipt);
     if (txReceipt === null) {
       for (let i = 0; i < 3; i++) {
@@ -97,7 +116,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     }
 
     setContractAddr(txReceipt.contractAddress || '');
-    if (txReceipt.contractAddress) {
+    if (txReceipt.contractAddress && txReceipt.status) {
       if (isReadyToActivate) {
         const contract = new web3.eth.Contract(abi, txReceipt.contractAddress);
         try {
@@ -112,6 +131,38 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         } catch (error) {
           console.error('Error interacting with contract:', error);
         }
+      }
+
+      let deploymentTimeStamp = 0;
+      if (txReceipt.blockNumber) {
+        const block = await web3.eth.getBlock(txReceipt.blockNumber);
+        if (block) {
+          deploymentTimeStamp = Number(block.timestamp) * 1000;
+        }
+      }
+
+      const arbitrumContractCreateDto: ArbitrumContractCreateDto = {
+        chainId: providerNetwork,
+        account: account,
+        address: txReceipt.contractAddress,
+        compileTimestamp: Number(timestamp),
+        deployTimestamp: deploymentTimeStamp || 0,
+        txHash: hash,
+        isSrcUploaded: uploadCodeChecked,
+        status: txReceipt.status ? 'true' : 'false',
+        cliVersion: null, // todo
+      };
+      log.info('arbitrumContractCreateDto', arbitrumContractCreateDto);
+
+      try {
+        const res = await axios.post(
+          COMPILER_API_ENDPOINT + '/arbitrum/contracts',
+          arbitrumContractCreateDto,
+        );
+        log.info(`put arbitrum/contracts api res`, res);
+      } catch (e) {
+        log.error(`put arbitrum/contracts api error`);
+        console.error(e);
       }
     }
 
@@ -141,6 +192,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         {contractAddr && isReadyToActivate ? (
           <Activate
             providerInstance={providerInstance}
+            providerNetwork={providerNetwork}
             contractAddr={contractAddr}
             account={account}
             client={client}

@@ -2,16 +2,27 @@ import React, { Dispatch, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
 import Web3 from 'web3';
 import axios from 'axios';
-import { ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
+import {
+  ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT,
+  COMPILER_API_ENDPOINT,
+} from '../../const/endpoint';
 import { delay } from '../near/utils/waitForTransaction';
 import { AbiItem } from 'web3-utils';
 import { InterfaceContract } from '../../utils/Types';
+import { log } from '../../utils/logger';
 
 const ACTIVATION_TO_ADDR = '0x0000000000000000000000000000000000000071';
 
+export interface ArbitrumContractUpdateDto {
+  chainId: string;
+  address: string;
+  activationHash: string;
+  activationTimestamp: number;
+}
 interface InterfaceProps {
   account: string;
   providerInstance: any;
+  providerNetwork: string;
   contractAddr: string;
   client: any;
   dataFee: string;
@@ -23,6 +34,7 @@ interface InterfaceProps {
 export const Activate: React.FunctionComponent<InterfaceProps> = ({
   account,
   providerInstance,
+  providerNetwork,
   contractAddr,
   client,
   dataFee,
@@ -109,6 +121,32 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
         console.log('Contract Name:', name);
       } catch (error) {
         console.error('Error interacting with contract:', error);
+      }
+
+      let activationTimestamp = 0;
+      if (activation_txReceipt.blockNumber) {
+        const block = await web3.eth.getBlock(activation_txReceipt.blockNumber);
+        if (block) {
+          activationTimestamp = Number(block.timestamp) * 1000;
+        }
+      }
+
+      const arbitrumContractUpdateDto: ArbitrumContractUpdateDto = {
+        chainId: providerNetwork,
+        address: contractAddr,
+        activationHash: activation_hash,
+        activationTimestamp: activationTimestamp || 0,
+      };
+      log.info('arbitrumContractUpdateDto', arbitrumContractUpdateDto);
+      try {
+        const res = await axios.put(
+          COMPILER_API_ENDPOINT + '/arbitrum/contracts',
+          arbitrumContractUpdateDto,
+        );
+        log.info(`put arbitrum/contracts api res`, res);
+      } catch (e) {
+        log.error(`put arbitrum/contracts api error`);
+        console.error(e);
       }
     }
 

@@ -509,6 +509,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 2,
               )}`,
             );
+            client.terminal.log({
+              type: 'info',
+              value: `\nBuild Completed.`,
+            });
           } catch (e) {
             log.error(e);
           } finally {
@@ -598,6 +602,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       {deploymentTx && !loading ? (
         <Deploy
           providerInstance={providerInstance}
+          timestamp={timestamp}
           client={client}
           deploymentTx={deploymentTx}
           setDeploymentTx={setDeploymentTx}
@@ -613,6 +618,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setContractName={setContractName}
           addNewContract={addNewContract}
           abi={abi}
+          uploadCodeChecked={uploadCodeChecked}
         />
       ) : null}
     </>
