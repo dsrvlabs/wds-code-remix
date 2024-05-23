@@ -262,7 +262,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         setFileName={setFileName}
         providerInstance={injectedProvider}
         compileTarget={compileTarget}
-        wallet={wallet}
         account={account}
         client={client}
         providerNetwork={providerNetwork}

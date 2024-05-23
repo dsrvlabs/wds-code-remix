@@ -34,13 +34,12 @@ import stripAnsi from 'strip-ansi';
 import Web3 from 'web3';
 import BigNumber from 'bignumber.js';
 import { InterfaceContract } from '../../utils/Types';
-import { AbiInput, AbiItem } from 'web3-utils';
+import { AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
   fileName: string;
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
-  wallet: string;
   account: string;
   providerInstance: any;
   client: any;
@@ -63,7 +62,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   client,
   providerInstance,
   compileTarget,
-  wallet,
   account,
   providerNetwork,
   abi,
@@ -83,9 +81,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
-
-  const [constructor, setConstructor] = React.useState<AbiItem | null>(null);
-  const [args, setArgs] = React.useState<{ [key: string]: string }>({});
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
@@ -112,32 +107,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setTimestamp('');
   };
 
-  function select(name: string, abi: AbiItem[]) {
-    setConstructor(null);
-    setArgs({});
-    abi.forEach((element0: AbiItem) => {
-      if (element0.type === 'constructor') {
-        const temp: { [key: string]: string } = {};
-        element0.inputs?.forEach((element1: AbiInput) => {
-          temp[element1.name] = '';
-        });
-        setArgs(temp);
-        setConstructor(element0);
-      }
-    });
-    setSelected({ name, address: '', abi: getFunctions(abi) });
-  }
-
-  function getFunctions(abi: AbiItem[]): AbiItem[] {
-    const temp: AbiItem[] = [];
-    abi.forEach((element: AbiItem) => {
-      if (element.type === 'function') {
-        temp.push(element);
-      }
-    });
-    return temp;
-  }
-
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
   }) => {
@@ -160,16 +129,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (isEmptyList(projFiles)) {
       return;
     }
-
-    // const existsOutFolder = projFiles.find((f) => f.path.startsWith(`${compileTarget}/artifacts`));
-    // if (existsOutFolder) {
-    //   await client.terminal.log({
-    //     type: 'error',
-    //     value:
-    //       "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
-    //   });
-    //   return;
-    // }
 
     const blob = await generateZip(projFiles);
     if (!blob) {
@@ -527,7 +486,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                     const abi = JSON.parse(fileData) as AbiItem[];
                     console.log(`@@@ abi`, abi);
                     setAbi(abi);
-                    select('', abi);
+                    setSelected({
+                      name: '',
+                      address: '',
+                      abi: abi.filter((a) => a.type === 'function'),
+                    });
                     client.terminal.log({
                       type: 'info',
                       value: `======================== ABI ========================`,
