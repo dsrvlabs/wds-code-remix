@@ -43,41 +43,62 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
   addNewContract,
 }) => {
   const [isActivated, setIsActivated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const onActivate = async () => {
+    setIsLoading(true);
     if (!providerInstance) {
+      setIsLoading(false);
       return;
     }
 
     if (!contractAddr) {
       console.log(`No contractAddr`);
+      setIsLoading(false);
+      return;
     }
 
-    const res = await axios.get(
-      ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT +
-        `/arbitrum/activation-tx?contractAddr=${contractAddr}`,
-    );
-    const tx: string = res.data?.tx;
-    if (!tx) {
-      await client.terminal.log({
-        type: 'info',
-        value: `Failed to get activation tx for contract ${contractAddr}`,
-      });
+    let tx = '';
+    try {
+      const res = await axios.get(
+        ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT +
+          `/arbitrum/activation-tx?contractAddr=${contractAddr}`,
+      );
+      tx = res.data?.tx;
+      if (!tx) {
+        await client.terminal.log({
+          type: 'info',
+          value: `Failed to get activation tx for contract ${contractAddr}`,
+        });
+        setIsLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+      setIsLoading(false);
+      return;
     }
 
     const web3 = new Web3(providerInstance);
-    const activation_hash = await (window as any).ethereum.request({
-      method: 'eth_sendTransaction',
-      params: [
-        {
-          from: account,
-          to: ACTIVATION_TO_ADDR,
-          data: tx,
-          value: dataFee,
-        },
-      ],
-    });
-    console.log(`@@@ activation_hash`, activation_hash);
+    let activation_hash = '';
+    try {
+      activation_hash = await (window as any).ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: account,
+            to: ACTIVATION_TO_ADDR,
+            data: tx,
+            value: dataFee,
+          },
+        ],
+      });
+      console.log(`@@@ activation_hash`, activation_hash);
+    } catch (e) {
+      console.error(e);
+      setIsLoading(false);
+      return;
+    }
 
     const activation_tx = await web3.eth.getTransaction(activation_hash);
     console.log(`@@@ activation_tx`, activation_tx);
@@ -107,6 +128,7 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
       });
       return;
     }
+
     if (activation_txReceipt.status) {
       setIsActivated(true);
       const contract = new web3.eth.Contract(abi, contractAddr);
@@ -155,6 +177,8 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
       value: '====================== activation tx receipt ======================',
     });
     client.terminal.log({ type: 'info', value: JSON.stringify(activation_txReceipt, null, 2) });
+    setIsLoading(false);
+    return;
   };
 
   return (
