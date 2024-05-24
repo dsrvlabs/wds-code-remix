@@ -42,35 +42,37 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
         setError('Please install MetaMask.');
         return;
       }
-      if (active) {
-        try {
-          ethereum.on('chainChanged', (_chainId: string) => window.location.reload());
-          ethereum.on('accountsChanged', async (accounts: string[]) => {
-            if (accounts.length === 0) {
-              setAccount('');
-              setBalance('');
-              setActive(false);
-            } else {
-              setAccount(accounts[0]);
-              fetchBalance(accounts[0]);
-            }
-          });
-
+      // if (active) {
+      try {
+        ethereum.on('chainChanged', (_chainId: string) => {
+          window.location.reload();
+        });
+        ethereum.on('accountsChanged', (accounts: string[]) => {
+          if (accounts.length === 0) {
+            setAccount('');
+            setBalance('');
+            setActive(false);
+          } else {
+            setAccount(accounts[0]);
+            fetchBalance(accounts[0]);
+          }
+        });
+        const chainId = await ethereum.request({ method: 'eth_chainId' });
+        console.log('chainId', chainId);
+        setNetwork(chainId);
+        setInjectedProvider(ethereum);
+        setProviderNetwork(chainId);
+        if (active) {
           const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
           setAccount(accounts[0]);
           fetchBalance(accounts[0]);
-
-          const chainId = await ethereum.request({ method: 'eth_chainId' });
-          console.log('chainId', chainId);
-          setNetwork(chainId);
-          setInjectedProvider(ethereum);
-          setProviderNetwork(chainId);
-        } catch (error: any) {
-          setError(error.message);
-          log.error(error);
-          await client.terminal.log({ type: 'error', value: error.message });
         }
+      } catch (error: any) {
+        setError(error.message);
+        log.error(error);
+        await client.terminal.log({ type: 'error', value: error.message });
       }
+      // }
     };
 
     const fetchBalance = async (account: string) => {
@@ -83,7 +85,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
     };
 
     connect();
-  }, [active, ethereum]);
+  }, [active, ethereum, network]);
 
   return (
     <div>
@@ -91,9 +93,19 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network ? (
-        <NetworkUI networkName={network === '0xcb6bab' ? 'Stylus testnet (v2)' : network} />
-      ) : null}
+      {network === '0xcb6bab' ? (
+        <NetworkUI networkName={'Stylus testnet (v2)'} />
+      ) : (
+        <small style={{ color: 'red', fontWeight: 'bold' }}>
+          Only Stylus Testnet V2 network is supported currently.
+          <br />
+          Please switch to the network below and reconnect your wallet.
+          <br />
+          Chain ID: 13331371
+          <br />
+          RPC URL: https://stylusv2.arbitrum.io/rpc
+        </small>
+      )}
       <Form>
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
@@ -115,7 +127,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
             <Form.Control
               type="text"
               placeholder="Balance"
-              value={account ? balance : '0'}
+              value={account ? balance : ''}
               size="sm"
               readOnly
             />

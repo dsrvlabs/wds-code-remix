@@ -27,7 +27,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setWallet={setWallet}
         wallet={wallet}
       />
-      <hr />
+      <div style={{ height: '0.7em' }}></div>
       <div>
         <MetamaskConnect
           active={active}

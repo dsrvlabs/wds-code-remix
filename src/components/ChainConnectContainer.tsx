@@ -120,7 +120,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   return (
     <>
       <Header />
-      <hr />
+      <div style={{ height: '0.7em' }}></div>
       <ChainConnect chain={chain} />
     </>
   );
