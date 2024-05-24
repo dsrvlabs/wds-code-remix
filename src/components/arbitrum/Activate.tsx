@@ -182,20 +182,15 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
   };
 
   return (
-    <>
-      <Form>
-        <div>
-          <Button
-            variant="primary"
-            onClick={onActivate}
-            disabled={isActivated}
-            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-          >
-            <span>Activate</span>
-          </Button>
-        </div>
-      </Form>
-      <hr />
-    </>
+    <div>
+      <Button
+        variant="primary"
+        onClick={onActivate}
+        disabled={isActivated}
+        className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+      >
+        <span>Activate</span>
+      </Button>
+    </div>
   );
 };
