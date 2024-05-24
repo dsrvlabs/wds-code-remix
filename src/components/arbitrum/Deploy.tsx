@@ -212,11 +212,11 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           </div>
         ) : null}
 
-        {contractAddr && isReadyToActivate ? (
+        {deployedContractAddress && isReadyToActivate ? (
           <Activate
             providerInstance={providerInstance}
             providerNetwork={providerNetwork}
-            contractAddr={contractAddr}
+            contractAddr={deployedContractAddress}
             account={account}
             client={client}
             dataFee={dataFee}
