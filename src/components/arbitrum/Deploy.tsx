@@ -27,7 +27,6 @@ interface InterfaceProps {
   client: any;
   deploymentTx: string;
   setDeploymentTx: Dispatch<React.SetStateAction<string>>;
-  checksum: string;
   txHash: string;
   setTxHash: Dispatch<React.SetStateAction<string>>;
   account: string;

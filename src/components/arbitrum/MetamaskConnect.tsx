@@ -7,6 +7,7 @@ import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
 import { NetworkUI } from '../common/Network';
 import Web3 from 'web3';
+import { STYLUS_TESTNET_V2_CHAIN_ID } from './const';
 
 const web3 = new Web3((window as any).ethereum);
 
@@ -93,7 +94,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
         <AlertCloseButton onClick={() => setError('')} />
         <div>{error}</div>
       </Alert>
-      {network === '0xcb6bab' ? (
+      {network === STYLUS_TESTNET_V2_CHAIN_ID ? (
         <NetworkUI networkName={'Stylus testnet (v2)'} />
       ) : (
         <small style={{ color: 'red', fontWeight: 'bold' }}>
@@ -106,34 +107,36 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
           RPC URL: https://stylusv2.arbitrum.io/rpc
         </small>
       )}
-      <Form>
-        <Form.Group>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>ACCOUNT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              type="text"
-              placeholder="Account"
-              value={account ? account : ''}
-              size="sm"
-              readOnly
-            />
-          </InputGroup>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>BALANCE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              type="text"
-              placeholder="Balance"
-              value={account ? balance : ''}
-              size="sm"
-              readOnly
-            />
-          </InputGroup>
-        </Form.Group>
-      </Form>
+      {network === STYLUS_TESTNET_V2_CHAIN_ID ? (
+        <Form>
+          <Form.Group>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>ACCOUNT</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                placeholder="Account"
+                value={account ? account : ''}
+                size="sm"
+                readOnly
+              />
+            </InputGroup>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>BALANCE</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                placeholder="Balance"
+                value={account ? balance : ''}
+                size="sm"
+                readOnly
+              />
+            </InputGroup>
+          </Form.Group>
+        </Form>
+      ) : null}
     </div>
   );
 };

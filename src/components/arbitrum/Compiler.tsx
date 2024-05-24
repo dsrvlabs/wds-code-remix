@@ -76,7 +76,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [deploymentTx, setDeploymentTx] = useState<string>('');
   const [isReadyToActivate, setIsReadToActivate] = useState<boolean>(false);
   const [dataFee, setDataFee] = useState<string>('');
-  const [checksum, setChecksum] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
@@ -101,7 +100,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setDeploymentTx('');
     setIsReadToActivate(false);
     setDataFee('');
-    setChecksum('');
     setFileName('');
     setTxHash('');
     setTimestamp('');
@@ -120,7 +118,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     await removeArtifacts();
+
     init();
+    setAbi([]);
 
     const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     log.info(
@@ -606,7 +606,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           client={client}
           deploymentTx={deploymentTx}
           setDeploymentTx={setDeploymentTx}
-          checksum={checksum}
           txHash={txHash}
           setTxHash={setTxHash}
           account={account}
