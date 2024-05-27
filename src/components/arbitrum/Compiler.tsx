@@ -15,8 +15,8 @@ import {
   REMIX_ARBITRUM_COMPILE_REQUESTED_V1,
   RemixArbitrumCompileRequestedV1,
 } from 'wds-event';
-import { COMPILER_API_ENDPOINT, ARBITRUM_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
-import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
+import { ARBITRUM_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import { getPositionDetails, isRealError, stringify } from '../../utils/helper';
 import { log } from '../../utils/logger';
 import { EditorClient } from '../../utils/editor';
 import AlertCloseButton from '../common/AlertCloseButton';
@@ -27,19 +27,30 @@ import { CHAIN_NAME } from '../../const/chain';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
-import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { UploadUrlDto } from '../../types/dto/upload-url.dto';
+import { isEmptyList } from '../../utils/ListUtil';
 import { CustomTooltip } from '../common/CustomTooltip';
+import { Deploy } from './Deploy';
+import stripAnsi from 'strip-ansi';
+import Web3 from 'web3';
+import BigNumber from 'bignumber.js';
+import { InterfaceContract } from '../../utils/Types';
+import { AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
   fileName: string;
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
-  wallet: string;
   account: string;
   providerInstance: any;
   client: any;
   providerNetwork: string;
+  abi: AbiItem[];
+  setAbi: Dispatch<React.SetStateAction<AbiItem[]>>;
+  contractAddr: string;
+  setContractAddr: Dispatch<React.SetStateAction<string>>;
+  setContractName: Dispatch<React.SetStateAction<string>>;
+  addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
+  setSelected: (select: InterfaceContract) => void; // for At Address
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -51,22 +62,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   client,
   providerInstance,
   compileTarget,
-  wallet,
   account,
   providerNetwork,
+  abi,
+  setAbi,
+  contractAddr,
+  setContractAddr,
+  setContractName,
+  addNewContract,
+  setSelected,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
-  const [wasm, setWasm] = useState<string>('');
-  const [checksum, setChecksum] = useState<string>('');
+  const [deploymentTx, setDeploymentTx] = useState<string>('');
+  const [isReadyToActivate, setIsReadToActivate] = useState<boolean>(false);
+  const [dataFee, setDataFee] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
-  const [codeID, setCodeID] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
-
-  const [schemaInit, setSchemaInit] = useState<{ [key: string]: any }>({});
-  const [schemaExec, setSchemaExec] = useState<Object>({});
-  const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
@@ -74,50 +87,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     init();
   }, [compileTarget]);
 
-  const exists = async () => {
-    try {
-      const artifacts = await client?.fileManager.readdir(
-        'browser/' + compileTarget + '/artifacts',
-      );
-      await client.terminal.log({
-        type: 'error',
-        value:
-          "If you want to run a new compilation, delete the 'artifacts' and 'schema' directory and click the Compile button again.",
-      });
-      const filesName = Object.keys(artifacts || {});
-      await Promise.all(
-        filesName.map(async (f) => {
-          if (getExtensionOfFilename(f) === '.wasm') {
-            const wasmFile = await client?.fileManager.readFile('browser/' + f);
-            setWasm(wasmFile || '');
-            setFileName(f);
-          }
-        }),
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const removeArtifacts = async () => {
-    log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+    log.info(`removeArtifacts ${'browser/' + compileTarget + '/output'}`);
     try {
-      await client?.fileManager.remove('browser/' + compileTarget + '/out');
+      await client?.fileManager.remove('browser/' + compileTarget + '/output');
     } catch (e) {
       log.info(`no out folder`);
     }
   };
 
   const init = () => {
-    setWasm('');
-    setChecksum('');
+    setDeploymentTx('');
+    setIsReadToActivate(false);
+    setDataFee('');
     setFileName('');
-    setCodeID('');
     setTxHash('');
-    setSchemaExec({});
-    setSchemaInit({});
-    setSchemaQuery({});
     setTimestamp('');
   };
 
@@ -134,7 +118,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
 
     await removeArtifacts();
+
     init();
+    setAbi([]);
 
     const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     log.info(
@@ -143,16 +129,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     if (isEmptyList(projFiles)) {
       return;
     }
-
-    // const existsOutFolder = projFiles.find((f) => f.path.startsWith(`${compileTarget}/artifacts`));
-    // if (existsOutFolder) {
-    //   await client.terminal.log({
-    //     type: 'error',
-    //     value:
-    //       "If you want to run a new compilation, delete the 'artifacts' directory and click the Compile button again.",
-    //   });
-    //   return;
-    // }
 
     const blob = await generateZip(projFiles);
     if (!blob) {
@@ -172,10 +148,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         }
 
         if (fileinfo.path.startsWith(`${compileTarget}/schema`)) {
-          return;
-        }
-
-        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
           return;
         }
 
@@ -221,50 +193,45 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     // });
 
     // ------------------------------------------------------------------
-
-    const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
-      chainName: CHAIN_NAME.arbitrum,
-      chainId: providerNetwork,
-      account: account || 'noaddress',
-      timestamp: timestamp.toString() || '0',
-      fileType: 'arbitrum',
-      zipFile: blob,
-    });
-    if (!isSrcZipUploadSuccess) {
+    try {
+      const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
+        chainName: CHAIN_NAME.arbitrum,
+        chainId: providerNetwork,
+        account: account || 'noaddress',
+        timestamp: timestamp.toString() || '0',
+        fileType: 'arbitrum',
+        zipFile: blob,
+      });
+      if (!isSrcZipUploadSuccess) {
+        log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
+        setIconSpin('');
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
       log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
       setIconSpin('');
       setLoading(false);
+      client.terminal.log({ type: 'error', value: `compile error.` });
       return;
     }
 
     const projFiles_ = projFiles
       .filter((fileinfo) => {
-        if (fileinfo.path === `${compileTarget}/artifacts` && fileinfo.isDirectory) {
+        if (fileinfo.path === `${compileTarget}/output` && fileinfo.isDirectory) {
           return false;
         }
 
-        if (fileinfo.path.startsWith(`${compileTarget}/artifacts/`)) {
+        if (fileinfo.path.startsWith(`${compileTarget}/output/`)) {
           return false;
         }
 
-        if (fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory) {
-          return false;
-        }
-
-        if (fileinfo.path.startsWith(`${compileTarget}/schema/`)) {
-          return false;
-        }
-
-        if (fileinfo.path.startsWith(`${compileTarget}/Cargo.lock`)) {
-          return false;
-        }
         return true;
       })
       .map((pf) => ({
         path: pf.path.replace(compileTarget + '/', ''),
         isDirectory: pf.isDirectory,
       }));
-
     const uploadUrls = await FileUtil.uploadUrls({
       chainName: CHAIN_NAME.arbitrum,
       chainId: providerNetwork,
@@ -383,8 +350,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
-          // client?.terminal.log({ value: data.logMsg, type: 'info' }); // todo remix v0.28.0
-          await client.terminal.log({ type: 'info', value: data.logMsg });
+          client.terminal.log({ type: 'info', value: stripAnsi(data.logMsg) });
 
           if (data.logMsg.includes('error')) {
             const { file, annotation, highlightPosition, positionDetail } = getPositionDetails(
@@ -410,6 +376,23 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 return;
               }
             }
+          }
+
+          if (data.logMsg.includes('wasm data fee:')) {
+            setIsReadToActivate(true);
+            const msg = stripAnsi(data.logMsg);
+            console.log(`msg=${msg}`);
+            const idx = msg.indexOf('Ξ');
+            const lineFeedIdx = msg.indexOf('\n');
+            const dataFee = msg.slice(idx + 1, lineFeedIdx);
+            const web3 = new Web3();
+            const wei = web3.utils.toWei(dataFee, 'ether');
+            const finalWei = new BigNumber(wei).multipliedBy(120).div(100).toString();
+            const hex = web3.utils.toHex(finalWei.toString());
+            console.log(
+              `dataFee=${dataFee}, len=${dataFee.length}, wei=${wei}, finalWei=${finalWei}, finalWeiHex=${hex}`,
+            );
+            setDataFee(hex);
           }
         },
       );
@@ -473,35 +456,43 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             await Promise.all(
               Object.keys(zip.files).map(async (filename) => {
                 log.info(`arbitrum build result filename=${filename}`);
-                if (getExtensionOfFilename(filename) === '.wasm') {
+                if (filename.endsWith('output/deployment_tx_data')) {
                   const fileData = await zip.files[filename].async('blob');
-
-                  const wasmFile = await readFile(new File([fileData], filename));
-                  log.info(wasmFile);
-
-                  // wasm 파일 base64 형태로 저장했다가 쉽게 재사용
+                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
-                    wasmFile,
+                    hex,
                   );
-                  setWasm(wasmFile);
+                  setDeploymentTx(hex);
                   setFileName(filename);
-
-                  // schema obj
-                  await setSchemaObj();
-                } else if (getExtensionOfFilename(filename) === '.json') {
-                  const fileData = await zip.files[filename].async('string');
+                } else if (filename.endsWith('output/activation_tx_data')) {
+                  const fileData = await zip.files[filename].async('blob');
+                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
-                    fileData,
+                    hex,
                   );
                 } else {
                   const fileData = await zip.files[filename].async('string');
-                  if (filename === 'artifacts/checksums.txt') {
-                    const checksum = fileData.slice(0, 64);
-                    console.log(`@@@ checksum=${checksum}`);
-                    setChecksum(checksum);
+                  if (filename === 'output/abi.json') {
+                    const abi = JSON.parse(fileData) as AbiItem[];
+                    console.log(`@@@ abi`, abi);
+                    setAbi(abi);
+                    setSelected({
+                      name: '',
+                      address: '',
+                      abi: abi.filter((a) => a.type === 'function'),
+                    });
+                    client.terminal.log({
+                      type: 'info',
+                      value: `======================== ABI ========================`,
+                    });
+                    client.terminal.log({
+                      type: 'info',
+                      value: `${JSON.stringify(abi, null, 2)}`,
+                    });
                   }
+
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     fileData,
@@ -518,61 +509,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 2,
               )}`,
             );
-
-            const schemaFiles = projFiles
-              .filter(
-                (fileinfo) =>
-                  fileinfo.path.startsWith(`${compileTarget}/schema`) &&
-                  !(fileinfo.path === `${compileTarget}/schema` && fileinfo.isDirectory),
-              )
-              .map((pf) => ({
-                path: pf.path.replace(compileTarget + '/schema/', ''),
-                isDirectory: pf.isDirectory,
-              }));
-
-            log.info(
-              `@@@ compile compileTarget=${compileTarget}, schemaFiles=${JSON.stringify(
-                schemaFiles,
-                null,
-                2,
-              )}`,
-            );
-
-            if (isNotEmptyList(schemaFiles)) {
-              const uploadUrlsRes = await axios.post(
-                COMPILER_API_ENDPOINT + '/s3Proxy/schema-upload-urls',
-                {
-                  chainName: CHAIN_NAME.arbitrum,
-                  chainId: providerNetwork,
-                  account: account || 'noaddress',
-                  timestamp: timestamp.toString() || '0',
-                  paths: schemaFiles.map((f) => ({
-                    path: f.path,
-                    isDirectory: f.isDirectory,
-                  })),
-                },
-              );
-
-              if (uploadUrlsRes.status === 201) {
-                console.log(`@@@ schemaFiles Upload files`);
-                const uploadUrls = uploadUrlsRes.data as UploadUrlDto[];
-
-                const contents = await Promise.all(
-                  schemaFiles.map(async (u) => {
-                    if (u.isDirectory) {
-                      return '';
-                    }
-                    return await client.fileManager.readFile(
-                      'browser/' + compileTarget + '/schema/' + u.path,
-                    );
-                  }),
-                );
-                console.log(`@@@ schemaFiles contents`, contents);
-                const promises = uploadUrls.map((u, i) => axios.put(u.url, contents[i]));
-                const uploadResults = await Promise.all(promises);
-                console.log(`@@@ schemaFiles uploadResults`, uploadResults);
-              }
-            }
+            client.terminal.log({
+              type: 'info',
+              value: `\nBuild Completed.`,
+            });
           } catch (e) {
             log.error(e);
           } finally {
@@ -604,48 +544,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const getExtensionOfFilename = (filename: string) => {
-    const _fileLen = filename.length;
-    const _lastDot = filename.lastIndexOf('.');
-    return filename.substring(_lastDot, _fileLen).toLowerCase();
-  };
-
-  const setSchemaObj = async () => {
-    try {
-      log.info(compileTarget);
-      const schemaPath = await client?.fileManager.readdir('browser/' + compileTarget + '/schema');
-      log.info(schemaPath);
-
-      const schemaFiles = Object.keys(schemaPath || ['']);
-      const arr: Object[] = [];
-
-      await Promise.all(
-        schemaFiles.map(async (filename: string) => {
-          if (getExtensionOfFilename(filename) === '.json') {
-            arr.push(JSON.parse((await client?.fileManager.readFile('browser/' + filename)) || {}));
-          }
-        }),
-      );
-
-      arr.map((schema: { [key: string]: any }) => {
-        if (schema.title === 'InstantiateMsg') {
-          setSchemaInit(schema);
-        } else if (schema.title === 'ExecuteMsg') {
-          setSchemaExec(schema);
-        } else if (schema.title === 'QueryMsg') {
-          setSchemaQuery(schema);
-          // using new schema
-        } else if (schema.instantiate || schema.query || schema.exeucte) {
-          setSchemaInit(schema.instantiate || {});
-          setSchemaQuery(schema.query || {});
-          setSchemaExec(schema.execute || {});
-        }
-      });
-    } catch (e) {
-      log.error(e);
-    }
-  };
-
   const handleAlertClose = () => {
     setCompileError('');
     client.call('editor', 'discardHighlight');
@@ -661,7 +559,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           id="uploadCodeCheckbox"
           checked={uploadCodeChecked}
           onChange={handleCheckboxChange}
-          disabled={loading || !!fileName || !!codeID}
+          disabled={loading || !!fileName}
         />
         <CustomTooltip
           placement="top"
@@ -700,40 +598,28 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <div>
           <small>{fileName}</small>
         </div>
-      ) : (
-        false
-      )}
-      {/*{wasm && !loading ? (*/}
-      {/*  <StoreCode*/}
-      {/*    providerInstance={providerInstance}*/}
-      {/*    wallet={wallet}*/}
-      {/*    compileTarget={compileTarget}*/}
-      {/*    client={client}*/}
-      {/*    wasm={wasm}*/}
-      {/*    setWasm={setWasm}*/}
-      {/*    checksum={checksum}*/}
-      {/*    txHash={txHash}*/}
-      {/*    setTxHash={setTxHash}*/}
-      {/*    codeID={codeID}*/}
-      {/*    setCodeID={setCodeID}*/}
-      {/*    schemaInit={schemaInit}*/}
-      {/*    schemaExec={schemaExec}*/}
-      {/*    schemaQuery={schemaQuery}*/}
-      {/*    account={account}*/}
-      {/*    timestamp={timestamp}*/}
-      {/*    providerNetwork={providerNetwork}*/}
-      {/*  />*/}
-      {/*) : (*/}
-      {/*  <>*/}
-      {/*    /!* need not this feature now *!/*/}
-      {/*    /!* <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>*/}
-      {/*      <small>NO COMPILED CONTRACT</small>*/}
-      {/*    </p>*/}
-      {/*    <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>*/}
-      {/*      <small>OR</small>*/}
-      {/*    </p> *!/*/}
-      {/*  </>*/}
-      {/*)}*/}
+      ) : null}
+      {deploymentTx && !loading ? (
+        <Deploy
+          providerInstance={providerInstance}
+          timestamp={timestamp}
+          client={client}
+          deploymentTx={deploymentTx}
+          setDeploymentTx={setDeploymentTx}
+          txHash={txHash}
+          setTxHash={setTxHash}
+          account={account}
+          providerNetwork={providerNetwork}
+          isReadyToActivate={isReadyToActivate}
+          dataFee={dataFee}
+          contractAddr={contractAddr}
+          setContractAddr={setContractAddr}
+          setContractName={setContractName}
+          addNewContract={addNewContract}
+          abi={abi}
+          uploadCodeChecked={uploadCodeChecked}
+        />
+      ) : null}
     </>
   );
 };

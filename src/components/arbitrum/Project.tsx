@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Form, InputGroup } from 'react-bootstrap';
+import { Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 // import { Compiler } from './Compiler';
-
 import axios from 'axios';
 import JSZip from 'jszip';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
-import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import { Compiler } from './Compiler';
+import SmartContracts from './SmartContracts';
+import { InterfaceContract } from '../../utils/Types';
+import Web3 from 'web3';
+import { AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
   wallet: string;
@@ -35,17 +37,38 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello-world');
   const [fileName, setFileName] = useState<string>('');
+  const [abi, setAbi] = useState<AbiItem[]>([]);
+  const [contractName, setContractName] = useState<string>('');
+
+  const [busy, setBusy] = React.useState<boolean>(false);
+  const [contractAddr, setContractAddr] = React.useState<string>('');
+  const [contracts, setContracts] = React.useState<InterfaceContract[]>([]);
+  const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
 
   const templateList = ['hello-world'];
 
   useEffect(() => {
-    getList();
+    getList().then();
   }, []);
 
   const getList = async () => {
-    const list = await getProjectList();
-    setProjectList(list);
-    list?.length > 0 && setCompileTarget(list[0]);
+    const projects = await getProjects();
+    setProjectList(projects);
+    if (projects?.length > 0) {
+      const compileTarget = projects[0];
+      setCompileTarget(compileTarget);
+      try {
+        const abiStr = await client?.fileManager.readFile(
+          'browser/' + compileTarget + '/output/abi.json',
+        );
+        const abi = JSON.parse(abiStr) as AbiItem[];
+        setAbi(abi);
+        setSelected({ name: '', address: '', abi: abi });
+        console.log(`@@@ abiStr=${abiStr}`);
+      } catch (e) {
+        console.log(`No abi.json`);
+      }
+    }
   };
 
   const wrappedGetList = () => wrapPromise(getList(), client);
@@ -61,6 +84,11 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const setTargetTemplate = (e: { target: { value: React.SetStateAction<string> } }) => {
     setTemplate(e.target.value);
   };
+
+  function addNewContract(contract: InterfaceContract) {
+    const filtered = contracts.filter((c) => c.address !== contract.address);
+    setContracts([contract].concat(filtered));
+  }
 
   const createProject = async () => {
     sendCustomEvent('new_project', {
@@ -88,7 +116,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   };
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
 
-  const getProjectList = async () => {
+  const getProjects = async () => {
     try {
       const list = await client?.fileManager.readdir('browser/arbitrum/');
       return Object.keys(list || []);
@@ -97,8 +125,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     }
     return [];
   };
-
-  // const wrappedGetProjectList = () => wrapPromise(getProjectList(), client);
 
   const isExists = async (dir: string) => {
     try {
@@ -162,78 +188,137 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   return (
     <div>
       <Form>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>NEW PROJECT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
-            <Button variant="success" size="sm" onClick={wrappedCreateProject}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>SELECT A TEMPLATE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={template}
-              onChange={setTargetTemplate}
-            >
-              {templateList.map((temp, idx) => {
-                return (
-                  <option value={temp} key={idx}>
-                    {temp}
-                  </option>
-                );
-              })}
-            </Form.Control>
-            <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>TARGET PROJECT </small>
-            <span onClick={wrappedGetList}>
-              <FaSyncAlt />
-            </span>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={compileTarget}
-              onChange={setTarget}
-            >
-              {projectList?.map((projectName, idx) => {
-                return (
-                  <option value={projectName} key={idx}>
-                    {projectName}
-                  </option>
-                );
-              })}
-            </Form.Control>
-          </InputGroup>
-        </Form.Group>
+        <div>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>NEW PROJECT</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                placeholder="Project Name"
+                size="sm"
+                onChange={setProject}
+              />
+              <Button variant="success" size="sm" onClick={wrappedCreateProject}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>SELECT A TEMPLATE</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={template}
+                onChange={setTargetTemplate}
+              >
+                {templateList.map((temp, idx) => {
+                  return (
+                    <option value={temp} key={idx}>
+                      {temp}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+              <Button variant="success" size="sm" onClick={wrappedCreateTemplate}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>TARGET PROJECT </small>
+              <span onClick={wrappedGetList}>
+                <FaSyncAlt />
+              </span>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={compileTarget}
+                onChange={setTarget}
+              >
+                {projectList?.map((projectName, idx) => {
+                  return (
+                    <option value={projectName} key={idx}>
+                      {projectName}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
+        </div>
       </Form>
 
       <hr />
-      {/* <Compiler compileTarget={compileTarget} accountID={account} dapp={dapp} client={client} /> */}
       <Compiler
         fileName={fileName}
         setFileName={setFileName}
         providerInstance={injectedProvider}
         compileTarget={compileTarget}
-        wallet={wallet}
         account={account}
         client={client}
         providerNetwork={providerNetwork}
+        abi={abi}
+        setAbi={setAbi}
+        contractAddr={contractAddr}
+        setContractAddr={setContractAddr}
+        setContractName={setContractName}
+        addNewContract={addNewContract}
+        setSelected={setSelected}
+      />
+      {/*<p className="text-center mt-3">*/}
+      {/*  <small>OR</small>*/}
+      {/*</p>*/}
+      {/*<InputGroup className="mb-3">*/}
+      {/*  <Form.Control*/}
+      {/*    value={contractAddr}*/}
+      {/*    placeholder="contract address"*/}
+      {/*    onChange={(e) => {*/}
+      {/*      setContractAddr(e.target.value);*/}
+      {/*    }}*/}
+      {/*    size="sm"*/}
+      {/*    disabled={busy || account === '' || !selected}*/}
+      {/*  />*/}
+      {/*  <OverlayTrigger*/}
+      {/*    placement="left"*/}
+      {/*    overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract address</Tooltip>}*/}
+      {/*  >*/}
+      {/*    <Button*/}
+      {/*      variant="primary"*/}
+      {/*      size="sm"*/}
+      {/*      disabled={busy || account === '' || !selected}*/}
+      {/*      onClick={() => {*/}
+      {/*        sendCustomEvent('at_address', {*/}
+      {/*          event_category: 'arbitrum',*/}
+      {/*          method: 'at_address',*/}
+      {/*        });*/}
+      {/*        setBusy(true);*/}
+      {/*        if (selected) {*/}
+      {/*          addNewContract({ ...selected, address: contractAddr });*/}
+      {/*        }*/}
+      {/*        setBusy(false);*/}
+      {/*      }}*/}
+      {/*    >*/}
+      {/*      <small>At Address</small>*/}
+      {/*    </Button>*/}
+      {/*  </OverlayTrigger>*/}
+      {/*</InputGroup>*/}
+      <hr />
+      <SmartContracts
+        dapp={injectedProvider}
+        account={account}
+        busy={busy}
+        setBusy={setBusy}
+        contracts={contracts}
+        client={client}
+        web3={new Web3(injectedProvider)}
       />
     </div>
   );
