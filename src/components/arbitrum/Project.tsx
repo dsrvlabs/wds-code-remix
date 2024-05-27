@@ -273,43 +273,43 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         addNewContract={addNewContract}
         setSelected={setSelected}
       />
-      <p className="text-center mt-3">
-        <small>OR</small>
-      </p>
-      <InputGroup className="mb-3">
-        <Form.Control
-          value={contractAddr}
-          placeholder="contract address"
-          onChange={(e) => {
-            setContractAddr(e.target.value);
-          }}
-          size="sm"
-          disabled={busy || account === '' || !selected}
-        />
-        <OverlayTrigger
-          placement="left"
-          overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract address</Tooltip>}
-        >
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={busy || account === '' || !selected}
-            onClick={() => {
-              sendCustomEvent('at_address', {
-                event_category: 'arbitrum',
-                method: 'at_address',
-              });
-              setBusy(true);
-              if (selected) {
-                addNewContract({ ...selected, address: contractAddr });
-              }
-              setBusy(false);
-            }}
-          >
-            <small>At Address</small>
-          </Button>
-        </OverlayTrigger>
-      </InputGroup>
+      {/*<p className="text-center mt-3">*/}
+      {/*  <small>OR</small>*/}
+      {/*</p>*/}
+      {/*<InputGroup className="mb-3">*/}
+      {/*  <Form.Control*/}
+      {/*    value={contractAddr}*/}
+      {/*    placeholder="contract address"*/}
+      {/*    onChange={(e) => {*/}
+      {/*      setContractAddr(e.target.value);*/}
+      {/*    }}*/}
+      {/*    size="sm"*/}
+      {/*    disabled={busy || account === '' || !selected}*/}
+      {/*  />*/}
+      {/*  <OverlayTrigger*/}
+      {/*    placement="left"*/}
+      {/*    overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract address</Tooltip>}*/}
+      {/*  >*/}
+      {/*    <Button*/}
+      {/*      variant="primary"*/}
+      {/*      size="sm"*/}
+      {/*      disabled={busy || account === '' || !selected}*/}
+      {/*      onClick={() => {*/}
+      {/*        sendCustomEvent('at_address', {*/}
+      {/*          event_category: 'arbitrum',*/}
+      {/*          method: 'at_address',*/}
+      {/*        });*/}
+      {/*        setBusy(true);*/}
+      {/*        if (selected) {*/}
+      {/*          addNewContract({ ...selected, address: contractAddr });*/}
+      {/*        }*/}
+      {/*        setBusy(false);*/}
+      {/*      }}*/}
+      {/*    >*/}
+      {/*      <small>At Address</small>*/}
+      {/*    </Button>*/}
+      {/*  </OverlayTrigger>*/}
+      {/*</InputGroup>*/}
       <hr />
       <SmartContracts
         dapp={injectedProvider}
