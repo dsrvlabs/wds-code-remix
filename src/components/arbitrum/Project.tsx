@@ -18,7 +18,6 @@ import Web3 from 'web3';
 import { AbiItem } from 'web3-utils';
 
 interface InterfaceProps {
-  wallet: string;
   account: string;
   client: Client<Api, Readonly<IRemixApi>>;
   injectedProvider: any;
@@ -26,7 +25,6 @@ interface InterfaceProps {
 }
 
 export const Project: React.FunctionComponent<InterfaceProps> = ({
-  wallet,
   account,
   injectedProvider,
   providerNetwork,
@@ -44,6 +42,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [contractAddr, setContractAddr] = React.useState<string>('');
   const [contracts, setContracts] = React.useState<InterfaceContract[]>([]);
   const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
+  const [isActivated, setIsActivated] = React.useState<boolean>(false);
 
   const templateList = ['hello-world'];
 
@@ -272,6 +271,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         setContractName={setContractName}
         addNewContract={addNewContract}
         setSelected={setSelected}
+        isActivated={isActivated}
+        setIsActivated={setIsActivated}
       />
       {/*<p className="text-center mt-3">*/}
       {/*  <small>OR</small>*/}
@@ -311,15 +312,17 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       {/*  </OverlayTrigger>*/}
       {/*</InputGroup>*/}
       <hr />
-      <SmartContracts
-        dapp={injectedProvider}
-        account={account}
-        busy={busy}
-        setBusy={setBusy}
-        contracts={contracts}
-        client={client}
-        web3={new Web3(injectedProvider)}
-      />
+      {isActivated ? (
+        <SmartContracts
+          dapp={injectedProvider}
+          account={account}
+          busy={busy}
+          setBusy={setBusy}
+          contracts={contracts}
+          client={client}
+          web3={new Web3(injectedProvider)}
+        />
+      ) : null}
     </div>
   );
 };

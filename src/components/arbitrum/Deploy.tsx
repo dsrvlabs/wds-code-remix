@@ -33,12 +33,13 @@ interface InterfaceProps {
   providerNetwork: string;
   isReadyToActivate: boolean;
   dataFee: string;
-  contractAddr: string;
   setContractAddr: Dispatch<React.SetStateAction<string>>;
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   abi: AbiItem[];
   uploadCodeChecked: boolean;
+  isActivated: boolean;
+  setIsActivated: Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -50,12 +51,13 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   account,
   isReadyToActivate,
   dataFee,
-  contractAddr,
   setContractAddr,
   setContractName,
   addNewContract,
   abi,
   uploadCodeChecked,
+  isActivated,
+  setIsActivated,
 }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [deployedContractAddress, setDeployedContractAddress] = useState<string>('');
@@ -223,6 +225,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             setContractName={setContractName}
             abi={abi}
             addNewContract={addNewContract}
+            isActivated={isActivated}
+            setIsActivated={setIsActivated}
           ></Activate>
         ) : null}
       </Form>

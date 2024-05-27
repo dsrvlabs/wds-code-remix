@@ -29,6 +29,8 @@ interface InterfaceProps {
   abi: AbiItem[];
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
+  isActivated: boolean;
+  setIsActivated: Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const Activate: React.FunctionComponent<InterfaceProps> = ({
@@ -41,8 +43,9 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
   abi,
   setContractName,
   addNewContract,
+  isActivated,
+  setIsActivated,
 }) => {
-  const [isActivated, setIsActivated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const onActivate = async () => {
@@ -186,7 +189,7 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
       <Button
         variant="primary"
         onClick={onActivate}
-        disabled={isActivated}
+        disabled={isActivated || isLoading}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
         <span>Activate</span>

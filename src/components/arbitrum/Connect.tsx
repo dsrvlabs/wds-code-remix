@@ -41,7 +41,6 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         />
         {providerNetwork === STYLUS_TESTNET_V2_CHAIN_ID ? (
           <Project
-            wallet={wallet}
             account={account}
             injectedProvider={injectedProvider}
             client={client}
