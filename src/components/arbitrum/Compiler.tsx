@@ -51,6 +51,8 @@ interface InterfaceProps {
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   setSelected: (select: InterfaceContract) => void; // for At Address
+  isActivated: boolean;
+  setIsActivated: Dispatch<React.SetStateAction<boolean>>;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -66,11 +68,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   providerNetwork,
   abi,
   setAbi,
-  contractAddr,
   setContractAddr,
   setContractName,
   addNewContract,
   setSelected,
+  isActivated,
+  setIsActivated,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [deploymentTx, setDeploymentTx] = useState<string>('');
@@ -99,6 +102,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const init = () => {
     setDeploymentTx('');
     setIsReadToActivate(false);
+    setIsActivated(false);
     setDataFee('');
     setFileName('');
     setTxHash('');
@@ -612,12 +616,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           providerNetwork={providerNetwork}
           isReadyToActivate={isReadyToActivate}
           dataFee={dataFee}
-          contractAddr={contractAddr}
           setContractAddr={setContractAddr}
           setContractName={setContractName}
           addNewContract={addNewContract}
           abi={abi}
           uploadCodeChecked={uploadCodeChecked}
+          isActivated={isActivated}
+          setIsActivated={setIsActivated}
         />
       ) : null}
     </>
