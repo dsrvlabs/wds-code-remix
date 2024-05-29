@@ -22,6 +22,7 @@ export interface ArbitrumContractCreateDto {
 }
 
 interface InterfaceProps {
+  compileTarget: string;
   providerInstance: any;
   timestamp: string;
   client: any;
@@ -36,13 +37,16 @@ interface InterfaceProps {
   setContractAddr: Dispatch<React.SetStateAction<string>>;
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
-  abi: AbiItem[];
+  contractAbiMap: Map<string, AbiItem[]>;
+  setContractAbiMap: Dispatch<React.SetStateAction<Map<string, AbiItem[]>>>;
+  setSelected: (select: InterfaceContract) => void; // for At Address
   uploadCodeChecked: boolean;
   isActivated: boolean;
   setIsActivated: Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   providerInstance,
   timestamp,
   providerNetwork,
@@ -54,7 +58,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setContractAddr,
   setContractName,
   addNewContract,
-  abi,
+  contractAbiMap,
+  setContractAbiMap,
+  setSelected,
   uploadCodeChecked,
   isActivated,
   setIsActivated,
@@ -131,10 +137,19 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    setContractAddr(txReceipt.contractAddress || '');
     setDeployedContractAddress(txReceipt.contractAddress || '');
     if (txReceipt.contractAddress && txReceipt.status) {
-      const contract = new web3.eth.Contract(abi, txReceipt.contractAddress);
+      const abiStr = await client?.fileManager.readFile(
+        'browser/' + compileTarget + '/output/abi.json',
+      );
+      const abiItems = JSON.parse(abiStr) as AbiItem[];
+      setContractAbiMap((prevMap) => {
+        const newMap = new Map(prevMap);
+        newMap.set(txReceipt.contractAddress!.toLowerCase(), abiItems);
+        return newMap;
+      });
+
+      const contract = new web3.eth.Contract(abiItems, txReceipt.contractAddress);
       let name;
       try {
         name = await contract.methods.name().call();
@@ -145,16 +160,20 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         console.error('Error interacting with contract:', error);
       }
 
+      if (!isReadyToActivate) {
+        setContractAddr(txReceipt.contractAddress || '');
+        addNewContract({
+          name: name,
+          abi: abiItems,
+          address: txReceipt.contractAddress,
+        });
+      }
+
       console.log(
         `@@@ add new contract name=${name}, address=${
           txReceipt.contractAddress
-        }, abi=${JSON.stringify(abi, null, 2)}`,
+        }, abi=${JSON.stringify(abiItems, null, 2)}`,
       );
-      addNewContract({
-        name: name,
-        address: txReceipt.contractAddress,
-        abi: abi,
-      });
 
       let deploymentTimeStamp = 0;
       if (txReceipt.blockNumber) {
@@ -187,6 +206,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         log.error(`put arbitrum/contracts api error`);
         console.error(e);
       }
+
       setIsLoading(false);
     }
 
@@ -222,8 +242,9 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             account={account}
             client={client}
             dataFee={dataFee}
+            setContractAddr={setContractAddr}
             setContractName={setContractName}
-            abi={abi}
+            contractAbiMap={contractAbiMap}
             addNewContract={addNewContract}
             isActivated={isActivated}
             setIsActivated={setIsActivated}

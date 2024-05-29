@@ -35,9 +35,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello-world');
   const [fileName, setFileName] = useState<string>('');
-  const [abi, setAbi] = useState<AbiItem[]>([]);
+  const [contractAbiMap, setContractAbiMap] = useState<Map<string, AbiItem[]>>(
+    new Map<string, AbiItem[]>(),
+  );
   const [contractName, setContractName] = useState<string>('');
 
+  const [isCompiling, setIsCompiling] = React.useState<boolean>(false);
   const [busy, setBusy] = React.useState<boolean>(false);
   const [contractAddr, setContractAddr] = React.useState<string>('');
   const [contracts, setContracts] = React.useState<InterfaceContract[]>([]);
@@ -57,12 +60,13 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       const compileTarget = projects[0];
       setCompileTarget(compileTarget);
       try {
-        const abiStr = await client?.fileManager.readFile(
-          'browser/' + compileTarget + '/output/abi.json',
-        );
+        const abiStr = await client?.fileManager.readFile('browser/arbitrum/abi.json');
         const abi = JSON.parse(abiStr) as AbiItem[];
-        setAbi(abi);
-        setSelected({ name: '', address: '', abi: abi });
+        setContractAbiMap((prevMap) => {
+          const newMap = new Map(prevMap);
+          newMap.set('local', abi);
+          return newMap;
+        });
         console.log(`@@@ abiStr=${abiStr}`);
       } catch (e) {
         console.log(`No abi.json`);
@@ -85,8 +89,11 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   };
 
   function addNewContract(contract: InterfaceContract) {
-    const filtered = contracts.filter((c) => c.address !== contract.address);
-    setContracts([contract].concat(filtered));
+    const filtered = contracts.filter((c) => c.address.toString() !== contract.address.toString());
+    const c = {
+      ...contract,
+    };
+    setContracts([c].concat(filtered));
   }
 
   const createProject = async () => {
@@ -257,6 +264,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
       <hr />
       <Compiler
+        isCompiling={isCompiling}
+        setIsCompiling={setIsCompiling}
         fileName={fileName}
         setFileName={setFileName}
         providerInstance={injectedProvider}
@@ -264,8 +273,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         account={account}
         client={client}
         providerNetwork={providerNetwork}
-        abi={abi}
-        setAbi={setAbi}
+        contractAbiMap={contractAbiMap}
+        setContractAbiMap={setContractAbiMap}
         contractAddr={contractAddr}
         setContractAddr={setContractAddr}
         setContractName={setContractName}
@@ -274,55 +283,69 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         isActivated={isActivated}
         setIsActivated={setIsActivated}
       />
-      {/*<p className="text-center mt-3">*/}
-      {/*  <small>OR</small>*/}
-      {/*</p>*/}
-      {/*<InputGroup className="mb-3">*/}
-      {/*  <Form.Control*/}
-      {/*    value={contractAddr}*/}
-      {/*    placeholder="contract address"*/}
-      {/*    onChange={(e) => {*/}
-      {/*      setContractAddr(e.target.value);*/}
-      {/*    }}*/}
-      {/*    size="sm"*/}
-      {/*    disabled={busy || account === '' || !selected}*/}
-      {/*  />*/}
-      {/*  <OverlayTrigger*/}
-      {/*    placement="left"*/}
-      {/*    overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract address</Tooltip>}*/}
-      {/*  >*/}
-      {/*    <Button*/}
-      {/*      variant="primary"*/}
-      {/*      size="sm"*/}
-      {/*      disabled={busy || account === '' || !selected}*/}
-      {/*      onClick={() => {*/}
-      {/*        sendCustomEvent('at_address', {*/}
-      {/*          event_category: 'arbitrum',*/}
-      {/*          method: 'at_address',*/}
-      {/*        });*/}
-      {/*        setBusy(true);*/}
-      {/*        if (selected) {*/}
-      {/*          addNewContract({ ...selected, address: contractAddr });*/}
-      {/*        }*/}
-      {/*        setBusy(false);*/}
-      {/*      }}*/}
-      {/*    >*/}
-      {/*      <small>At Address</small>*/}
-      {/*    </Button>*/}
-      {/*  </OverlayTrigger>*/}
-      {/*</InputGroup>*/}
-      <hr />
-      {isActivated ? (
-        <SmartContracts
-          dapp={injectedProvider}
-          account={account}
-          busy={busy}
-          setBusy={setBusy}
-          contracts={contracts}
-          client={client}
-          web3={new Web3(injectedProvider)}
+      <p className="text-center mt-3">
+        <small>OR</small>
+      </p>
+      <InputGroup className="mb-3">
+        <Form.Control
+          value={contractAddr}
+          placeholder="contract address"
+          onChange={(e) => {
+            setContractAddr(e.target.value);
+          }}
+          size="sm"
+          disabled={busy || account === '' || isCompiling}
         />
-      ) : null}
+        <OverlayTrigger
+          placement="left"
+          overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract address</Tooltip>}
+        >
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={busy || account === '' || isCompiling}
+            onClick={async () => {
+              sendCustomEvent('at_address', {
+                event_category: 'arbitrum',
+                method: 'at_address',
+              });
+              console.log(`@@@ contractAddr=${contractAddr}, selected`, selected);
+              setBusy(true);
+              let abi = contractAbiMap.get(contractAddr.toLowerCase());
+              console.log('on at address contractAbiMap', contractAbiMap, abi);
+              if (abi) {
+                await client.fileManager.writeFile(
+                  'browser/arbitrum/abi.json',
+                  JSON.stringify(abi, null, 2),
+                );
+              } else {
+                abi = contractAbiMap.get('local');
+                console.log(`@@@ abi update`, abi);
+              }
+
+              addNewContract({
+                name: '',
+                address: contractAddr,
+                abi: abi || [],
+              });
+              setBusy(false);
+            }}
+          >
+            <small>At Address</small>
+          </Button>
+        </OverlayTrigger>
+      </InputGroup>
+      <hr />
+      <SmartContracts
+        dapp={injectedProvider}
+        account={account}
+        busy={busy}
+        setBusy={setBusy}
+        contracts={contracts}
+        setContracts={setContracts}
+        client={client}
+        web3={new Web3(injectedProvider)}
+      />
     </div>
   );
 };

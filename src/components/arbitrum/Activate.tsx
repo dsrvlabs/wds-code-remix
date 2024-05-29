@@ -26,7 +26,8 @@ interface InterfaceProps {
   contractAddr: string;
   client: any;
   dataFee: string;
-  abi: AbiItem[];
+  contractAbiMap: Map<string, AbiItem[]>;
+  setContractAddr: Dispatch<React.SetStateAction<string>>;
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   isActivated: boolean;
@@ -40,7 +41,8 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
   contractAddr,
   client,
   dataFee,
-  abi,
+  contractAbiMap,
+  setContractAddr,
   setContractName,
   addNewContract,
   isActivated,
@@ -57,6 +59,13 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
 
     if (!contractAddr) {
       console.log(`No contractAddr`);
+      setIsLoading(false);
+      return;
+    }
+
+    const abiItems = contractAbiMap.get(contractAddr.toLowerCase());
+    if (!abiItems) {
+      console.log(`No abiItems for contractAddr=${contractAddr}`);
       setIsLoading(false);
       return;
     }
@@ -134,14 +143,15 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
 
     if (activation_txReceipt.status) {
       setIsActivated(true);
-      const contract = new web3.eth.Contract(abi, contractAddr);
+      const contract = new web3.eth.Contract(abiItems, contractAddr);
       try {
         const name = await contract.methods.name().call();
+        setContractAddr(contractAddr);
         setContractName(name);
         addNewContract({
           name: name,
-          address: contractAddr,
-          abi: abi,
+          address: contractAddr.toLowerCase(),
+          abi: abiItems,
         });
         console.log('Contract Name:', name);
       } catch (error) {
