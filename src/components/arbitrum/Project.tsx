@@ -372,6 +372,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         client={client}
         web3={new Web3(injectedProvider)}
       />
+      <hr />
     </div>
   );
 };
