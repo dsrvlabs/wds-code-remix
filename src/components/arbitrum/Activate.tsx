@@ -144,19 +144,20 @@ export const Activate: React.FunctionComponent<InterfaceProps> = ({
     if (activation_txReceipt.status) {
       setIsActivated(true);
       const contract = new web3.eth.Contract(abiItems, contractAddr);
+      let name = '';
       try {
-        const name = await contract.methods.name().call();
-        setContractAddr(contractAddr);
-        setContractName(name);
-        addNewContract({
-          name: name,
-          address: contractAddr.toLowerCase(),
-          abi: abiItems,
-        });
+        name = await contract.methods.name().call();
         console.log('Contract Name:', name);
       } catch (error) {
         console.error('Error interacting with contract:', error);
       }
+      setContractName(name);
+      setContractAddr(contractAddr);
+      addNewContract({
+        name: name,
+        address: contractAddr.toLowerCase(),
+        abi: abiItems,
+      });
 
       let activationTimestamp = 0;
       if (activation_txReceipt.blockNumber) {
