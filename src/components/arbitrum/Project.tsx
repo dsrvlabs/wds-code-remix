@@ -318,10 +318,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
               console.log('on at address contractAbiMap', contractAbiMap, abi);
               if (abi) {
                 console.log(`Existing abi`, abi);
-                await client.fileManager.writeFile(
-                  'browser/arbitrum/abi.json',
-                  JSON.stringify(abi, null, 2),
-                );
               } else {
                 console.log(`@@@ Reading user specific abi`, abi);
                 const abiStr = await client.fileManager.readFile('browser/arbitrum/abi.json');
