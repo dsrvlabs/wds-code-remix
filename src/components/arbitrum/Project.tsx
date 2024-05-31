@@ -61,15 +61,18 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       setCompileTarget(compileTarget);
       try {
         const abiStr = await client?.fileManager.readFile('browser/arbitrum/abi.json');
-        const abi = JSON.parse(abiStr) as AbiItem[];
         setContractAbiMap((prevMap) => {
           const newMap = new Map(prevMap);
-          newMap.set('local', abi);
           return newMap;
         });
         console.log(`@@@ abiStr=${abiStr}`);
       } catch (e) {
-        console.log(`No abi.json`);
+        console.log(`No abi.json. Writing empty abi.`);
+        await client?.fileManager.writeFile('browser/arbitrum/abi.json', '[]');
+        setContractAbiMap((prevMap) => {
+          const newMap = new Map(prevMap);
+          return newMap;
+        });
       }
     }
   };
@@ -125,7 +128,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const getProjects = async () => {
     try {
       const list = await client?.fileManager.readdir('browser/arbitrum/');
-      return Object.keys(list || []);
+      return Object.keys(list || []).filter((k) => k !== 'arbitrum/abi.json');
     } catch (e) {
       log.error(e);
     }
@@ -314,13 +317,15 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
               let abi = contractAbiMap.get(contractAddr.toLowerCase());
               console.log('on at address contractAbiMap', contractAbiMap, abi);
               if (abi) {
+                console.log(`Existing abi`, abi);
                 await client.fileManager.writeFile(
                   'browser/arbitrum/abi.json',
                   JSON.stringify(abi, null, 2),
                 );
               } else {
-                abi = contractAbiMap.get('local');
-                console.log(`@@@ abi update`, abi);
+                console.log(`@@@ Reading user specific abi`, abi);
+                const abiStr = await client.fileManager.readFile('browser/arbitrum/abi.json');
+                abi = JSON.parse(abiStr);
               }
 
               addNewContract({
@@ -334,8 +339,29 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             <small>At Address</small>
           </Button>
         </OverlayTrigger>
+        <OverlayTrigger
+          placement="top"
+          overlay={
+            <Tooltip id="overlay-ataddresss">
+              <span>Please specify ABI in </span>
+              <span style={{ fontWeight: 'bold' }}>/arbitrum/abi.json</span>
+            </Tooltip>
+          }
+        >
+          <div
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              marginLeft: '0.1em',
+              fontSize: '0.9em',
+            }}
+          >
+            &#9432;
+          </div>
+        </OverlayTrigger>
       </InputGroup>
-      <hr />
+      <div style={{ marginTop: '-0.5em', marginBottom: '1em', alignContent: 'center' }}></div>
       <SmartContracts
         dapp={injectedProvider}
         account={account}
