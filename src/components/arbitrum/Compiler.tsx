@@ -44,13 +44,15 @@ interface InterfaceProps {
   providerInstance: any;
   client: any;
   providerNetwork: string;
-  abi: AbiItem[];
-  setAbi: Dispatch<React.SetStateAction<AbiItem[]>>;
+  contractAbiMap: Map<string, AbiItem[]>;
+  setContractAbiMap: Dispatch<React.SetStateAction<Map<string, AbiItem[]>>>;
   contractAddr: string;
   setContractAddr: Dispatch<React.SetStateAction<string>>;
   setContractName: Dispatch<React.SetStateAction<string>>;
   addNewContract: (contract: InterfaceContract) => void; // for SmartContracts
   setSelected: (select: InterfaceContract) => void; // for At Address
+  isCompiling: boolean;
+  setIsCompiling: Dispatch<React.SetStateAction<boolean>>;
   isActivated: boolean;
   setIsActivated: Dispatch<React.SetStateAction<boolean>>;
 }
@@ -66,20 +68,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   compileTarget,
   account,
   providerNetwork,
-  abi,
-  setAbi,
+  contractAbiMap,
+  setContractAbiMap,
   setContractAddr,
   setContractName,
   addNewContract,
   setSelected,
+  isCompiling,
+  setIsCompiling,
   isActivated,
   setIsActivated,
 }) => {
-  const [iconSpin, setIconSpin] = useState<string>('');
   const [deploymentTx, setDeploymentTx] = useState<string>('');
   const [isReadyToActivate, setIsReadToActivate] = useState<boolean>(false);
   const [dataFee, setDataFee] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
   const [txHash, setTxHash] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
@@ -116,15 +118,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const readCode = async () => {
-    if (loading) {
-      await client.terminal.log({ value: 'Server is working...', type: 'log' });
+    if (isCompiling) {
+      client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
 
     await removeArtifacts();
 
     init();
-    setAbi([]);
+    // setAbi([]); // todo
 
     const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     log.info(
@@ -183,8 +185,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const editorClient = new EditorClient(client);
     await editorClient.discardHighlight();
     await editorClient.clearAnnotations();
-    setLoading(true);
-    setIconSpin('fa-spin');
+    setIsCompiling(true);
     setCompileError('');
 
     const timestamp = Date.now().toString();
@@ -208,14 +209,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
       if (!isSrcZipUploadSuccess) {
         log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
-        setIconSpin('');
-        setLoading(false);
+        setIsCompiling(false);
         return;
       }
     } catch (e) {
       log.error(`src zip upload fail. address=${account}, timestamp=${timestamp}`);
-      setIconSpin('');
-      setLoading(false);
+      setIsCompiling(false);
       client.terminal.log({ type: 'error', value: `compile error.` });
       return;
     }
@@ -246,8 +245,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     if (uploadUrls.length === 0) {
       log.error(`uploadUrls fail`);
-      setIconSpin('');
-      setLoading(false);
+      setIsCompiling(false);
       return;
     }
 
@@ -269,7 +267,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       socket.on('connect_error', function (err) {
         // handle server error here
         log.debug('Error connecting to server');
-        setLoading(false);
+        setIsCompiling(false);
         socket.disconnect();
       });
 
@@ -279,19 +277,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         'disconnect',
         (reason: Socket.DisconnectReason, description?: DisconnectDescription) => {
           log.info('[SOCKET.ARBITRUM] disconnected.', reason, description);
-          setIconSpin('');
-          setLoading(false);
+          setIsCompiling(false);
           log.info(`@@@ after disconnect. disconnected=${socket.disconnected}`);
           cleanupSocketArbitrum(socket);
         },
       );
 
-      socket.on('connect_error', function (err) {
+      socket.on('connect_error', async function (err) {
         // handle server error here
         log.info('[SOCKET.ARBITRUM] Error connecting to server');
         log.error(err);
-        setIconSpin('');
-        setLoading(false);
+        setIsCompiling(false);
         log.info(`@@@ after connect_error. disconnected=${socket.disconnected}`);
         cleanupSocketArbitrum(socket);
         client.terminal.log({
@@ -332,9 +328,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           ) {
             return;
           }
-          await client.terminal.log({ type: 'error', value: data.errMsg.toString() });
-          setIconSpin('');
-          setLoading(false);
+          client.terminal.log({ type: 'error', value: data.errMsg.toString() });
+
+          setIsCompiling(false);
           socket.disconnect();
           cleanupSocketArbitrum(socket);
         },
@@ -373,9 +369,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 // );
 
                 setCompileError((prev) => `${prev}\n${data.logMsg}`);
-
-                setIconSpin('');
-                setLoading(false);
+                setIsCompiling(false);
                 socket.disconnect();
                 return;
               }
@@ -480,13 +474,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                   const fileData = await zip.files[filename].async('string');
                   if (filename === 'output/abi.json') {
                     const abi = JSON.parse(fileData) as AbiItem[];
-                    console.log(`@@@ abi`, abi);
-                    setAbi(abi);
-                    setSelected({
-                      name: '',
-                      address: '',
-                      abi: abi.filter((a) => a.type === 'function'),
-                    });
+                    console.log(`@@@ saved output/abi.json abi=${JSON.stringify(abi)}`, abi);
+                    // setAbi(abi);
+                    // setSelected({
+                    //   name: '',
+                    //   address: '',
+                    //   abi: abi.filter((a) => a.type === 'function'),
+                    // });
                     client.terminal.log({
                       type: 'info',
                       value: `======================== ABI ========================`,
@@ -520,8 +514,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           } catch (e) {
             log.error(e);
           } finally {
-            setIconSpin('');
-            setLoading(false);
+            setIsCompiling(false);
           }
         },
       );
@@ -543,8 +536,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       );
     } catch (e) {
       log.error(e);
-      setIconSpin('');
-      setLoading(false);
+      setIsCompiling(false);
     }
   };
 
@@ -563,7 +555,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           id="uploadCodeCheckbox"
           checked={uploadCodeChecked}
           onChange={handleCheckboxChange}
-          disabled={loading || !!fileName}
+          disabled={isCompiling || !!fileName}
         />
         <CustomTooltip
           placement="top"
@@ -581,11 +573,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <Button
         variant="primary"
-        disabled={account === '' || loading || !compileTarget}
+        disabled={account === '' || isCompiling || !compileTarget}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
-        <FaSyncAlt className={iconSpin} />
+        <FaSyncAlt className={isCompiling ? 'fa-spin' : undefined} />
         <span>Compile</span>
       </Button>
       {compileError !== '' && (
@@ -603,8 +595,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <small>{fileName}</small>
         </div>
       ) : null}
-      {deploymentTx && !loading ? (
+      {deploymentTx && !isCompiling ? (
         <Deploy
+          compileTarget={compileTarget}
           providerInstance={providerInstance}
           timestamp={timestamp}
           client={client}
@@ -619,7 +612,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           setContractAddr={setContractAddr}
           setContractName={setContractName}
           addNewContract={addNewContract}
-          abi={abi}
+          contractAbiMap={contractAbiMap}
+          setContractAbiMap={setContractAbiMap}
+          setSelected={setSelected}
           uploadCodeChecked={uploadCodeChecked}
           isActivated={isActivated}
           setIsActivated={setIsActivated}

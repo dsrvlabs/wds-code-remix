@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Dispatch } from 'react';
 import {
   Alert,
   Accordion,
@@ -41,7 +41,7 @@ const DrawMethod: React.FunctionComponent<InterfaceDrawMethodProps> = (props) =>
   const [args, setArgs] = React.useState<{ [key: string]: string }>({});
   const [result, setResult] = React.useState<{ [key: string]: string }>({});
   const { dapp, account, busy, /* setBusy, */ abi, address, client, web3 } = props;
-
+  console.log(`@@@ DrawMethod address=${address}, abi=${JSON.stringify(abi)}`);
   React.useEffect(() => {
     const temp: { [key: string]: string } = {};
     abi.inputs?.forEach((element: AbiInput) => {
@@ -256,7 +256,7 @@ const ContractCard: React.FunctionComponent<{
   setBusy: (state: boolean) => void;
   contract: InterfaceContract;
   index: number;
-  remove: () => void;
+  remove: (removingAddr: string) => void;
   client: any;
   web3: Web3 | undefined;
 }> = ({ dapp, account, busy, setBusy, contract, index, remove, client, web3 }) => {
@@ -303,7 +303,13 @@ const ContractCard: React.FunctionComponent<{
   }
 
   return (
-    <CSSTransition in={enable} timeout={300} classNames="zoom" unmountOnExit onExited={remove}>
+    <CSSTransition
+      in={enable}
+      timeout={300}
+      classNames="zoom"
+      unmountOnExit
+      onExited={() => remove(contract.address)}
+    >
       <Card className="mb-2">
         <Card.Header className="px-2 py-1">
           <strong className="align-middle">{contract.name}</strong>
@@ -350,6 +356,7 @@ interface InterfaceSmartContractsProps {
   busy: boolean;
   setBusy: (state: boolean) => void;
   contracts: InterfaceContract[];
+  setContracts: Dispatch<React.SetStateAction<InterfaceContract[]>>;
   client: any;
   web3: Web3 | undefined;
 }
@@ -360,6 +367,7 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
   busy,
   setBusy,
   contracts,
+  setContracts,
   client,
   web3,
 }) => {
@@ -372,26 +380,33 @@ const SmartContracts: React.FunctionComponent<InterfaceSmartContractsProps> = ({
   }, [contracts, busy]);
 
   function DrawContracts(client: any) {
-    const items = contracts.map((data: InterfaceContract, index: number) => (
-      <ContractCard
-        dapp={dapp}
-        account={account}
-        busy={busy}
-        setBusy={setBusy}
-        contract={data}
-        index={index}
-        remove={() => {
-          setCount(count + 1);
-          setError(EMPTYLIST);
-        }}
-        client={client}
-        key={`Contract_${index.toString()}`}
-        web3={web3}
-      />
-    ));
+    // console.log(`DrawContracts contracts=${JSON.stringify(contracts)}`);
+    const items = contracts.map((data: InterfaceContract, index: number) => {
+      console.log(`@@@ DrawContracts index=[${index}] data=${JSON.stringify(data, null, 2)}`);
+      return (
+        <ContractCard
+          dapp={dapp}
+          account={account}
+          busy={busy}
+          setBusy={setBusy}
+          contract={data}
+          index={index}
+          remove={(removingAddr: string) => {
+            const updatedContracts = contracts.filter(
+              (c) => c.address.toLowerCase() !== removingAddr.toLowerCase(),
+            );
+            setContracts([...updatedContracts]);
+            setCount(count + 1);
+            setError(EMPTYLIST);
+          }}
+          client={client}
+          key={`Contract_${index.toString()}_${data.address}`}
+          web3={web3}
+        />
+      );
+    });
     return <>{items}</>;
   }
-
   return (
     <div className="SmartContracts">
       <Alert variant="warning" className="text-center" hidden={contracts.length !== count}>
