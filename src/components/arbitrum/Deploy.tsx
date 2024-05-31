@@ -160,7 +160,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         console.error('Error interacting with contract:', error);
       }
 
-      if (!isReadyToActivate) {
+      if (!isReadyToActivate || isActivated) {
         setContractAddr(txReceipt.contractAddress || '');
         addNewContract({
           name: name,
