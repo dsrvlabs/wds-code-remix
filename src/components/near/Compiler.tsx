@@ -38,6 +38,7 @@ import { Near, providers } from 'near-api-js';
 import { Provider } from './WalletRpcProvider';
 import { log } from '../../utils/logger';
 import { PROD, STAGE } from '../../const/stage';
+import { isEmptyObject } from '../../utils/ObjectUtil';
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
@@ -141,6 +142,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     try {
       const artifacts = await client.fileManager.readdir('browser/' + compileTarget + '/out');
+      if (isEmptyObject(artifacts)) throw new Error('out directory does not exists')
       await client.terminal.log({
         type: 'error',
         value:
