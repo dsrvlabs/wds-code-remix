@@ -261,6 +261,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const socket = io(ARBITRUM_COMPILER_CONSUMER_ENDPOINT, {
       reconnection: false,
       transports: ['websocket'],
+      timeout: 120_000,
     });
 
     try {
