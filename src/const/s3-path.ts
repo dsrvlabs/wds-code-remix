@@ -17,4 +17,13 @@ export class S3Path {
   ) {
     return `${chainName}/${chainId}/${account}/${timestamp}/out_${account}_${timestamp}_${filetype}.zip`;
   }
+
+  static modifiedMoveTomlKey(
+    chainName: string,
+    chainId: string,
+    account: string,
+    timestamp: string,
+  ) {
+    return `${chainName}/${chainId}/${account}/${timestamp}/Move_mod.toml`;
+  }
 }

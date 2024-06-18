@@ -21,6 +21,7 @@ import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { ModuleWrapper } from './Compiler';
 import { Types } from 'aptos';
+import { AptosGitDependency } from 'wds-event';
 export interface AptosDeployHistoryCreateDto {
   chainId: string;
   account: string;
@@ -41,6 +42,8 @@ interface InterfaceProps {
   moduleWrappers: ModuleWrapper[];
   metaData64: string;
   moduleBase64s: string[];
+  cliVersion: string | null;
+  aptosGitDependencies: AptosGitDependency[];
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
   setDeployedContract: Function;
@@ -78,6 +81,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   moduleWrappers,
   metaData64,
   moduleBase64s,
+  cliVersion,
+  aptosGitDependencies,
   wallet,
   dapp,
   setDeployedContract,
@@ -199,6 +204,8 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           deployTimestamp: Number(result.timestamp),
           upgradeNumber: writeResourcePackage?.upgrade_number,
           upgradePolicy: writeResourcePackage?.upgrade_policy.policy,
+          cliVersion: cliVersion,
+          aptosGitDependencies: aptosGitDependencies,
           txHash: result.hash,
           modules: writeResourcePackage?.modules.map((m) => m.name),
         };

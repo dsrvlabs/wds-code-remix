@@ -16629,10 +16629,10 @@ wcwidth@^1.0.1:
   dependencies:
     defaults "^1.0.3"
 
-wds-event@^1.0.34:
-  version "1.0.34"
-  resolved "https://registry.npmjs.org/wds-event/-/wds-event-1.0.34.tgz"
-  integrity sha512-YwqV5vXodZA20z/2ibW9+dUvPNw3q1tQRTUktr67JcfVb29iW26Bnqo1ObsYxukiK+R3qPmHoGupZrCCCb7JRA==
+wds-event@^1.0.35:
+  version "1.0.35"
+  resolved "https://registry.npmjs.org/wds-event/-/wds-event-1.0.35.tgz"
+  integrity sha512-qdRqTTxizlS8ZnMuB/5FEeqchNiGKUzjNimuImSi1BYXCXLtW0/lC0ECQi+KFWxKpGVJkdBOUXa1IsHHRrfktg==
 
 wds-near-contract-parser@^0.1.5:
   version "0.1.5"

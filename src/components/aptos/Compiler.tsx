@@ -11,7 +11,10 @@ import stripAnsi from 'strip-ansi';
 
 import * as _ from 'lodash';
 import {
+  AptosGitDependency,
   compileIdV2,
+  COMPILER_APTOS_COMPILE_COMPLETED_V3,
+  CompilerAptosCompileCompletedV3,
   REMIX_APTOS_COMPILE_REQUESTED_V2,
   REMIX_APTOS_PROVE_REQUESTED_V2,
   RemixAptosCompileRequestedV2,
@@ -105,6 +108,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [moduleWrappers, setModuleWrappers] = useState<ModuleWrapper[]>([]);
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
   const [metaData64, setMetaDataBase64] = useState<string>('');
+  const [cliVersion, setCliVersion] = useState<string>('');
+  const [aptosGitDependencies, setAptosGitDependencies] = useState<AptosGitDependency[]>([]);
 
   const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
   const [targetModule, setTargetModule] = useState<string>('');
@@ -134,6 +139,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setFileNames([]);
     setModuleWrappers([]);
     setMetaDataBase64('');
+    setCliVersion('');
+    setAptosGitDependencies([]);
   }, [compileTarget]);
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
@@ -307,11 +314,204 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
       });
 
+      // socket.on(
+      //   COMPILER_APTOS_COMPILE_COMPLETED_V2,
+      //   async (data: CompilerAptosCompileCompletedV2) => {
+      //     log.debug(
+      //       `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V2} data=${stringify(
+      //         data,
+      //       )}`,
+      //     );
+      //
+      //     if (
+      //       data.compileId !==
+      //       compileIdV2(CHAIN_NAME.aptos, dapp.networks.aptos.chain, address, timestamp)
+      //     ) {
+      //       return;
+      //     }
+      //
+      //     const res = await axios.request({
+      //       method: 'GET',
+      //       url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+      //       params: {
+      //         bucket: S3Path.bucket(),
+      //         fileKey: S3Path.outKey(
+      //           CHAIN_NAME.aptos,
+      //           dapp.networks.aptos.chain,
+      //           accountID,
+      //           timestamp,
+      //           BUILD_FILE_TYPE.move,
+      //         ),
+      //       },
+      //       responseType: 'arraybuffer',
+      //       responseEncoding: 'null',
+      //     });
+      //     //
+      //     // const zip = await new JSZip().loadAsync(res.data);
+      //     // let content: any;
+      //
+      //     const zip = await new JSZip().loadAsync(res.data);
+      //     try {
+      //       await client?.fileManager.mkdir('browser/' + compileTarget + '/out');
+      //     } catch (e) {
+      //       log.error(e);
+      //       setLoading(false);
+      //       return;
+      //     }
+      //
+      //     let packageName = '';
+      //     let metaData64 = '';
+      //     let metaData: Buffer;
+      //     let metaDataHex = '';
+      //     let filenames: string[] = [];
+      //     let moduleWrappers: ModuleWrapper[] = [];
+      //
+      //     log.debug(zip.files);
+      //
+      //     if (!uploadCodeChecked) {
+      //       try {
+      //         await axios.request({
+      //           method: 'DELETE',
+      //           url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+      //           params: {
+      //             chainName: CHAIN_NAME.aptos,
+      //             chainId: data.chainId,
+      //             account: data.address,
+      //             timestamp: timestamp,
+      //           },
+      //           responseType: 'arraybuffer',
+      //           responseEncoding: 'null',
+      //         });
+      //       } catch (e) {
+      //         console.log(`Failed to delete.`);
+      //       }
+      //     }
+      //
+      //     // ABI
+      //     // await Promise.all(
+      //     //   Object.keys(zip.files).map(async (key) => {
+      //     //     if (key.includes('.abi')) {
+      //     //       let content = await zip.file(key)?.async('arraybuffer');
+      //     //       log.debug(content)
+      //     //       log.debug((new TextDecoder().decode(content)))
+      //
+      //     //       await client?.fileManager.writeFile(
+      //     //         'browser/' + compileTarget + '/out/abi/' + FileUtil.extractFilename(key),
+      //     //         (new TextDecoder().decode(content))
+      //     //       );
+      //     //     }
+      //     //   }),
+      //     // );
+      //
+      //     await Promise.all(
+      //       Object.keys(zip.files).map(async (key) => {
+      //         if (key.includes('package-metadata.bcs')) {
+      //           let content = await zip.file(key)?.async('blob');
+      //           content = content?.slice(0, content.size) ?? new Blob();
+      //           metaData64 = await readFile(new File([content], key));
+      //           metaData = Buffer.from(metaData64, 'base64');
+      //           const packageNameLength = metaData[0];
+      //           packageName = metaData.slice(1, packageNameLength + 1).toString();
+      //           metaDataHex = metaData.toString('hex');
+      //           log.debug(`metadataFile_Base64=${metaData64}`);
+      //           try {
+      //             await client?.fileManager.writeFile(
+      //               'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+      //               metaData64,
+      //             );
+      //           } catch (e) {
+      //             log.error(e);
+      //             setLoading(false);
+      //           }
+      //         }
+      //       }),
+      //     );
+      //
+      //     await Promise.all(
+      //       Object.keys(zip.files).map(async (filepath) => {
+      //         if (filepath.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
+      //           const moduleDataBuf = await zip.file(filepath)?.async('nodebuffer');
+      //           log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
+      //           let content = await zip.file(filepath)?.async('blob');
+      //           content = content?.slice(0, content.size) ?? new Blob();
+      //           const moduleBase64 = await readFile(new File([content], filepath));
+      //           log.debug(`moduleBase64=${moduleBase64}`);
+      //
+      //           const moduleName = Buffer.from(
+      //             FileUtil.extractFilenameWithoutExtension(filepath),
+      //           ).toString();
+      //           const moduleNameHex = Buffer.from(
+      //             FileUtil.extractFilenameWithoutExtension(filepath),
+      //           ).toString('hex');
+      //           const order = metaDataHex.indexOf(moduleNameHex);
+      //
+      //           moduleWrappers.push({
+      //             packageName: packageName,
+      //             path: filepath,
+      //             module: moduleBase64,
+      //             moduleName: moduleName,
+      //             moduleNameHex: moduleNameHex,
+      //             order: order,
+      //           });
+      //
+      //           try {
+      //             await client?.fileManager.writeFile(
+      //               'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(filepath),
+      //               moduleBase64,
+      //             );
+      //             filenames.push(compileTarget + '/out/' + FileUtil.extractFilename(filepath));
+      //           } catch (e) {
+      //             log.error(e);
+      //             setLoading(false);
+      //           }
+      //         }
+      //       }),
+      //     );
+      //     moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+      //     log.info('@@@ 222 moduleWrappers', moduleWrappers);
+      //
+      //     setPackageName(packageName);
+      //     setModuleWrappers([...moduleWrappers]);
+      //     setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
+      //     setFileNames([...filenames]);
+      //     setMetaDataBase64(metaData64);
+      //     // -------------------------------------------------------------------------------------
+      //     const aptosClient = new AptosClient(aptosNodeUrl(dapp.networks.aptos.chain));
+      //
+      //     const rawTransaction = await aptosClient.generateRawTransaction(
+      //       new HexString(accountID),
+      //       genPayload(
+      //         '0x1::code',
+      //         'publish_package_txn',
+      //         [],
+      //         [
+      //           metadataSerializedBytes(metaData64),
+      //           codeBytes([...moduleWrappers.map((mw) => mw.module)]),
+      //         ],
+      //       ),
+      //     );
+      //     const estimatedGas = await getEstimateGas(
+      //       `https://fullnode.${dapp.networks.aptos.chain}.aptoslabs.com/v1`,
+      //       dapp.networks.aptos.account.pubKey,
+      //       rawTransaction,
+      //     );
+      //     console.log(`@@@ estimatedGas`, estimatedGas);
+      //
+      //     setEstimatedGas(estimatedGas.gas_used);
+      //     setGasUnitPrice(estimatedGas.gas_unit_price);
+      //     setMaxGasAmount(estimatedGas.gas_used);
+      //     // -------------------------------------------------------------------------------------
+      //
+      //     socket.disconnect();
+      //     setLoading(false);
+      //   },
+      // );
+
       socket.on(
-        COMPILER_APTOS_COMPILE_COMPLETED_V2,
-        async (data: CompilerAptosCompileCompletedV2) => {
+        COMPILER_APTOS_COMPILE_COMPLETED_V3,
+        async (data: CompilerAptosCompileCompletedV3) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V2} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_APTOS_COMPILE_COMPLETED_V3} data=${stringify(
               data,
             )}`,
           );
@@ -322,6 +522,39 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           ) {
             return;
           }
+
+          // const modifiedMoveTomlRes = await axios.request({
+          //   method: 'GET',
+          //   url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+          //   params: {
+          //     bucket: S3Path.bucket(),
+          //     fileKey: S3Path.modifiedMoveTomlKey(
+          //       CHAIN_NAME.aptos,
+          //       dapp.networks.aptos.chain,
+          //       accountID,
+          //       timestamp,
+          //     ),
+          //   },
+          //   responseType: 'arraybuffer',
+          //   responseEncoding: 'null',
+          // });
+          // console.log('compileTarget', compileTarget);
+
+          // const moveTomlOrg = await client?.fileManager.readFile(
+          //   'browser/' + compileTarget + '/Move.toml',
+          // );
+          // await client?.fileManager.writeFile(
+          //   'browser/' + compileTarget + '/Move_org.toml',
+          //   moveTomlOrg,
+          // );
+          //
+          // const modifiedMoveTomlBuf = modifiedMoveTomlRes.data;
+          // // console.log('modifiedMoveTomlBuf', modifiedMoveTomlBuf);
+          //
+          // await client?.fileManager.writeFile(
+          //   'browser/' + compileTarget + '/Move.toml',
+          //   Buffer.from(modifiedMoveTomlBuf).toString(),
+          // );
 
           const res = await axios.request({
             method: 'GET',
@@ -461,13 +694,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             }),
           );
           moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-          log.info('@@@ moduleWrappers', moduleWrappers);
 
           setPackageName(packageName);
           setModuleWrappers([...moduleWrappers]);
           setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
           setMetaDataBase64(metaData64);
+          setCliVersion(data.cliVersion);
+          log.info(`@@@ data.aptosGitDependencies ${JSON.stringify(data.aptosGitDependencies)}`);
+          setAptosGitDependencies([...data.aptosGitDependencies]);
           // -------------------------------------------------------------------------------------
           const aptosClient = new AptosClient(aptosNodeUrl(dapp.networks.aptos.chain));
 
@@ -843,6 +1078,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setMetaDataBase64('');
     setModuleBase64s([]);
     setFileNames([]);
+    setCliVersion('');
+    setAptosGitDependencies([]);
 
     if (isEmptyList(artifactPaths)) {
       return [];
@@ -934,6 +1171,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setMetaDataBase64('');
         setModuleBase64s([]);
         setFileNames([]);
+        setCliVersion('');
+        setAptosGitDependencies([]);
       } catch (e) {
         log.info(`no out folder`);
       }
@@ -1082,6 +1321,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             moduleWrappers={moduleWrappers}
             metaData64={metaData64}
             moduleBase64s={moduleBase64s}
+            cliVersion={cliVersion}
+            aptosGitDependencies={aptosGitDependencies}
             dapp={dapp}
             client={client}
             setDeployedContract={setDeployedContract}
