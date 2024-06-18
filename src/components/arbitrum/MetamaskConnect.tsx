@@ -107,7 +107,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
           <br />
           Chain ID: 421614
           <br />
-          RPC URL: https://stylusv2.arbitrum.io/rpc
+          RPC URL: https://sepolia-rollup.arbitrum.io/rpc
         </small>
       )}
       {network === ARBITRUM_SEPOLIA_CHAIN.chainId ? (
