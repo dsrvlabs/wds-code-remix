@@ -101,7 +101,7 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
         <NetworkUI networkName={networkName} />
       ) : (
         <small style={{ color: 'red', fontWeight: 'bold' }}>
-          ${ARBITRUM_SEPOLIA_CHAIN.chainName} network is supported currently.
+          {ARBITRUM_SEPOLIA_CHAIN.chainName} network is supported currently.
           <br />
           Please switch to the network below and reconnect your wallet.
           <br />
