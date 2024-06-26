@@ -32,7 +32,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('hello_blockchain');
 
-  const templateList = ['hello_blockchain', 'ticket', 'hello_prover', 'marketplace', 'moon_coin'];
+  const templateList = ['fa_coin','hello_blockchain', 'ticket', 'hello_prover', 'marketplace', 'moon_coin'];
 
   useEffect(() => {
     getList();
