@@ -8,6 +8,7 @@ import { Connect as SuiConnect } from './sui/Connect';
 import { Connect as JunoConnect } from './juno/Connect';
 import { Connect as NeutronConnect } from './neutron/Connect';
 import { Connect as ArbitrumConnect } from './arbitrum/Connect';
+import { Connect as InjectiveConnect } from './injective/Connect';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -112,6 +113,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <NeutronConnect client={client} />;
       case 'Arbitrum':
         return <ArbitrumConnect client={client} />;
+      case 'Injective':
+        return <InjectiveConnect client={client} />
       default:
         return <></>;
     }
