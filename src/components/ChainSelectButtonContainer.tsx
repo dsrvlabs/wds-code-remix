@@ -58,6 +58,9 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             alt="Injective logo"
           />
           <b>Injective (CosmWasm)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            Beta
+          </Badge>
         </ListGroup.Item>
         <ListGroup.Item
           as="li"
