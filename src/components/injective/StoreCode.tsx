@@ -67,13 +67,21 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
 
   const waitGetCodeID = async (txHash: string) => {
     const grpcEndpoing = getNetworkEndpoints(Network.Testnet).grpc;
-    await new TxGrpcClient(grpcEndpoing).fetchTxPoll(txHash, 30000).then((res: any) => {
-      const codeId = res.logs[0]?.events
-        .find((value: { type: string }) => value.type === 'cosmwasm.wasm.v1.EventCodeStored')
-        .attributes.find((value: { key: string }) => value.key === 'code_id')
-        .value.replace(/['"]+/g, '');
+    try {
+      const txResult = await new TxGrpcClient(grpcEndpoing).fetchTxPoll(txHash, 30000);
+      const decoder = new TextDecoder();
+      const codeIDUint8Array = txResult
+        .events!.find(
+          (value: { type: string }) => value.type === 'cosmwasm.wasm.v1.EventCodeStored',
+        )
+        .attributes.find(
+          (value: { key: Uint8Array }) => decoder.decode(value.key) === 'code_id',
+        ).value;
+      const codeId = decoder.decode(codeIDUint8Array).replace(/['"]+/g, '');
       setCodeID(codeId);
-    });
+    } catch (e: any) {
+      console.log(e.message);
+    }
   };
 
   const keplrProceed = async () => {
