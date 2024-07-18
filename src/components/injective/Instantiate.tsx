@@ -202,17 +202,16 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
     const chainRestAuthApi = new ChainRestAuthApi(grpcEndpoint);
     const accountDetailsResponse = await chainRestAuthApi.fetchAccount(injAddr);
     const baseAccount = BaseAccount.fromRestApi(accountDetailsResponse);
-    const pubkey = Buffer.from(await providerInstance.getKey(chainId).pubKey).toString('base64');
+    const pubkey = Buffer.from((await providerInstance.getKey(chainId)).pubKey).toString('base64');
     const offlineSigner = providerInstance.getOfflineSigner(chainId);
 
     const chainRestTendermintApi = new ChainRestTendermintApi(grpcEndpoint);
     const latestBlock = await chainRestTendermintApi.fetchLatestBlock();
     const latestHeight = latestBlock.header.height;
     const timeoutHeight = new BigNumberInBase(latestHeight).plus(DEFAULT_BLOCK_TIMEOUT_HEIGHT);
-
     const msg = MsgMigrateContract.fromJSON({
       sender: account,
-      contract: contractAddress,
+      contract: migrateContractAddress,
       codeId: parseInt(codeID),
       msg: { new_format: 'new format description' },
     });
@@ -331,6 +330,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const changeMigrateContractAddress = (e: { target: { value: any } }) => {
+    console.log(e.target.value);
     setMigrateContractAddress(e.target.value);
   };
 
