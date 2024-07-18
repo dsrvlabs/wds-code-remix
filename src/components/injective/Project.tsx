@@ -3,6 +3,9 @@ import { log } from '../../utils/logger';
 import { Button, Form, InputGroup } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 import { Compiler } from './Compiler';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
+import JSZip from 'jszip';
 
 const mt8 = {
   marginTop: '8px',
@@ -108,8 +111,58 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       });
     }
   };
-  const createTemplate = () => {
+
+  const createTemplate = async () => {
     log.debug('create ' + template);
+
+    if (await isExists(template)) {
+      await client.terminal.log({
+        type: 'error',
+        value:
+          'The folder "injective/' +
+          template +
+          '" already exists. Please delete the existing project.',
+      });
+      return;
+    }
+
+    const res = await axios.request({
+      method: 'GET',
+      url:
+        `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=code-template&fileKey=injective/` +
+        template +
+        '.zip',
+      responseType: 'arraybuffer',
+      responseEncoding: 'null',
+    });
+
+    log.debug(res);
+
+    const jsZip = new JSZip();
+    const zip = await jsZip.loadAsync(res.data);
+
+    log.debug(zip);
+    try {
+      Object.keys(zip.files).map(async (key) => {
+        if (zip.files[key].dir) {
+          await client?.fileManager.mkdir('browser/injective/' + key);
+        } else if (!key.startsWith('_') && key !== template + '/.DS_Store') {
+          const content = await zip.file(key)?.async('string');
+          await client?.fileManager.writeFile('browser/injective/' + key, content);
+        }
+      });
+      await getList();
+      await client?.terminal.log({
+        type: 'info',
+        value: template + ' is created successfully.',
+      });
+    } catch (e: any) {
+      console.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: e.message,
+      });
+    }
   };
 
   const reset = () => {
