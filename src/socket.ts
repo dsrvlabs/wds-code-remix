@@ -3,6 +3,9 @@ import {
   COMPILER_ARBITRUM_COMPILE_COMPLETED_V1,
   COMPILER_ARBITRUM_COMPILE_ERROR_OCCURRED_V1,
   COMPILER_ARBITRUM_COMPILE_LOGGED_V1,
+  COMPILER_INJECTIVE_COMPILE_COMPLETED_V1,
+  COMPILER_INJECTIVE_COMPILE_ERROR_OCCURRED_V1,
+  COMPILER_INJECTIVE_COMPILE_LOGGED_V1,
   COMPILER_JUNO_COMPILE_COMPLETED_V1,
   COMPILER_JUNO_COMPILE_ERROR_OCCURRED_V1,
   COMPILER_JUNO_COMPILE_LOGGED_V1,
@@ -38,6 +41,20 @@ export function cleanupSocketNeutron(socketNeutron: Socket) {
 
   for (const event of events) {
     socketNeutron.off(event);
+  }
+}
+
+export function cleanupSocketInjective(socketInjective: Socket) {
+  const events = [
+    'connect',
+    'disconnect',
+    'connect_error',
+    COMPILER_INJECTIVE_COMPILE_ERROR_OCCURRED_V1,
+    COMPILER_INJECTIVE_COMPILE_LOGGED_V1,
+    COMPILER_INJECTIVE_COMPILE_COMPLETED_V1,
+  ];
+  for (const event of events) {
+    socketInjective.off(event);
   }
 }
 

@@ -52,6 +52,22 @@ const NEUTRON_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
 
 export const NEUTRON_COMPILER_CONSUMER_API_ENDPOINT =
   NEUTRON_COMPILER_CONSUMER_API_ENDPOINT_POOL[STAGE];
+// ---
+const INJECTIVE_COMPILER_CONSUMER_ENDPOINT_POOL = {
+  local: 'ws://localhost:8000',
+  dev: 'wss://dev.injective.compiler.welldonestudio.io',
+  prod: 'wss://prod.injective.compiler.welldonestudio.io',
+};
+export const INJECTIVE_COMPILER_CONSUMER_ENDPOINT = INJECTIVE_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
+
+const INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
+  local: 'http://localhost:8000',
+  dev: 'https://dev.injective.compiler.welldonestudio.io',
+  prod: 'https://prod.injective.compiler.welldonestudio.io',
+};
+
+export const INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT =
+  INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT_POOL[STAGE];
 
 const ARBITRUM_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',

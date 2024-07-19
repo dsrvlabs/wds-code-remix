@@ -8,6 +8,7 @@ import Celo from '../assets/Celo-Big.png';
 import Juno from '../assets/Juno-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
 import Arbitrum from '../assets/Arbitrum.png';
+import Injective from '../assets/Injective-Big.png';
 import RefreshButton from './common/RefreshButton';
 import { FunctionComponent } from 'react';
 import { EditorClient } from '../utils/editor';
@@ -43,6 +44,24 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <RefreshButton handleRefresh={handleRefresh} />
         </Form.Text>
         {/*{STAGE !== PROD ? (*/}
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Injective');
+          }}
+        >
+          <img
+            src={Injective}
+            style={{ width: '35px', marginRight: '20px' }}
+            alt="Injective logo"
+          />
+          <b>Injective (CosmWasm)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            Beta
+          </Badge>
+        </ListGroup.Item>
         <ListGroup.Item
           as="li"
           style={{ cursor: 'pointer' }}
@@ -94,7 +113,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             <b>Aptos (MoveVM)</b>
           </ListGroup.Item>
 
-          <ListGroup.Item
+          {/* <ListGroup.Item
             as="li"
             style={{ cursor: 'pointer' }}
             action
@@ -104,7 +123,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           >
             <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
             <b>Juno (CosmWasm)</b>
-          </ListGroup.Item>
+          </ListGroup.Item> */}
           <ListGroup.Item
             as="li"
             style={{ cursor: 'pointer' }}
@@ -127,7 +146,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             <img src={Celo} style={{ width: '35px', marginRight: '20px' }} alt="Celo logo" />
             <b>CELO (EVM)</b>
           </ListGroup.Item>
-          <ListGroup.Item
+          {/* <ListGroup.Item
             as="li"
             style={{ cursor: 'pointer' }}
             action
@@ -137,7 +156,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           >
             <img src={Klaytn} style={{ width: '35px', marginRight: '20px' }} alt="Klaytn logo" />
             <b>Klaytn (EVM)</b>
-          </ListGroup.Item>
+          </ListGroup.Item> */}
         </ListGroup>
       </Form.Group>
     </div>
