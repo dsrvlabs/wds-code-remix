@@ -91,7 +91,9 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
       });
     } catch (error) {
       console.error(error);
-      setError('Error! Check your Keplr Wallet');
+      setError(
+        'Error! Check your Keplr Wallet \n Injective Address not detected please add Injective Chain',
+      );
       setActive(false);
     }
   };
