@@ -143,9 +143,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
-    if (await exists()) {
-      return;
-    }
 
     await removeArtifacts();
     init();
