@@ -57,7 +57,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             style={{ width: '35px', marginRight: '20px' }}
             alt="Injective logo"
           />
-          <b>Injective (CosmWasm)</b>
+          <b>Injective</b>
           <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
             Beta
           </Badge>
@@ -87,7 +87,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           }}
         >
           <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
-          <b>Neutron (CosmWasm)</b>
+          <b>Neutron</b>
         </ListGroup.Item>
         <ListGroup.Item
           as="li"
