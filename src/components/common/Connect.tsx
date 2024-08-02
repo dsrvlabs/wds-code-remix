@@ -20,25 +20,28 @@ interface InterfaceProps {
 
 const wallets = {
   welldone: {
-    chains: ['aptos', 'neutron', 'sui', 'celo', 'klaytn', 'juno', 'near'], 
+    chains: ['aptos', 'neutron', 'sui', 'celo', 'klaytn', 'juno', 'near'],
     image: Welldone,
     label: 'Connect to WELLDONE',
     checkInstalled: () => !!window.dapp,
-    errorMsg: 'Please Install WELLDONE Wallet http://abit.ly/install-welldone-wallet . If you have installed it, please press the refresh button.',
+    errorMsg:
+      'Please Install WELLDONE Wallet http://abit.ly/install-welldone-wallet . If you have installed it, please press the refresh button.',
   },
   petra: {
     chains: [''],
     image: Petra,
     label: 'Connect to Petra',
     checkInstalled: () => !!(window as any).aptos,
-    errorMsg: 'Please Install Petra Wallet https://petra.app/ . If you have installed it, please press the refresh button.',
+    errorMsg:
+      'Please Install Petra Wallet https://petra.app/ . If you have installed it, please press the refresh button.',
   },
   keplr: {
     chains: ['neutron'],
     image: Keplr,
     label: 'Connect to Neutron',
     checkInstalled: () => !!(window as any).keplr,
-    errorMsg: 'Please Install Keplr Wallet https://www.keplr.app/ . If you have installed it, please press the refresh button.',
+    errorMsg:
+      'Please Install Keplr Wallet https://www.keplr.app/ . If you have installed it, please press the refresh button.',
   },
   metamask: {
     chains: ['arbitrum'],
@@ -86,7 +89,11 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
               }
             }}
           >
-            <img src={walletInfo.image} style={{ width: '25px', marginRight: '10px' }} alt={`${walletInfo.label} logo`} />
+            <img
+              src={walletInfo.image}
+              style={{ width: '25px', marginRight: '10px' }}
+              alt={`${walletInfo.label} logo`}
+            />
             <b>{walletInfo.label}</b>
           </ListGroup.Item>
         );

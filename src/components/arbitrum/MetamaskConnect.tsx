@@ -41,15 +41,54 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
   }
   // Establish a connection to the Aptos blockchain on component mount
   useEffect(() => {
-    const connect = async () => {
+    const switchNetwork = async () => {
+      try {
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: ARBITRUM_SEPOLIA_CHAIN.chainId }],
+        });
+      } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error) {
+          const err = error as { code: number };
+          if (err.code === 4902) {
+            await ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainName: 'Arbitrum Sepolia',
+                  chainId: ARBITRUM_SEPOLIA_CHAIN.chainId,
+                  nativeCurrency: { name: 'Arbitrum', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+                  blockExplorerUrls: ['https://sepolia.arbiscan.io'],
+                },
+              ],
+            });
+          }
+        }
+      }
+    };
+    const fetchAndSetBalance = async (account: string) => {
+      const balance = await ethereum.request({
+        method: 'eth_getBalance',
+        params: [account, 'latest'],
+      });
+      const formattedBalance = web3.utils.fromWei(balance, 'ether');
+      setBalance(parseFloat(formattedBalance).toFixed(4));
+    };
+    const connectMetamask = async () => {
       if (!ethereum) {
-        setError('Please install MetaMask.');
+        setError('Please install MetaMask');
         return;
       }
-      // if (active) {
+
       try {
         ethereum.on('chainChanged', (_chainId: string) => {
-          window.location.reload();
+          if (_chainId !== ARBITRUM_SEPOLIA_CHAIN.chainId) window.location.reload();
+          else {
+            setNetwork(_chainId);
+            setProviderNetwork(_chainId);
+            setInjectedProvider(ethereum);
+          }
         });
         ethereum.on('accountsChanged', (accounts: string[]) => {
           if (accounts.length === 0) {
@@ -58,38 +97,34 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
             setActive(false);
           } else {
             setAccount(accounts[0]);
-            fetchBalance(accounts[0]);
+            fetchAndSetBalance(accounts[0]);
           }
         });
         const chainId = await ethereum.request({ method: 'eth_chainId' });
-        console.log('chainId', chainId);
+        if (chainId !== ARBITRUM_SEPOLIA_CHAIN.chainId) await switchNetwork();
         setNetwork(chainId);
         setInjectedProvider(ethereum);
         setProviderNetwork(chainId);
         if (active) {
           const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
           setAccount(accounts[0]);
-          fetchBalance(accounts[0]);
+          fetchAndSetBalance(accounts[0]);
         }
       } catch (error: any) {
+        if (error.message.includes('wallet_addEthereumChain')) return;
         setError(error.message);
         log.error(error);
         await client.terminal.log({ type: 'error', value: error.message });
       }
-      // }
     };
 
-    const fetchBalance = async (account: string) => {
-      const balance = await ethereum.request({
-        method: 'eth_getBalance',
-        params: [account, 'latest'],
-      });
-      const formattedBalance = web3.utils.fromWei(balance, 'ether');
-      setBalance(parseFloat(formattedBalance).toFixed(4));
-    };
+    connectMetamask();
 
-    connect();
-  }, [active, ethereum, network]);
+    return () => {
+      ethereum.removeListener('chainChanged', () => window.location.reload());
+      ethereum.removeListener('accountsChanged', () => setAccount(''));
+    };
+  }, [active]);
 
   return (
     <div>
