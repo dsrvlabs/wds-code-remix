@@ -47,7 +47,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
   const [isActivated, setIsActivated] = React.useState<boolean>(false);
 
-  const templateList = ['hello-world'];
+  const templateList = ['hello-world', 'access-control', 'basic', 'ecdsa', 'erc20', 'erc721', 'ownable'];
 
   useEffect(() => {
     getList().then();
