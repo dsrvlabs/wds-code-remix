@@ -208,6 +208,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
                 placeholder="Project Name"
                 size="sm"
                 onChange={setProject}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.preventDefault();
+                }}
               />
               <Button variant="success" size="sm" onClick={wrappedCreateProject}>
                 <small>Create</small>
