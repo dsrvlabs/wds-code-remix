@@ -59,6 +59,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         });
       }
     });
+    return () => {
+      client.off('fileManager', 'currentFileChanged');
+    };
   }, [projectList]);
 
   const getList = async () => {
