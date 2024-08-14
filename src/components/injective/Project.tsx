@@ -182,7 +182,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
     const findTomlFileRecursively = async (currentPath: string): Promise<void> => {
       const list = await client.fileManager.readdir(currentPath);
-      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('.toml'));
+      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('Cargo.toml'));
       if (hasTomlFile) {
         projects.push(currentPath.replace('browser/', ''));
       }
