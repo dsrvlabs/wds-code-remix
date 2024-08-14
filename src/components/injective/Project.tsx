@@ -248,7 +248,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
           <Form.Text className="text-muted" style={mb4}>
             <small>TARGET PROJECT </small>
             <span onClick={getList}>
-              <FaSyncAlt onClick={() => getList()} />
+              <FaSyncAlt />
             </span>
           </Form.Text>
           <InputGroup>
