@@ -47,7 +47,15 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
   const [isActivated, setIsActivated] = React.useState<boolean>(false);
 
-  const templateList = ['hello-world', 'access-control', 'basic', 'ecdsa', 'erc20', 'erc721', 'ownable'];
+  const templateList = [
+    'hello-world',
+    'erc20',
+    'erc721',
+    'constants',
+    'primitive_data_types',
+    'sending_ether',
+    'variables',
+  ];
 
   useEffect(() => {
     getList().then();
@@ -132,7 +140,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
     const findTomlFileRecursively = async (currentPath: string): Promise<void> => {
       const list = await client.fileManager.readdir(currentPath);
-      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('.toml'));
+      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('Cargo.toml'));
       if (hasTomlFile) {
         projects.push(currentPath.replace('browser/', ''));
       }
