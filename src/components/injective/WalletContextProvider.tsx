@@ -7,9 +7,9 @@ import { Network } from '@injectivelabs/networks';
 type WalletStoreState = {
   chainId: ChainId;
   setChainId: React.Dispatch<React.SetStateAction<ChainId>>;
-  walletType: Wallet | '';
+  walletType: Wallet;
   walletAccount: string;
-  walletStrategy: WalletStrategy | undefined;
+  walletStrategy: WalletStrategy;
   msgBroadcastClient: MsgBroadcaster | undefined;
   changeWallet: (wallet: Wallet) => void;
   getAddresses: () => Promise<string[] | undefined>;
@@ -19,9 +19,9 @@ type WalletStoreState = {
 const WalletContext = createContext<WalletStoreState>({
   chainId: ChainId.Mainnet,
   setChainId: () => {},
-  walletType: '',
+  walletType: Wallet.Keplr,
   walletAccount: '',
-  walletStrategy: undefined,
+  walletStrategy: new WalletStrategy({ chainId: ChainId.Mainnet }),
   msgBroadcastClient: undefined,
   changeWallet: async (wallet: Wallet) => {},
   getAddresses: async () => undefined,
@@ -36,20 +36,16 @@ type Props = {
 
 const WalletContextProvider = (props: Props) => {
   const [chainId, setChainId] = useState(ChainId.Mainnet);
-  const [walletType, setWalletType] = useState<Wallet | ''>('');
+  const [walletType, setWalletType] = useState<Wallet>(Wallet.Keplr);
   const [account, setAccount] = useState('');
-  const [enabledWalletStrategy, setEnabledWalletStrategy] = useState<WalletStrategy>();
+  const [enabledWalletStrategy, setEnabledWalletStrategy] = useState<WalletStrategy>(
+    new WalletStrategy({ chainId: chainId }),
+  );
   const [msgBroadcastClient, setMsgBroadcastClient] = useState<MsgBroadcaster>();
 
   const init = async () => {
     const walletStrategy = new WalletStrategy({
       chainId,
-      options:{
-        
-      }
-      ethereumOptions: {
-        ethereumChainId: EthereumChainId.Goerli,
-      },
     });
 
     await walletStrategy.enable();
@@ -59,7 +55,7 @@ const WalletContextProvider = (props: Props) => {
 
     const addresses = await getAddresses();
 
-    if (addresses?.length !== 0 && addresses === undefined) {
+    if (addresses === undefined || addresses.length !== 0) {
       console.log('no address');
     } else {
       setAccount(addresses![0]);

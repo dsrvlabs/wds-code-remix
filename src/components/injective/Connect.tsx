@@ -5,7 +5,6 @@ import { ListGroup } from 'react-bootstrap';
 import { ChainId } from '@injectivelabs/ts-types';
 
 import Keplr from '../../assets/Keplr-Big.svg';
-import useWalletStrategy from './useWalletStrategy';
 import WalletContextProvider from './WalletContextProvider';
 
 interface InterfaceProps {
