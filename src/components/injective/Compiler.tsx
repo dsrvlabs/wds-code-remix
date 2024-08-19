@@ -21,12 +21,7 @@ import {
   RemixInjectiveCompileRequestedV1,
   compileIdV2,
 } from 'wds-event';
-import {
-  getPositionDetails,
-  isRealError,
-  readFile,
-  stringify,
-} from '../../utils/helper';
+import { getPositionDetails, isRealError, readFile, stringify } from '../../utils/helper';
 import { UploadUrlDto } from '../../types/dto/upload-url.dto';
 import { S3Path } from '../../const/s3-path';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
@@ -660,7 +655,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
         <FaSyncAlt className={iconSpin} />
-        <span>Compile</span>
+        <span> Compile {compileTarget}</span>
       </Button>
       {compileError !== '' && (
         <Alert
