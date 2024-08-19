@@ -1,112 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import { StargateClient } from '@cosmjs/stargate';
+import { useMemo, useState } from 'react';
 import { Alert, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
+import { useWalletStore } from './WalletContextProvider';
+import { ChainId } from '@injectivelabs/ts-types';
 
-interface InterfaceProps {
-  active: boolean;
-  setAccount: Function;
-  account: string;
-  setWalletRpcProvider: Function;
-  walletRpcProvider: any;
-  setKeplr: Function;
-  client: any;
-  setActive: Function;
-  setProviderNetwork: Function;
-}
-export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
-  client,
-  active,
-  account,
-  setAccount,
-  walletRpcProvider,
-  setWalletRpcProvider,
-  setKeplr,
-  setActive,
-  setProviderNetwork,
-}) => {
-  const [balance, setBalance] = useState<null | string>();
+export const KeplrConnect: React.FunctionComponent = () => {
   const [error, setError] = useState<String>('');
-  const [network, setNetwork] = useState<string>('injective-888');
-
+  const { chainId, setChainId, balance, walletAccount } = useWalletStore();
   const networks = useMemo(
     () => [
-      { name: 'Mainnet', value: 'injective-1' },
-      { name: 'Testnet', value: 'injective-888' },
+      { name: 'Mainnet', value: ChainId.Mainnet },
+      { name: 'Testnet', value: ChainId.Testnet },
     ],
     [],
   );
 
-  const keplrInstance = (window as any).keplr;
-
-  useEffect(() => {
-    const connect = async () => {
-      if (active) {
-        try {
-          if (!keplrInstance) {
-            console.log('Keplr not found.');
-            setActive(false);
-          } else {
-            setKeplr(keplrInstance);
-            console.log('Keplr is ready.');
-            enableKeplr();
-          }
-        } catch (error) {
-          console.error('Failed to connect Keplr:', error);
-        }
-      }
-    };
-    connect();
-  }, [active, keplrInstance]);
-
-  useEffect(() => {
-    const updateKeplr = async () => {
-      if (keplrInstance) {
-        await enableKeplr();
-      }
-    };
-    updateKeplr();
-  }, [network, keplrInstance]);
-
-  const enableKeplr = async () => {
-    try {
-      await (keplrInstance as any).enable(network);
-      const accounts = await (keplrInstance as any).getOfflineSigner(network).getAccounts();
-      //TODO: Change RPC URL
-      let rpcUrl = 'https://sentry.tm.injective.network:443';
-      let denom = 'inj';
-
-      if (network === 'injective-888') {
-        rpcUrl = 'https://testnet.sentry.tm.injective.network:443';
-      }
-
-      const injStargateClient = await StargateClient.connect(rpcUrl);
-      const bal = await injStargateClient.getBalance(accounts[0].address, 'inj');
-      setAccount(accounts[0].address);
-      setBalance(formatDecimal(Number(bal.amount)));
-      gtag('event', 'login', {
-        event_category: 'authentication',
-        event_label: 'keplr_wallet_connection',
-        method: 'injective',
-      });
-    } catch (error) {
-      console.error(error);
-      setError(
-        'Error! Check your Keplr Wallet \n Injective Address not detected please add Injective Chain',
-      );
-      setActive(false);
-    }
-  };
-
   const handleNetwork = (e: any) => {
-    setNetwork(e.target.value);
-    setProviderNetwork(e.target.value);
+    setChainId(e.target.value);
   };
 
-  const formatDecimal = (value: number, decimalPlaces = 6) => {
-    const num = value / Math.pow(10, decimalPlaces);
-    return num.toFixed(3);
-  };
   return (
     <div>
       <Alert variant="danger" hidden={error === ''}>
@@ -115,7 +27,7 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
       </Alert>
       <Form.Group>
         <Form.Label>Network</Form.Label>
-        <Form.Control as="select" value={network} onChange={handleNetwork} size="sm">
+        <Form.Control as="select" value={chainId} onChange={handleNetwork} size="sm">
           {networks.map((net, idx) => (
             <option key={idx} value={net.value}>
               {net.name}
@@ -131,7 +43,7 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
           <Form.Control
             type="text"
             placeholder="Account"
-            value={account ? account : ''}
+            value={walletAccount ? walletAccount : ''}
             size="sm"
             readOnly
           />
@@ -143,7 +55,7 @@ export const KeplrConnect: React.FunctionComponent<InterfaceProps> = ({
           <Form.Control
             type="text"
             placeholder="Balance"
-            value={account ? balance || '' : ''}
+            value={walletAccount ? balance || '' : ''}
             size="sm"
             readOnly
           />

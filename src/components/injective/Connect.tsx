@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { KeplrConnect } from './KeplrConnect';
 import { Project } from './Project';
 import { ListGroup } from 'react-bootstrap';
-import { ChainId } from '@injectivelabs/ts-types';
 
 import Keplr from '../../assets/Keplr-Big.svg';
 import WalletContextProvider from './WalletContextProvider';
@@ -12,13 +11,8 @@ interface InterfaceProps {
 }
 export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => {
   const [dapp, setDapp] = useState<any>();
-  const [keplr, setKeplr] = useState<any>();
-  const [wallet, setWallet] = useState('');
-  const [account, setAccount] = useState('');
-  const [walletRpcProvider, setWalletRpcProvider] = useState<any>();
   const [activeWallet, setActiveWallet] = useState('');
   const [active, setActive] = useState(false);
-  const [providerNetwork, setProviderNetwork] = useState<string>('injective-888');
 
   return (
     <WalletContextProvider>
@@ -46,24 +40,8 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         <div>
           {activeWallet === 'Keplr' ? (
             <>
-              <KeplrConnect
-                active={active}
-                account={account}
-                setAccount={setAccount}
-                walletRpcProvider={walletRpcProvider}
-                setWalletRpcProvider={setWalletRpcProvider}
-                setKeplr={setKeplr}
-                client={client}
-                setActive={setActive}
-                setProviderNetwork={setProviderNetwork}
-              />
-              <Project
-                providerInstance={keplr}
-                wallet={'Keplr'}
-                account={account}
-                client={client}
-                providerNetwork={providerNetwork}
-              />
+              <KeplrConnect />
+              <Project client={client} />
             </>
           ) : (
             false
