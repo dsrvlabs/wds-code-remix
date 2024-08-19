@@ -1,52 +1,28 @@
 import React, { useState } from 'react';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Button, Form as ReactForm } from 'react-bootstrap';
-import {
-  ChainRestAuthApi,
-  ChainGrpcWasmApi,
-  BaseAccount,
-  createTransaction,
-  ChainRestTendermintApi,
-  MsgExecuteContract,
-  CosmosTxV1Beta1Tx,
-  BroadcastModeKeplr,
-  TxRaw,
-  getTxRawFromTxRawOrDirectSignResponse,
-} from '@injectivelabs/sdk-ts';
+import { ChainGrpcWasmApi, MsgExecuteContract } from '@injectivelabs/sdk-ts';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { getStdFee, BigNumberInBase, DEFAULT_BLOCK_TIMEOUT_HEIGHT } from '@injectivelabs/utils';
-import { simulateInjectiveTx } from './injective-helper';
-import { SignDoc } from '@keplr-wallet/types';
-import { TransactionException } from '@injectivelabs/exceptions';
 import { ChainId } from '@injectivelabs/ts-types';
 import { toBase64, fromBase64 } from '@injectivelabs/sdk-ts';
 import { log } from '../../utils/logger';
+import { useWalletStore } from './WalletContextProvider';
 
 interface InterfaceProps {
   contractAddress: string;
-  providerInstance: any;
   client: any;
   fund: number;
-  gasPrice: number;
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
-  wallet: string;
-  providerNetwork: string;
-  account: string;
 }
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({
   contractAddress,
-  providerInstance,
   client,
-  fund,
-  gasPrice,
   schemaExec,
+  fund,
   schemaQuery,
-  wallet,
-  providerNetwork,
-  account,
 }) => {
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
@@ -56,99 +32,50 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
   const [queryMsg, setQueryMsg] = useState({});
   const [executeMsg, setExecuteMsg] = useState({});
+  const { injectiveBroadcastMsg, walletAccount, chainId } = useWalletStore();
 
   const executeKeplr = async () => {
-    const injAddr = account;
-
-    const chainId = providerNetwork;
-
-    const restEndpoint = getNetworkEndpoints(Network.Testnet).rest;
-    const grpcEndpoint = getNetworkEndpoints(Network.Testnet).grpc;
-    const chainRestAuthApi = new ChainRestAuthApi(restEndpoint);
-
-    const accountDetailsResponse = await chainRestAuthApi.fetchAccount(injAddr);
-
-    const baseAccount = BaseAccount.fromRestApi(accountDetailsResponse);
-    const keplrKey = await providerInstance.getKey(chainId);
-    const pubkey = Buffer.from(keplrKey.pubKey).toString('base64');
-    const keplrInstance = (window as any).keplr;
-    const offlineSigner = keplrInstance.getOfflineSigner(chainId);
-
-    const chainRestTendermintApi = new ChainRestTendermintApi(restEndpoint);
-    const latestBlock = await chainRestTendermintApi.fetchLatestBlock();
-    const latestHeight = latestBlock.header.height;
-    const timeoutHeight = new BigNumberInBase(latestHeight).plus(DEFAULT_BLOCK_TIMEOUT_HEIGHT);
-
-    const funds = fund ? [{ denom: 'inj', amount: fund.toString() }] : [];
-    const executeMsg_ = { ...executeMsg };
-    recursiveValueChange(executeMsg_, stringToNumber);
-
-    const msgExecuteContract = MsgExecuteContract.fromJSON({
-      contractAddress: contractAddress,
-      sender: injAddr,
-      msg: executeMsg_,
-      funds: funds,
-    });
-
-    const gasFee = await simulateInjectiveTx(
-      grpcEndpoint,
-      pubkey,
-      chainId,
-      msgExecuteContract,
-      baseAccount.sequence,
-      baseAccount.accountNumber,
-    );
-
-    const { signDoc } = createTransaction({
-      pubKey: pubkey,
-      chainId: chainId,
-      fee: getStdFee({ gas: gasFee }),
-      message: msgExecuteContract,
-      sequence: baseAccount.sequence,
-      timeoutHeight: timeoutHeight.toNumber(),
-      accountNumber: baseAccount.accountNumber,
-    });
-
-    const directSignResponse = await offlineSigner.signDirect(
-      injAddr,
-      signDoc as unknown as SignDoc,
-    );
-
-    const broadcastTx = async (chainId: String, txRaw: TxRaw) => {
-      const result = await providerInstance.sendTx(
-        chainId,
-        CosmosTxV1Beta1Tx.TxRaw.encode(txRaw).finish(),
-        BroadcastModeKeplr.Sync,
-      );
-
-      if (!result || result.length === 0) {
-        throw new TransactionException(new Error('Transaction failed to be broadcasted'), {
-          contextModule: 'Keplr',
-        });
-      }
-
-      return Buffer.from(result).toString('hex');
-    };
-    const txRaw = getTxRawFromTxRawOrDirectSignResponse(directSignResponse);
-
-    const txHash = await broadcastTx(ChainId.Testnet, txRaw);
-    await client.terminal.log({ type: 'info', value: `Execute Contract transaction hash : ${txHash}` });
+    try {
+      const funds = fund ? [{ denom: 'inj', amount: fund.toString() }] : [];
+      const executeMsg_ = { ...executeMsg };
+      recursiveValueChange(executeMsg_, stringToNumber);
+      const msg = MsgExecuteContract.fromJSON({
+        contractAddress: contractAddress,
+        sender: walletAccount,
+        msg: executeMsg_,
+        funds: funds,
+      });
+      const txResult = await injectiveBroadcastMsg(msg, walletAccount);
+      await client.terminal.log({
+        type: 'info',
+        value: `Execute Contract transaction hash : ${txResult!.txHash}`,
+      });
+    } catch (error: any) {
+      setExecuteMsgErr(error.message.toString());
+      await client.terminal.log({ type: 'error', value: error?.message?.toString() });
+    }
   };
 
   const queryKeplr = async () => {
-    const grpcEndpoint = getNetworkEndpoints(Network.Testnet).grpc;
+    const grpcEndpoint = getNetworkEndpoints(
+      chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
+    ).grpc;
+
+    const queryMsg_ = { ...queryMsg };
+    recursiveValueChange(queryMsg_, stringToNumber);
     const chainGrpcWasmApiClient = new ChainGrpcWasmApi(grpcEndpoint);
     try {
       const response = (await chainGrpcWasmApiClient.fetchSmartContractState(
         contractAddress, // The address of the contract
-        toBase64({ get_count: {} }),
+        toBase64(queryMsg_),
       )) as unknown as { data: string };
-      const { count } = fromBase64(response.data);
-      setQueryResult(count);
-    } catch (e: any) {
-      log.debug('error', e);
-      setQueryResult(e?.message);
-      await client.terminal.log({ type: 'error', value: e?.message?.toString() });
+      console.log(fromBase64(response.data));
+      const queryResult = fromBase64(response.data);
+      setQueryResult(JSON.stringify(queryResult));
+    } catch (error: any) {
+      log.debug('error', error);
+      setQueryMsgErr(error.message.toString());
+      await client.terminal.log({ type: 'error', value: error.message.toString() });
     }
   };
 
@@ -225,6 +152,9 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
           </div>
           <div>
             <span style={{ color: 'red' }}>{executeMsgErr}</span>
+          </div>
+          <div>
+            <span style={{ color: 'green' }}>{executeResult}</span>
           </div>
         </ReactForm.Group>
       </ReactForm>
