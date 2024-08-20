@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Alert, Form, InputGroup } from 'react-bootstrap';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { useWalletStore } from './WalletContextProvider';
 import { ChainId } from '@injectivelabs/ts-types';
+import { Wallet } from '@injectivelabs/wallet-ts';
 
 export const KeplrConnect: React.FunctionComponent = () => {
   const [error, setError] = useState<String>('');
-  const { chainId, setChainId, balance, walletAccount } = useWalletStore();
+  const { chainId, setChainId, balance, walletAccount, init } = useWalletStore();
   const networks = useMemo(
     () => [
       { name: 'Mainnet', value: ChainId.Mainnet },
@@ -15,10 +16,13 @@ export const KeplrConnect: React.FunctionComponent = () => {
     [],
   );
 
+  useEffect(() => {
+    init(Wallet.Keplr);
+  }, []);
+  
   const handleNetwork = (e: any) => {
     setChainId(e.target.value);
   };
-
   return (
     <div>
       <Alert variant="danger" hidden={error === ''}>

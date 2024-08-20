@@ -1,7 +1,11 @@
-import { IndexerGrpcAccountPortfolioApi, TxResponse } from '@injectivelabs/sdk-ts';
+import {
+  IndexerGrpcAccountPortfolioApi,
+  TxResponse,
+  getInjectiveAddress,
+} from '@injectivelabs/sdk-ts';
 import { MsgBroadcaster, Wallet, WalletStrategy } from '@injectivelabs/wallet-ts';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { ChainId } from '@injectivelabs/ts-types';
+import { ChainId, EthereumChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { ErrorType, WalletException, UnspecifiedErrorCode } from '@injectivelabs/exceptions';
 
@@ -16,6 +20,7 @@ type WalletStoreState = {
   changeWallet: (wallet: Wallet) => void;
   getAddresses: () => Promise<string[] | undefined>;
   injectiveBroadcastMsg: (msg: any, address?: string) => Promise<TxResponse | undefined>;
+  init: (wallet: Wallet) => Promise<void>;
 };
 
 const WalletContext = createContext<WalletStoreState>({
@@ -29,6 +34,7 @@ const WalletContext = createContext<WalletStoreState>({
   changeWallet: async (wallet: Wallet) => {},
   getAddresses: async () => undefined,
   injectiveBroadcastMsg: async (msg: any, address?: string) => undefined,
+  init: async (wallet: Wallet) => {},
 });
 
 export const useWalletStore = () => useContext(WalletContext);
@@ -39,29 +45,36 @@ type Props = {
 
 const WalletContextProvider = (props: Props) => {
   const [chainId, setChainId] = useState(ChainId.Testnet);
-  const [walletType, setWalletType] = useState<Wallet | null>(Wallet.Keplr);
+  const [walletType, setWalletType] = useState<Wallet | null>(null);
   const [account, setAccount] = useState('');
   const [enabledWalletStrategy, setEnabledWalletStrategy] = useState<WalletStrategy | null>(null);
   const [msgBroadcastClient, setMsgBroadcastClient] = useState<MsgBroadcaster | null>(null);
   const [balance, setBalance] = useState<string>('0');
 
-  const init = async () => {
+  const init = async (wallet: Wallet) => {
     const walletStrategy = new WalletStrategy({
       chainId,
-      wallet: Wallet.Keplr,
+      ethereumOptions: {
+        ethereumChainId:
+          chainId === ChainId.Mainnet ? EthereumChainId.Mainnet : EthereumChainId.Sepolia,
+      },
+      wallet: wallet,
     });
 
     const addresses = await walletStrategy.enableAndGetAddresses();
+    const currentWallet = walletStrategy.getWallet();
 
     if (addresses.length === 0) {
       throw new WalletException(new Error('There are no addresses linked in this wallet'), {
         code: UnspecifiedErrorCode,
         type: ErrorType.WalletError,
       });
-    } else {
+    } else if (currentWallet === Wallet.Keplr) {
       setAccount(addresses[0]);
+    } else if (currentWallet === Wallet.Metamask) {
+      const convertedEthAddress = getInjectiveAddress(addresses[0]);
+      setAccount(convertedEthAddress);
     }
-    const currentWallet = walletStrategy.getWallet();
     setWalletType(currentWallet);
     const endpoints = getNetworkEndpoints(
       chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
@@ -78,18 +91,13 @@ const WalletContextProvider = (props: Props) => {
   };
 
   useEffect(() => {
-    init();
-  }, [chainId]);
-
-  useEffect(() => {
     if (account !== '') getBalance();
-  }, [chainId, account]);
+  }, [chainId, account, walletType]);
 
   const changeWallet = async (wallet: Wallet) => {
     enabledWalletStrategy?.setWallet(wallet);
     await enabledWalletStrategy?.enable();
-    const addresses = await getAddresses();
-    setAccount(addresses![0]);
+    setWalletType(wallet);
   };
 
   const getAddresses = async () => {
@@ -181,6 +189,7 @@ const WalletContextProvider = (props: Props) => {
         changeWallet,
         getAddresses,
         injectiveBroadcastMsg,
+        init,
       }}
     >
       {props.children}
