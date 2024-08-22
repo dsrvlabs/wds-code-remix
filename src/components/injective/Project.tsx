@@ -40,24 +40,34 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
   const [contractAddressError, setContractAddressError] = useState('');
 
-  const getProjectList = async () => {
-    try {
-      const list = await client?.fileManager.readdir('browser/injective/');
-      return Object.keys(list || []);
-    } catch (e) {
-      log.error(e);
-    }
-    return [];
-  };
-
   useEffect(() => {
     getList();
   }, []);
 
+  useEffect(() => {
+    client.on('fileManager', 'currentFileChanged', async (fileName: string) => {
+      if (projectList && projectList.length != 0) {
+        projectList.forEach((project) => {
+          const splitProject = project.split('/');
+          const projectMatch = fileName
+            .split('/')
+            .some((path: string) => splitProject[splitProject.length - 1] === path);
+          if (projectMatch) {
+            setCompileTarget(project);
+            return;
+          }
+        });
+      }
+    });
+    return () => {
+      client.off('fileManager', 'currentFileChanged');
+    };
+  }, [projectList]);
+
   const getList = async () => {
-    const list = await getProjectList();
-    setProjectList(list);
-    setCompileTarget(list[0]);
+    const projects = await getProjectHaveTomlFile('browser/injective');
+    setProjectList(projects);
+    setCompileTarget(projects[0]);
   };
 
   const setProject = (e: { target: { value: React.SetStateAction<string> } }) => {
@@ -163,6 +173,31 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         value: e.message,
       });
     }
+  };
+
+  const getProjectHaveTomlFile = async (path: string): Promise<string[]> => {
+    if (!client) return [];
+
+    const projects: string[] = [];
+
+    const findTomlFileRecursively = async (currentPath: string): Promise<void> => {
+      const list = await client.fileManager.readdir(currentPath);
+      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('Cargo.toml'));
+      if (hasTomlFile) {
+        projects.push(currentPath.replace('browser/', ''));
+      }
+
+      for (const [key, value] of Object.entries(list)) {
+        if ((value as any).isDirectory) {
+          const additionalPath = key.split('/').pop();
+          await findTomlFileRecursively(currentPath + '/' + additionalPath);
+        }
+      }
+    };
+
+    await findTomlFileRecursively(path);
+
+    return projects;
   };
 
   const reset = () => {

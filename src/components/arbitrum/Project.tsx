@@ -47,14 +47,14 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [selected, setSelected] = React.useState<InterfaceContract | null>(null);
   const [isActivated, setIsActivated] = React.useState<boolean>(false);
 
-  const templateList = ['hello-world'];
+  const templateList = ['hello-world', 'erc20', 'erc721', 'single_call', 'vending_machine'];
 
   useEffect(() => {
     getList().then();
   }, []);
 
   const getList = async () => {
-    const projects = await getProjects();
+    const projects = await getProjectHaveTomlFile('browser/arbitrum');
     setProjectList(projects);
     if (projects?.length > 0) {
       const compileTarget = projects[0];
@@ -125,14 +125,29 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   };
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
 
-  const getProjects = async () => {
-    try {
-      const list = await client?.fileManager.readdir('browser/arbitrum/');
-      return Object.keys(list || []).filter((k) => k !== 'arbitrum/abi.json');
-    } catch (e) {
-      log.error(e);
-    }
-    return [];
+  const getProjectHaveTomlFile = async (path: string): Promise<string[]> => {
+    if (!client) return [];
+
+    const projects: string[] = [];
+
+    const findTomlFileRecursively = async (currentPath: string): Promise<void> => {
+      const list = await client.fileManager.readdir(currentPath);
+      const hasTomlFile = Object.keys(list).some((item) => item.endsWith('Cargo.toml'));
+      if (hasTomlFile) {
+        projects.push(currentPath.replace('browser/', ''));
+      }
+
+      for (const [key, value] of Object.entries(list)) {
+        if ((value as any).isDirectory) {
+          const additionalPath = key.split('/').pop();
+          await findTomlFileRecursively(currentPath + '/' + additionalPath);
+        }
+      }
+    };
+
+    await findTomlFileRecursively(path);
+
+    return projects;
   };
 
   const isExists = async (dir: string) => {
@@ -208,6 +223,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
                 placeholder="Project Name"
                 size="sm"
                 onChange={setProject}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.preventDefault();
+                }}
               />
               <Button variant="success" size="sm" onClick={wrappedCreateProject}>
                 <small>Create</small>
