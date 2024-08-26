@@ -6,6 +6,7 @@ import { ListGroup } from 'react-bootstrap';
 import Keplr from '../../assets/Keplr-Big.svg';
 import MetaMask from '../../assets/MetaMask.png';
 import WalletContextProvider, { useWalletStore } from './WalletContextProvider';
+import MetaMaskConnect from './MetaMaskConnect';
 
 interface InterfaceProps {
   client: any;
@@ -51,7 +52,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
             }}
           >
             <img src={MetaMask} style={{ width: '25px', marginRight: '10px' }} alt="Keplr logo" />
-            <b>Connect to Keplr</b>
+            <b>Connect to MetaMask</b>
           </ListGroup.Item>
         </ListGroup>
         <hr />
@@ -61,8 +62,13 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
               <KeplrConnect />
               <Project client={client} />
             </>
+          ) : activeWallet === 'MetaMask' ? (
+            <>
+              <MetaMaskConnect />
+              <Project client={client} />
+            </>
           ) : (
-            <></>
+            false
           )}
         </div>
       </div>
