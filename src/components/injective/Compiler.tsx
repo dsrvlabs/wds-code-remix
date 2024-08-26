@@ -64,7 +64,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
-  const { walletAccount, chainId } = useWalletStore();
+  const { injectiveAddress, chainId } = useWalletStore();
 
   useEffect(() => {
     init();
@@ -167,7 +167,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setIconSpin('fa-spin');
     setCompileError('');
 
-    const address = walletAccount;
+    const address = injectiveAddress;
     const timestamp = Date.now().toString();
     setTimestamp(timestamp);
 
@@ -287,7 +287,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 params: {
                   chainName: CHAIN_NAME.injective,
                   chainId: realChainId,
-                  account: walletAccount,
+                  account: injectiveAddress,
                   timestamp: timestamp,
                 },
                 responseType: 'arraybuffer',
@@ -375,7 +375,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               fileKey: S3Path.outKey(
                 CHAIN_NAME.injective,
                 realChainId,
-                walletAccount,
+                injectiveAddress,
                 timestamp,
                 BUILD_FILE_TYPE.rs,
               ),
@@ -393,7 +393,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 params: {
                   chainName: CHAIN_NAME.injective,
                   chainId: realChainId,
-                  account: walletAccount,
+                  account: injectiveAddress,
                   timestamp: timestamp,
                 },
                 responseType: 'arraybuffer',
@@ -613,7 +613,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <Button
         variant="primary"
-        disabled={walletAccount === '' || loading || !compileTarget}
+        disabled={injectiveAddress === '' || loading || !compileTarget}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >

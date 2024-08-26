@@ -32,7 +32,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
 
   const [queryMsg, setQueryMsg] = useState({});
   const [executeMsg, setExecuteMsg] = useState({});
-  const { injectiveBroadcastMsg, walletAccount, chainId } = useWalletStore();
+  const { injectiveBroadcastMsg, injectiveAddress, chainId } = useWalletStore();
 
   const executeKeplr = async () => {
     try {
@@ -41,11 +41,11 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
       recursiveValueChange(executeMsg_, stringToNumber);
       const msg = MsgExecuteContract.fromJSON({
         contractAddress: contractAddress,
-        sender: walletAccount,
+        sender: injectiveAddress,
         msg: executeMsg_,
         funds: funds,
       });
-      const txResult = await injectiveBroadcastMsg(msg, walletAccount);
+      const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       await client.terminal.log({
         type: 'info',
         value: `Execute Contract transaction hash : ${txResult!.txHash}`,
@@ -69,7 +69,6 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         contractAddress, // The address of the contract
         toBase64(queryMsg_),
       )) as unknown as { data: string };
-      console.log(fromBase64(response.data));
       const queryResult = fromBase64(response.data);
       setQueryResult(JSON.stringify(queryResult));
     } catch (error: any) {

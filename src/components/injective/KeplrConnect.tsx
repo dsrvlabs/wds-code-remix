@@ -7,7 +7,7 @@ import { Wallet } from '@injectivelabs/wallet-ts';
 
 export const KeplrConnect: React.FunctionComponent = () => {
   const [error, setError] = useState<String>('');
-  const { chainId, setChainId, balance, walletAccount, init } = useWalletStore();
+  const { chainId, setChainId, balance, injectiveAddress: walletAccount, init } = useWalletStore();
   const networks = useMemo(
     () => [
       { name: 'Mainnet', value: ChainId.Mainnet },
