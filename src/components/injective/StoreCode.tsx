@@ -1,14 +1,12 @@
-import React, { Dispatch, useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
+import React, { Dispatch, useState } from 'react';
 import { log } from '../../utils/logger';
-import {
-  TxGrpcClient,
-} from '@injectivelabs/sdk-ts';
-import { MsgStoreCode } from '@injectivelabs/sdk-ts';
+import { TxGrpcClient, MsgStoreCode } from '@injectivelabs/sdk-ts';
 import { ChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Instantiate } from './Instantiate';
 import { useWalletStore } from './WalletContextProvider';
+import { Wallet } from '@injectivelabs/wallet-ts';
 
 interface InterfaceProps {
   compileTarget: string;
@@ -35,9 +33,9 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   schemaQuery,
   timestamp,
 }) => {
-  const [gasPrice, setGasPrice] = useState<number>(0.00016);
   const [fund, setFund] = useState<number>(0);
-  const { injectiveBroadcastMsg, walletAccount, walletStrategy, chainId } = useWalletStore();
+  const { injectiveBroadcastMsg, injectiveAddress, ethAddress, walletStrategy, chainId } =
+    useWalletStore();
 
   const waitGetCodeID = async (txHash: string) => {
     const grpcEndpoing = getNetworkEndpoints(
@@ -59,22 +57,117 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       console.log(e.message);
     }
   };
+  const proceedStorecode = async () =>
+    walletStrategy?.getWallet() === Wallet.Keplr
+      ? keplrProceed()
+      : await client.terminal.log({ type: 'error', value: 'MetaMask Not supported' });
+
   const keplrProceed = async () => {
     try {
       const buffer = Buffer.from(wasm, 'base64');
       const wasmUint8array = new Uint8Array(buffer);
       const msg = MsgStoreCode.fromJSON({
-        sender: walletAccount,
+        sender: injectiveAddress,
         wasmBytes: wasmUint8array,
       });
-      const txResult = await injectiveBroadcastMsg(msg, walletAccount);
+      const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
+      console.log(txResult);
       log.info(`@@@ MsgStoreCode Transaction Hash: ${txResult!.txHash}`);
-      await waitGetCodeID(txResult!.txHash);
+      if (txResult?.txHash) {
+        await waitGetCodeID(txResult!.txHash);
+      } else {
+        throw new Error('Error while broadcasting');
+      }
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
   };
- 
+
+  // const metaMaskProceed = async () => {
+  //   await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Sepolia);
+
+  //   const endpoint = getNetworkEndpoints(Network.Testnet);
+
+  //   const accountDetails = await new ChainGrpcAuthApi(endpoint.grpc).fetchAccount(injectiveAddress);
+  //   const { baseAccount } = accountDetails;
+
+  //   const latestBlock = await new ChainGrpcTendermintApi(endpoint.grpc).fetchLatestBlock();
+  //   const latestHeight = latestBlock!.header!.height;
+  //   const timeoutHeight = new BigNumberInBase(latestHeight).plus(DEFAULT_BLOCK_TIMEOUT_HEIGHT);
+
+  //   const buffer = Buffer.from(wasm, 'base64');
+
+  //   const wasmUint8array = new Uint8Array(buffer);
+
+  //   const msg = MsgStoreCode.fromJSON({
+  //     sender: injectiveAddress,
+  //     wasmBytes: wasmUint8array,
+  //   });
+
+  //   let gasFee = getGasPriceBasedOnMessage([msg]).toString(); // TODO: Add custom gas
+  //   if (baseAccount.pubKey) {
+  //     gasFee = (
+  //       await simulateInjectiveTx(
+  //         endpoint.grpc,
+  //         baseAccount.pubKey,
+  //         chainId,
+  //         msg,
+  //         baseAccount.sequence,
+  //         baseAccount.accountNumber,
+  //       )
+  //     ).toString();
+  //   }
+
+  //   // This is where string is changed to uint8Array
+  //   const eip712TypedData = getEip712TypedDataV2({
+  //     msgs: [msg],
+  //     fee: { gas: gasFee },
+  //     tx: {
+  //       memo: undefined,
+  //       accountNumber: baseAccount.accountNumber.toString(),
+  //       sequence: baseAccount.sequence.toString(),
+  //       timeoutHeight: timeoutHeight.toFixed(),
+  //       chainId: chainId,
+  //     },
+  //     ethereumChainId: EthereumChainId.Sepolia,
+  //   });
+  //   // eip712TypedData.message.msgs hardcode the string value here and it is fixed
+  //   const signature = await walletStrategy!.signEip712TypedData(
+  //     JSON.stringify(eip712TypedData),
+  //     ethAddress,
+  //   );
+
+  //   /** Get Public Key of the signer */
+  //   const pubKeyOrSignatureDerivedPubKey = getEthereumWalletPubKey({
+  //     pubKey: baseAccount.pubKey?.key,
+  //     eip712TypedData,
+  //     signature,
+  //   });
+
+  //   const { txRaw } = createTransaction({
+  //     message: [msg2],
+  //     memo: undefined,
+  //     signMode: SIGN_EIP712_V2,
+  //     fee: getStdFee({ gas: gasFee }),
+  //     pubKey: pubKeyOrSignatureDerivedPubKey,
+  //     sequence: baseAccount.sequence,
+  //     timeoutHeight: timeoutHeight.toNumber(),
+  //     accountNumber: baseAccount.accountNumber,
+  //     chainId,
+  //   });
+  //   const web3Extension = createWeb3Extension({
+  //     ethereumChainId: EthereumChainId.Sepolia,
+  //   });
+  //   const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
+  //   txRawEip712.signatures = [hexToBuff(signature)];
+  //   const res = await walletStrategy?.sendTransaction(txRawEip712, {
+  //     chainId: ChainId.Testnet,
+  //     endpoints: endpoint,
+  //     txTimeout: 30,
+  //     address: injectiveAddress,
+  //   });
+  // };
+
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
     if (!Number.isNaN(value) && value > 0) {
@@ -121,7 +214,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         <hr />
         <Button
           variant="primary"
-          onClick={keplrProceed}
+          onClick={proceedStorecode}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
           <span>Store Code</span>
@@ -136,7 +229,6 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               codeID={codeID || ''}
               setCodeID={setCodeID}
               fund={fund}
-              gasPrice={gasPrice}
               schemaInit={schemaInit}
               schemaExec={schemaExec}
               schemaQuery={schemaQuery}

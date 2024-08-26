@@ -1,9 +1,5 @@
 import React, { Dispatch, useEffect, useState } from 'react';
-import {
-  TxRestClient,
-  MsgInstantiateContract,
-  MsgMigrateContract,
-} from '@injectivelabs/sdk-ts';
+import { TxRestClient, MsgInstantiateContract, MsgMigrateContract } from '@injectivelabs/sdk-ts';
 import { ChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { log } from '../../utils/logger';
@@ -20,7 +16,6 @@ interface InterfaceProps {
   client: any;
   setCodeID: Dispatch<React.SetStateAction<string>>;
   fund: number;
-  gasPrice: number;
   schemaInit: { [key: string]: any };
   schemaExec: { [key: string]: any };
   schemaQuery: { [key: string]: any };
@@ -46,7 +41,6 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   codeID,
   setCodeID,
   fund,
-  gasPrice,
   schemaInit,
   schemaExec,
   schemaQuery,
@@ -60,7 +54,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const [immutableChecked, setImmutableChecked] = useState(false);
   const [migrateContractAddress, setMigrateContractAddress] = useState<string>('');
   const [disabled, setDisabled] = useState(false);
-  const { walletAccount, chainId, injectiveBroadcastMsg } = useWalletStore();
+  const { injectiveAddress, chainId, injectiveBroadcastMsg } = useWalletStore();
   useEffect(() => {
     setContractAddress('');
     setCallMsg('Instantiate');
@@ -102,14 +96,14 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
     try {
       const funds = fund ? { denom: 'inj', amount: fund.toString() } : undefined;
       const msg = MsgInstantiateContract.fromJSON({
-        sender: walletAccount,
-        admin: immutableChecked ? '' : walletAccount,
+        sender: injectiveAddress,
+        admin: immutableChecked ? '' : injectiveAddress,
         codeId: parseInt(codeID),
         label: 'contract init',
         msg: param,
         amount: funds,
       });
-      const txResult = await injectiveBroadcastMsg(msg, walletAccount);
+      const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       const contract = await getContract(txResult!.txHash);
       log.debug('Contract address:', contract);
       setContractAddress(contract as any);
@@ -123,12 +117,12 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
   const migrateKeplr = async () => {
     try {
       const msg = MsgMigrateContract.fromJSON({
-        sender: walletAccount,
+        sender: injectiveAddress,
         contract: migrateContractAddress,
         codeId: parseInt(codeID),
         msg: { new_format: 'new format description' },
       });
-      const txResult = await injectiveBroadcastMsg(msg, walletAccount);
+      const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       await getContract(txResult!.txHash);
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
