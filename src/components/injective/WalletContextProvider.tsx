@@ -3,8 +3,9 @@ import {
   TxResponse,
   getInjectiveAddress,
 } from '@injectivelabs/sdk-ts';
+import { UtilsWallets } from '@injectivelabs/wallet-ts/dist/esm/exports';
 import { MsgBroadcaster, Wallet, WalletStrategy } from '@injectivelabs/wallet-ts';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { ChainId, EthereumChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { ErrorType, WalletException, UnspecifiedErrorCode } from '@injectivelabs/exceptions';
@@ -14,7 +15,8 @@ type WalletStoreState = {
   setChainId: React.Dispatch<React.SetStateAction<ChainId>>;
   balance: string;
   walletType: Wallet | null;
-  walletAccount: string;
+  injectiveAddress: string;
+  ethAddress: string;
   walletStrategy: WalletStrategy | null;
   msgBroadcastClient: MsgBroadcaster | null;
   changeWallet: (wallet: Wallet) => void;
@@ -28,7 +30,8 @@ const WalletContext = createContext<WalletStoreState>({
   setChainId: () => {},
   balance: '0',
   walletType: null,
-  walletAccount: '',
+  injectiveAddress: '',
+  ethAddress: '',
   walletStrategy: null,
   msgBroadcastClient: null,
   changeWallet: async (wallet: Wallet) => {},
@@ -46,7 +49,8 @@ type Props = {
 const WalletContextProvider = (props: Props) => {
   const [chainId, setChainId] = useState(ChainId.Testnet);
   const [walletType, setWalletType] = useState<Wallet | null>(null);
-  const [account, setAccount] = useState('');
+  const [injectiveAddress, setInjectiveAddress] = useState('');
+  const [ethAddress, setEthAddress] = useState('');
   const [enabledWalletStrategy, setEnabledWalletStrategy] = useState<WalletStrategy | null>(null);
   const [msgBroadcastClient, setMsgBroadcastClient] = useState<MsgBroadcaster | null>(null);
   const [balance, setBalance] = useState<string>('0');
@@ -70,29 +74,47 @@ const WalletContextProvider = (props: Props) => {
         type: ErrorType.WalletError,
       });
     } else if (currentWallet === Wallet.Keplr) {
-      setAccount(addresses[0]);
+      setInjectiveAddress(addresses[0]);
+      setWalletType(currentWallet);
+      const endpoints = getNetworkEndpoints(
+        chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
+      );
+      const msgBroadcastClient = new MsgBroadcaster({
+        walletStrategy: walletStrategy,
+        network: chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
+        endpoints: endpoints,
+        simulateTx: true,
+      });
+
+      setEnabledWalletStrategy(walletStrategy);
+      setMsgBroadcastClient(msgBroadcastClient);
     } else if (currentWallet === Wallet.Metamask) {
       const convertedEthAddress = getInjectiveAddress(addresses[0]);
-      setAccount(convertedEthAddress);
-    }
-    setWalletType(currentWallet);
-    const endpoints = getNetworkEndpoints(
-      chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
-    );
-    const msgBroadcastClient = new MsgBroadcaster({
-      walletStrategy: walletStrategy,
-      network: chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
-      endpoints: endpoints,
-      simulateTx: true,
-    });
+      setInjectiveAddress(convertedEthAddress);
+      setEthAddress(addresses[0]);
+      setWalletType(currentWallet);
+      const endpoints = getNetworkEndpoints(
+        chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
+      );
+      const msgBroadcastClient = new MsgBroadcaster({
+        walletStrategy: walletStrategy,
+        network: chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
+        endpoints: endpoints,
+        simulateTx: true,
+        ethereumChainId:
+          chainId === ChainId.Mainnet ? EthereumChainId.Mainnet : EthereumChainId.Sepolia,
+      });
 
-    setEnabledWalletStrategy(walletStrategy);
-    setMsgBroadcastClient(msgBroadcastClient);
+      setEnabledWalletStrategy(walletStrategy);
+      setMsgBroadcastClient(msgBroadcastClient);
+    } else {
+      console.log('No Wallet Selected');
+    }
   };
 
   useEffect(() => {
-    if (account !== '') getBalance();
-  }, [chainId, account, walletType]);
+    if (injectiveAddress !== '') getBalance();
+  }, [chainId, injectiveAddress, walletType]);
 
   const changeWallet = async (wallet: Wallet) => {
     enabledWalletStrategy?.setWallet(wallet);
@@ -118,7 +140,7 @@ const WalletContextProvider = (props: Props) => {
           endpoints.indexer,
         );
         const portfolio = await indexerGrpcAccountPortfolioApi.fetchAccountPortfolioBalances(
-          account,
+          injectiveAddress,
         );
         const injectiveBalance = portfolio.bankBalancesList.find(
           (balance) => balance.denom === 'inj',
@@ -139,7 +161,7 @@ const WalletContextProvider = (props: Props) => {
           endpoints.indexer,
         );
         const portfolio = await indexerGrpcAccountPortfolioApi.fetchAccountPortfolioBalances(
-          account,
+          injectiveAddress,
         );
         const injectiveBalance = portfolio.bankBalancesList.find(
           (balance) => balance.denom === 'inj',
@@ -160,13 +182,23 @@ const WalletContextProvider = (props: Props) => {
   const injectiveBroadcastMsg = async (msg: any, address?: string) => {
     try {
       if (address) {
-        const result = await msgBroadcastClient?.broadcast({
+        if (walletType === Wallet.Metamask) {
+          chainId === ChainId.Mainnet
+            ? await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Mainnet)
+            : await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Sepolia);
+          const result = await msgBroadcastClient?.broadcastV2({
+            injectiveAddress: address,
+            msgs: msg,
+          });
+          return result;
+        }
+        const result = await msgBroadcastClient?.broadcastV2({
           injectiveAddress: address,
           msgs: msg,
         });
         return result;
       } else {
-        const result = await msgBroadcastClient?.broadcast({
+        const result = await msgBroadcastClient?.broadcastV2({
           msgs: msg,
         });
         return result;
@@ -183,7 +215,8 @@ const WalletContextProvider = (props: Props) => {
         setChainId,
         balance,
         walletType,
-        walletAccount: account,
+        injectiveAddress,
+        ethAddress,
         walletStrategy: enabledWalletStrategy,
         msgBroadcastClient,
         changeWallet,
