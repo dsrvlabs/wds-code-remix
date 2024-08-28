@@ -63,6 +63,24 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           style={{ cursor: 'pointer' }}
           action
           onClick={() => {
+            setChain('Injective');
+          }}
+        >
+          <img
+            src={Injective}
+            style={{ width: '35px', marginRight: '20px' }}
+            alt="Injective logo"
+          />
+          <b>Injective</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            New
+          </Badge>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
             setChain('Aptos');
           }}
         >
@@ -79,24 +97,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
         >
           <img src={Celo} style={{ width: '35px', marginRight: '20px' }} alt="Celo logo" />
           <b>CELO (EVM)</b>
-        </ListGroup.Item>
-        <ListGroup.Item
-          as="li"
-          style={{ cursor: 'pointer' }}
-          action
-          onClick={() => {
-            setChain('Injective');
-          }}
-        >
-          <img
-            src={Injective}
-            style={{ width: '35px', marginRight: '20px' }}
-            alt="Injective logo"
-          />
-          <b>Injective</b>
-          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-            New
-          </Badge>
         </ListGroup.Item>
         <ListGroup.Item
           as="li"
