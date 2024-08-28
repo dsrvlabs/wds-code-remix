@@ -37,7 +37,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
             <img src={Keplr} style={{ width: '25px', marginRight: '10px' }} alt="Keplr logo" />
             <b>Connect to Keplr</b>
           </ListGroup.Item>
-          <ListGroup.Item
+          {/* <ListGroup.Item
             as="li"
             action
             active={activeWallet === 'MetaMask'}
@@ -53,7 +53,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
           >
             <img src={MetaMask} style={{ width: '25px', marginRight: '10px' }} alt="Keplr logo" />
             <b>Connect to MetaMask</b>
-          </ListGroup.Item>
+          </ListGroup.Item> */}
         </ListGroup>
         <hr />
         <div>
