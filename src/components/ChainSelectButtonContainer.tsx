@@ -49,6 +49,42 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           style={{ cursor: 'pointer' }}
           action
           onClick={() => {
+            setChain('Arbitrum');
+          }}
+        >
+          <img src={Arbitrum} style={{ width: '35px', marginRight: '20px' }} alt="Arbitrum logo" />
+          <b>Arbitrum (Stylus)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            New
+          </Badge>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Aptos');
+          }}
+        >
+          <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
+          <b>Aptos (MoveVM)</b>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Celo');
+          }}
+        >
+          <img src={Celo} style={{ width: '35px', marginRight: '20px' }} alt="Celo logo" />
+          <b>CELO (EVM)</b>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
             setChain('Injective');
           }}
         >
@@ -59,7 +95,7 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           />
           <b>Injective</b>
           <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-            Beta
+            New
           </Badge>
         </ListGroup.Item>
         <ListGroup.Item
@@ -67,28 +103,24 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           style={{ cursor: 'pointer' }}
           action
           onClick={() => {
-            setChain('Arbitrum');
+            setChain('Near');
           }}
         >
-          <img src={Arbitrum} style={{ width: '35px', marginRight: '20px' }} alt="Arbitrum logo" />
-          <b>Arbitrum (Stylus)</b>
-          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-            Beta
-          </Badge>
+          <img src={Near} style={{ width: '35px', marginRight: '20px' }} alt="Near logo" />
+          <b>NEAR (NVM)</b>
         </ListGroup.Item>
         {/*) : null}*/}
-
-        <ListGroup.Item
-          as="li"
-          style={{ cursor: 'pointer' }}
-          action
-          onClick={() => {
-            setChain('Neutron');
-          }}
-        >
-          <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
-          <b>Neutron</b>
-        </ListGroup.Item>
+        {/* <ListGroup.Item
+        as="li"
+        style={{ cursor: 'pointer' }}
+        action
+        onClick={() => {
+          setChain('Neutron');
+        }}
+      >
+        <img src={Neutron} style={{ width: '35px', marginRight: '20px' }} alt="Neutron logo" />
+        <b>Neutron</b>
+      </ListGroup.Item> */}
         <ListGroup.Item
           as="li"
           style={{ cursor: 'pointer' }}
@@ -100,63 +132,31 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <img src={Sui} style={{ width: '35px', marginRight: '20px' }} alt="Sui logo" />
           <b>Sui (MoveVM)</b>
         </ListGroup.Item>
+
         <ListGroup>
-          <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Aptos');
-            }}
-          >
-            <img src={Aptos} style={{ width: '35px', marginRight: '20px' }} alt="Aptos logo" />
-            <b>Aptos (MoveVM)</b>
-          </ListGroup.Item>
+          {/* <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Juno');
+          }}
+        >
+          <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
+          <b>Juno (CosmWasm)</b>
+        </ListGroup.Item> */}
 
           {/* <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Juno');
-            }}
-          >
-            <img src={Juno} style={{ width: '35px', marginRight: '20px' }} alt="Juno logo" />
-            <b>Juno (CosmWasm)</b>
-          </ListGroup.Item> */}
-          <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Near');
-            }}
-          >
-            <img src={Near} style={{ width: '35px', marginRight: '20px' }} alt="Near logo" />
-            <b>NEAR (NVM)</b>
-          </ListGroup.Item>
-          <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Celo');
-            }}
-          >
-            <img src={Celo} style={{ width: '35px', marginRight: '20px' }} alt="Celo logo" />
-            <b>CELO (EVM)</b>
-          </ListGroup.Item>
-          {/* <ListGroup.Item
-            as="li"
-            style={{ cursor: 'pointer' }}
-            action
-            onClick={() => {
-              setChain('Klaytn');
-            }}
-          >
-            <img src={Klaytn} style={{ width: '35px', marginRight: '20px' }} alt="Klaytn logo" />
-            <b>Klaytn (EVM)</b>
-          </ListGroup.Item> */}
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Klaytn');
+          }}
+        >
+          <img src={Klaytn} style={{ width: '35px', marginRight: '20px' }} alt="Klaytn logo" />
+          <b>Klaytn (EVM)</b>
+        </ListGroup.Item> */}
         </ListGroup>
       </Form.Group>
     </div>
