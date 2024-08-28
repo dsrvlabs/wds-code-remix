@@ -1,12 +1,26 @@
 import { Button, Form, InputGroup } from 'react-bootstrap';
 import React, { Dispatch, useState } from 'react';
 import { log } from '../../utils/logger';
-import { TxGrpcClient, MsgStoreCode } from '@injectivelabs/sdk-ts';
-import { ChainId } from '@injectivelabs/ts-types';
+import {
+  TxGrpcClient,
+  MsgStoreCode,
+  getEip712TypedDataV2,
+  ChainGrpcAuthApi,
+  ChainGrpcTendermintApi,
+  SIGN_EIP712_V2,
+  createTransaction,
+  createTxRawEIP712,
+  createWeb3Extension,
+  getGasPriceBasedOnMessage,
+  hexToBuff,
+} from '@injectivelabs/sdk-ts';
+import { ChainId, EthereumChainId } from '@injectivelabs/ts-types';
+import { BigNumberInBase, DEFAULT_BLOCK_TIMEOUT_HEIGHT, getStdFee } from '@injectivelabs/utils';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Instantiate } from './Instantiate';
 import { useWalletStore } from './WalletContextProvider';
 import { Wallet } from '@injectivelabs/wallet-ts';
+import { UtilsWallets } from '@injectivelabs/wallet-ts/dist/esm/exports';
 
 interface InterfaceProps {
   compileTarget: string;
@@ -34,8 +48,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   timestamp,
 }) => {
   const [fund, setFund] = useState<number>(0);
-  const { injectiveBroadcastMsg, injectiveAddress, ethAddress, walletStrategy, chainId } =
-    useWalletStore();
+  const { injectiveBroadcastMsg, injectiveAddress, walletStrategy, chainId } = useWalletStore();
 
   const waitGetCodeID = async (txHash: string) => {
     const grpcEndpoing = getNetworkEndpoints(
@@ -57,12 +70,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       console.log(e.message);
     }
   };
-  const proceedStorecode = async () =>
-    walletStrategy?.getWallet() === Wallet.Keplr
-      ? keplrProceed()
-      : await client.terminal.log({ type: 'error', value: 'MetaMask Not supported' });
 
-  const keplrProceed = async () => {
+  const proceedStoreCode = async () => {
     try {
       const buffer = Buffer.from(wasm, 'base64');
       const wasmUint8array = new Uint8Array(buffer);
@@ -119,7 +128,8 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   //   }
 
   //   // This is where string is changed to uint8Array
-  //   const eip712TypedData = getEip712TypedDataV2({
+  //   const eip712TypedData = getEip712TypedDataV3({
+  //     wasm: wasm,
   //     msgs: [msg],
   //     fee: { gas: gasFee },
   //     tx: {
@@ -131,6 +141,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   //     },
   //     ethereumChainId: EthereumChainId.Sepolia,
   //   });
+  //   console.log(eip712TypedData);
   //   // eip712TypedData.message.msgs hardcode the string value here and it is fixed
   //   const signature = await walletStrategy!.signEip712TypedData(
   //     JSON.stringify(eip712TypedData),
@@ -145,7 +156,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   //   });
 
   //   const { txRaw } = createTransaction({
-  //     message: [msg2],
+  //     message: [msg],
   //     memo: undefined,
   //     signMode: SIGN_EIP712_V2,
   //     fee: getStdFee({ gas: gasFee }),
@@ -214,7 +225,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         <hr />
         <Button
           variant="primary"
-          onClick={proceedStorecode}
+          onClick={proceedStoreCode}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
           <span>Store Code</span>
