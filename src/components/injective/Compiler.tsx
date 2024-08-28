@@ -30,21 +30,14 @@ import { Alert, Button } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { StoreCode } from './StoreCode';
-import { Client } from '@remixproject/plugin';
-import { Api } from '@remixproject/plugin-utils';
-import { IRemixApi } from '@remixproject/plugin-api';
-import { isEmptyObject } from '../../utils/ObjectUtil';
+import { useWalletStore } from './WalletContextProvider';
 
 interface InterfaceProps {
   fileName: string;
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
-  wallet: string;
-  account: string;
-  providerInstance: any;
   client: any;
   reset: () => void;
-  providerNetwork: string;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -54,19 +47,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   fileName,
   setFileName,
   client,
-  providerInstance,
   compileTarget,
-  wallet,
-  account,
   reset,
-  providerNetwork,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
   const [checksum, setChecksum] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>('');
-  const [txHash, setTxHash] = useState<string>('');
   const [codeID, setCodeID] = useState<string>('');
   const [timestamp, setTimestamp] = useState('');
 
@@ -76,42 +64,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
+  const { injectiveAddress, chainId } = useWalletStore();
+
   useEffect(() => {
     init();
   }, [compileTarget]);
-
-  const exists = async () => {
-    try {
-      const artifacts = await client.fileManager.readdir('browser/' + compileTarget + '/artifacts');
-      if (isEmptyObject(artifacts)) throw new Error('artifacts directory does not exists');
-      await setSchemaObj();
-      await client.terminal.log({
-        type: 'error',
-        value:
-          "If you want to run a new compilation, delete the 'artifacts' and 'schema' directory and click the Compile button again.",
-      });
-      const filesName = Object.keys(artifacts || {});
-      await Promise.all(
-        filesName.map(async (f) => {
-          if (getExtensionOfFilename(f) === '.wasm') {
-            const wasmFile = await client?.fileManager.readFile('browser/' + f);
-            setWasm(wasmFile || '');
-            setFileName(f);
-          }
-        }),
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  };
 
   const init = () => {
     setWasm('');
     setChecksum('');
     setFileName('');
     setCodeID('');
-    setTxHash('');
     setSchemaExec({});
     setSchemaInit({});
     setSchemaQuery({});
@@ -204,11 +167,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setIconSpin('fa-spin');
     setCompileError('');
 
-    const address = account;
+    const address = injectiveAddress;
     const timestamp = Date.now().toString();
     setTimestamp(timestamp);
 
-    let realChainId = providerNetwork;
+    let realChainId = chainId;
 
     const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
       chainName: CHAIN_NAME.injective,
@@ -324,7 +287,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 params: {
                   chainName: CHAIN_NAME.injective,
                   chainId: realChainId,
-                  account: account,
+                  account: injectiveAddress,
                   timestamp: timestamp,
                 },
                 responseType: 'arraybuffer',
@@ -412,7 +375,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               fileKey: S3Path.outKey(
                 CHAIN_NAME.injective,
                 realChainId,
-                account,
+                injectiveAddress,
                 timestamp,
                 BUILD_FILE_TYPE.rs,
               ),
@@ -430,7 +393,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 params: {
                   chainName: CHAIN_NAME.injective,
                   chainId: realChainId,
-                  account: account,
+                  account: injectiveAddress,
                   timestamp: timestamp,
                 },
                 responseType: 'arraybuffer',
@@ -650,7 +613,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       </div>
       <Button
         variant="primary"
-        disabled={account === '' || loading || !compileTarget}
+        disabled={injectiveAddress === '' || loading || !compileTarget}
         onClick={readCode}
         className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
       >
@@ -676,23 +639,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {wasm && !loading ? (
         <StoreCode
-          providerInstance={providerInstance}
-          wallet={wallet}
           compileTarget={compileTarget}
           client={client}
           wasm={wasm}
           setWasm={setWasm}
           checksum={checksum}
-          txHash={txHash}
-          setTxHash={setTxHash}
           codeID={codeID}
           setCodeID={setCodeID}
           schemaInit={schemaInit}
           schemaExec={schemaExec}
           schemaQuery={schemaQuery}
-          account={account}
           timestamp={timestamp}
-          providerNetwork={providerNetwork}
         />
       ) : (
         <>

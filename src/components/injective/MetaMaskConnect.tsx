@@ -1,13 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
-import AlertCloseButton from '../common/AlertCloseButton';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useWalletStore } from './WalletContextProvider';
 import { ChainId } from '@injectivelabs/ts-types';
 import { Wallet } from '@injectivelabs/wallet-ts';
+import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
+import AlertCloseButton from '../common/AlertCloseButton';
+import { MsgSend } from '@injectivelabs/sdk-ts';
+import { BigNumberInBase } from '@injectivelabs/utils';
 
-export const KeplrConnect: React.FunctionComponent = () => {
+const MetaMaskConnect: React.FunctionComponent = () => {
   const [error, setError] = useState<String>('');
-  const { chainId, setChainId, balance, injectiveAddress: walletAccount, init } = useWalletStore();
+  const {
+    chainId,
+    setChainId,
+    balance,
+    injectiveAddress,
+    init,
+    injectiveBroadcastMsg,
+    walletStrategy,
+  } = useWalletStore();
   const networks = useMemo(
     () => [
       { name: 'Mainnet', value: ChainId.Mainnet },
@@ -17,9 +27,9 @@ export const KeplrConnect: React.FunctionComponent = () => {
   );
 
   useEffect(() => {
-    init(Wallet.Keplr);
+    init(Wallet.Metamask);
   }, []);
-  
+
   const handleNetwork = (e: any) => {
     setChainId(e.target.value);
   };
@@ -47,7 +57,7 @@ export const KeplrConnect: React.FunctionComponent = () => {
           <Form.Control
             type="text"
             placeholder="Account"
-            value={walletAccount ? walletAccount : ''}
+            value={injectiveAddress ? injectiveAddress : ''}
             size="sm"
             readOnly
           />
@@ -59,7 +69,7 @@ export const KeplrConnect: React.FunctionComponent = () => {
           <Form.Control
             type="text"
             placeholder="Balance"
-            value={walletAccount ? balance || '' : ''}
+            value={injectiveAddress ? balance || '' : ''}
             size="sm"
             readOnly
           />
@@ -72,3 +82,5 @@ export const KeplrConnect: React.FunctionComponent = () => {
 const mb4 = {
   marginBottom: '4px',
 };
+
+export default MetaMaskConnect;

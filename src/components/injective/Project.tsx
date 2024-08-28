@@ -16,20 +16,10 @@ const mb4 = {
 };
 
 interface InterfaceProps {
-  wallet: string;
-  account: string;
-  providerInstance: any;
   client: any;
-  providerNetwork: string;
 }
 
-export const Project: React.FunctionComponent<InterfaceProps> = ({
-  providerInstance,
-  wallet,
-  account,
-  client,
-  providerNetwork,
-}) => {
+export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => {
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
@@ -272,13 +262,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Compiler
         fileName={fileName}
         setFileName={setFileName}
-        providerInstance={providerInstance}
         compileTarget={compileTarget}
-        wallet={wallet}
-        account={account}
         client={client}
         reset={reset}
-        providerNetwork={providerNetwork}
       />
     </div>
   );
