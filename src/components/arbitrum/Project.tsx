@@ -54,6 +54,22 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   }, []);
 
   const getList = async () => {
+    const list = await getProjectList();
+    setProjectList(list);
+    list?.length > 0 && setCompileTarget(list[0]);
+  };
+
+  const getProjectList = async () => {
+    try {
+      const list = await client?.fileManager.readdir('browser/arbitrum/');
+      return Object.keys(list || []);
+    } catch (e) {
+      log.error(e);
+    }
+    return [];
+  };
+
+  const getList_ = async () => {
     const projects = await getProjectHaveTomlFile('browser/arbitrum');
     setProjectList(projects);
     if (projects?.length > 0) {
