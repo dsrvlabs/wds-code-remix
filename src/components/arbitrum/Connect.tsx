@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MetamaskConnect } from './MetamaskConnect';
 import { Project } from './Project';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Connect as CommonConnect } from '../common/Connect';
-import { ARBITRUM_SEPOLIA_CHAIN } from './const';
+import { ARBITRUM_ONE_CHAIN, ARBITRUM_SEPOLIA_CHAIN } from './const';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -39,7 +39,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
           setInjectedProvider={setInjectedProvider}
           setProviderNetwork={setProviderNetwork}
         />
-        {providerNetwork === ARBITRUM_SEPOLIA_CHAIN.chainId ? (
+        {[ARBITRUM_SEPOLIA_CHAIN.chainId, ARBITRUM_ONE_CHAIN.chainId].includes(providerNetwork) ? (
           <Project
             account={account}
             injectedProvider={injectedProvider}
