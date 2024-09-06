@@ -73,7 +73,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     const projects = await getProjectHaveTomlFile('browser/arbitrum');
     setProjectList(projects);
     if (projects?.length > 0) {
-      const compileTarget = projects[0];
+      const targetProjects = projects.find((item) => item.includes(template));
+      const compileTarget = targetProjects ? targetProjects : projects[0];
       setCompileTarget(compileTarget);
       try {
         const abiStr = await client?.fileManager.readFile('browser/arbitrum/abi.json');
