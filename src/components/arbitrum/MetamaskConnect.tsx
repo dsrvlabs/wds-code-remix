@@ -180,46 +180,70 @@ export const MetamaskConnect: React.FunctionComponent<InterfaceProps> = ({
   useEffect(() => {
     const activateMetamask = async () => {
       if (!network) return null;
-      await switchNetwork(network.value);
-    };
-    if (active) activateMetamask();
-  }, [active]);
-
-  useEffect(() => {
-    const init = async () => {
-      const chainId = await getChainId();
-      const targetNetwork = networks.find((net) => net.value === chainId);
-      if (!targetNetwork) await switchNetwork();
+      const currentChainId = await getChainId();
+      if (currentChainId !== network.value) await switchNetwork(network.value);
       else {
         const currentAccount = await getAccount();
         setAccount(currentAccount);
-        setInfo(currentAccount, targetNetwork);
+        setInfo(currentAccount, network);
+      }
+    };
+    if (active) activateMetamask();
+  }, [active, network]);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const chainId = await getChainId();
+        const targetNetwork = networks.find((net) => net.value === chainId);
+        if (!targetNetwork) await switchNetwork();
+        else {
+          const currentAccount = await getAccount();
+          setAccount(currentAccount);
+          setInfo(currentAccount, targetNetwork);
+        }
+      } catch (error) {
+        log.error('Failed to initialize MetamaskConnect', error);
       }
     };
 
     init();
 
+    if (!ethereum) return;
     ethereum.on('chainChanged', async (_chainId: string) => {
-      const targetNetwork = networks.find((net) => net.value === _chainId);
-      if (!targetNetwork) window.location.reload();
-      else {
-        const currentAccount = await getAccount();
-        setAccount(currentAccount);
-        setInfo(currentAccount, targetNetwork);
+      try {
+        const targetNetwork = networks.find((net) => net.value === _chainId);
+        if (!targetNetwork) window.location.reload();
+        else {
+          const currentAccount = await getAccount();
+          setAccount(currentAccount);
+          setInfo(currentAccount, targetNetwork);
+        }
+      } catch (error) {
+        log.error('Failed to execute change chain logic', error);
       }
     });
 
     ethereum.on('accountsChanged', async (accounts: string[]) => {
-      if (accounts.length === 0) {
-        setAccount('');
-        setBalance('');
-      } else {
-        const currentAccount = await getAccount();
-        setAccount(currentAccount);
-        setBalance('');
-        setActive(false);
+      try {
+        if (accounts.length === 0) {
+          setAccount('');
+          setBalance('');
+        } else {
+          const currentAccount = await getAccount();
+          setAccount(currentAccount);
+          if (network) setInfo(currentAccount, network);
+          else init();
+        }
+      } catch (error) {
+        log.error('Failed to execute change account logic', error);
       }
     });
+
+    return () => {
+      ethereum.removeAllListeners('chainChanged');
+      ethereum.removeAllListeners('accountsChanged');
+    };
   }, []);
 
   return (
