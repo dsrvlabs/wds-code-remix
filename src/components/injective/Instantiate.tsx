@@ -10,6 +10,8 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Contract } from './Contract';
 import { useWalletStore } from './WalletContextProvider';
+import axios from 'axios';
+import { INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
 
 interface InterfaceProps {
   codeID: string;
@@ -105,6 +107,29 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       });
       const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       const contract = await getContract(txResult!.txHash);
+      if (contract) {
+        const injectiveDeployHistoryCreateDto: InjectiveDeployHistoryCreateDto = {
+          chainId: chainId,
+          account: injectiveAddress,
+          codeId: codeID,
+          contractAddress: contract as string,
+          compileTimestamp: Number(timestamp),
+          deployTimestamp: null,
+          txHash: txResult!.txHash,
+          checksum: checksum,
+          isSrcUploaded: true,
+          createdBy: 'REMIX',
+        };
+        try {
+          const res = await axios.post(
+            INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
+            injectiveDeployHistoryCreateDto,
+          );
+          log.info(`deploy-histories api res`, res);
+        } catch (e) {
+          log.error(`deploy-histories api error`);
+        }
+      }
       log.debug('Contract address:', contract);
       setContractAddress(contract as any);
       setDisabled(true);
