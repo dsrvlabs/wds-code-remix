@@ -85,8 +85,9 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       if (txResult?.txHash) {
         await waitGetCodeID(txResult!.txHash);
       } else {
-        throw new Error('Error while broadcasting');
+        throw new Error('Error while broadcasting. Please Check your wallet is locked');
       }
+
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
