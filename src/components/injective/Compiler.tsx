@@ -67,8 +67,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const { injectiveAddress, chainId } = useWalletStore();
 
   useEffect(() => {
-    init();
+    exists();
+    setSchemaObj();
   }, [compileTarget]);
+
+  const exists = async () => {
+    try {
+      const artifacts = await client?.fileManager.readdir(
+        'browser/' + compileTarget + '/artifacts',
+      );
+      const filesName = Object.keys(artifacts || {});
+      await Promise.all(
+        filesName.map(async (f) => {
+          if (getExtensionOfFilename(f) === '.wasm') {
+            const wasmFile = await client?.fileManager.readFile('browser/' + f);
+            setWasm(wasmFile || '');
+            setFileName(f);
+          }
+        }),
+      );
+    } catch (e: any) {
+      client.terminal.log({ type: 'error', value: `${e.message}` });
+    }
+  };
 
   const init = () => {
     setWasm('');
