@@ -12,8 +12,10 @@ import { Contract } from './Contract';
 import { useWalletStore } from './WalletContextProvider';
 import axios from 'axios';
 import { INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
+import { BigNumberInBase } from '@injectivelabs/utils';
 
 interface InterfaceProps {
+  compileTarget: string;
   codeID: string;
   client: any;
   setCodeID: Dispatch<React.SetStateAction<string>>;
@@ -39,6 +41,7 @@ export interface InjectiveDeployHistoryCreateDto {
 }
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   client,
   codeID,
   setCodeID,
@@ -93,10 +96,13 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       resolve(contractAddress);
     });
   };
-
+  
   const instantiateKeplr = async () => {
     try {
-      const funds = fund ? { denom: 'inj', amount: fund.toString() } : undefined;
+      const funds =
+        fund === 0
+          ? undefined
+          : { denom: 'inj', amount: new BigNumberInBase(fund).toWei().toFixed() };
       const msg = MsgInstantiateContract.fromJSON({
         sender: injectiveAddress,
         admin: immutableChecked ? '' : injectiveAddress,
@@ -343,6 +349,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       </ReactForm.Group>
       {contractAddress ? (
         <Contract
+          compileTarget={compileTarget}
           contractAddress={contractAddress || ''}
           client={client}
           fund={fund}

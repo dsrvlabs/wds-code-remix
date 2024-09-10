@@ -37,6 +37,7 @@ interface InterfaceProps {
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   wasm,
   checksum,
   client,
@@ -205,7 +206,13 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               onChange={(e) => setFund(Number(e.target.value))}
               onBlur={handleBlur}
             />
-            <Form.Control type="text" placeholder="" value={'inj'} size="sm" readOnly />
+            <Form.Control
+              type="text"
+              placeholder=""
+              value={compileTarget === 'injective/atomic-order-example' ? 'USDT' : 'inj'}
+              size="sm"
+              readOnly
+            />
           </InputGroup>
         </Form>
         {/*<Form>*/}
@@ -237,6 +244,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         {codeID && (
           <>
             <Instantiate
+              compileTarget={compileTarget}
               client={client}
               codeID={codeID || ''}
               setCodeID={setCodeID}
