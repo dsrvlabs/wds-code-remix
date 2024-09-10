@@ -37,7 +37,6 @@ interface InterfaceProps {
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
   client: any;
-  reset: () => void;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -48,7 +47,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   setFileName,
   client,
   compileTarget,
-  reset,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
@@ -71,6 +69,17 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setSchemaObj();
   }, [compileTarget]);
 
+  const init = async () => {
+    setWasm('');
+    setChecksum('');
+    setFileName('');
+    setCodeID('');
+    setSchemaExec({});
+    setSchemaInit({});
+    setSchemaQuery({});
+    setTimestamp('');
+  };
+
   const exists = async () => {
     try {
       const artifacts = await client?.fileManager.readdir(
@@ -89,17 +98,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     } catch (e: any) {
       client.terminal.log({ type: 'error', value: `${e.message}` });
     }
-  };
-
-  const init = () => {
-    setWasm('');
-    setChecksum('');
-    setFileName('');
-    setCodeID('');
-    setSchemaExec({});
-    setSchemaInit({});
-    setSchemaQuery({});
-    setTimestamp('');
   };
 
   const removeArtifacts = async () => {
