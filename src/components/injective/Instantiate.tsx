@@ -128,7 +128,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
         };
         try {
           const res = await axios.post(
-            INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT + '/deploy-histories',
+            INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT + '/injective/deploy-histories',
             injectiveDeployHistoryCreateDto,
           );
           log.info(`deploy-histories api res`, res);
