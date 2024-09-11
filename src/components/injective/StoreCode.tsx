@@ -37,6 +37,7 @@ interface InterfaceProps {
 }
 
 export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   wasm,
   checksum,
   client,
@@ -85,8 +86,9 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       if (txResult?.txHash) {
         await waitGetCodeID(txResult!.txHash);
       } else {
-        throw new Error('Error while broadcasting');
+        throw new Error('Error while broadcasting. Please Check your wallet is locked');
       }
+
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
@@ -204,7 +206,13 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
               onChange={(e) => setFund(Number(e.target.value))}
               onBlur={handleBlur}
             />
-            <Form.Control type="text" placeholder="" value={'inj'} size="sm" readOnly />
+            <Form.Control
+              type="text"
+              placeholder=""
+              value={compileTarget === 'injective/atomic-order-example' ? 'USDT' : 'inj'}
+              size="sm"
+              readOnly
+            />
           </InputGroup>
         </Form>
         {/*<Form>*/}
@@ -236,6 +244,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
         {codeID && (
           <>
             <Instantiate
+              compileTarget={compileTarget}
               client={client}
               codeID={codeID || ''}
               setCodeID={setCodeID}

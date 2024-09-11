@@ -264,7 +264,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         setFileName={setFileName}
         compileTarget={compileTarget}
         client={client}
-        reset={reset}
       />
     </div>
   );
