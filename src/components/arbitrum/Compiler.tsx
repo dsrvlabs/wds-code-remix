@@ -136,6 +136,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
+    const rustToolchainFile = projFiles.find(
+      (f) => f.path === `${compileTarget}/rust-toolchain.toml`,
+    );
+    if (!rustToolchainFile) {
+      client.terminal.log({
+        type: 'warn',
+        value: `Not found "rust-toolchain.toml". Added default "rust-toolchain.toml".`,
+      });
+      const rustToolchainContent = `[toolchain]\nchannel = "1.80.0"`;
+      await client.fileManager.writeFile(
+        `browser/${compileTarget}/rust-toolchain.toml`,
+        rustToolchainContent,
+      );
+    }
+
     const blob = await generateZip(projFiles);
     if (!blob) {
       return;
