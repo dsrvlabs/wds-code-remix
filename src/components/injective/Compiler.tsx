@@ -37,7 +37,6 @@ interface InterfaceProps {
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
   client: any;
-  reset: () => void;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -48,7 +47,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   setFileName,
   client,
   compileTarget,
-  reset,
 }) => {
   const [iconSpin, setIconSpin] = useState<string>('');
   const [wasm, setWasm] = useState<string>('');
@@ -67,10 +65,11 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const { injectiveAddress, chainId } = useWalletStore();
 
   useEffect(() => {
-    init();
+    exists();
+    setSchemaObj();
   }, [compileTarget]);
 
-  const init = () => {
+  const init = async () => {
     setWasm('');
     setChecksum('');
     setFileName('');
@@ -79,6 +78,26 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setSchemaInit({});
     setSchemaQuery({});
     setTimestamp('');
+  };
+
+  const exists = async () => {
+    try {
+      const artifacts = await client?.fileManager.readdir(
+        'browser/' + compileTarget + '/artifacts',
+      );
+      const filesName = Object.keys(artifacts || {});
+      await Promise.all(
+        filesName.map(async (f) => {
+          if (getExtensionOfFilename(f) === '.wasm') {
+            const wasmFile = await client?.fileManager.readFile('browser/' + f);
+            setWasm(wasmFile || '');
+            setFileName(f);
+          }
+        }),
+      );
+    } catch (e: any) {
+      client.terminal.log({ type: 'error', value: `${e.message}` });
+    }
   };
 
   const removeArtifacts = async () => {

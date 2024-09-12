@@ -10,8 +10,12 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Contract } from './Contract';
 import { useWalletStore } from './WalletContextProvider';
+import axios from 'axios';
+import { INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT } from '../../const/endpoint';
+import { BigNumberInBase } from '@injectivelabs/utils';
 
 interface InterfaceProps {
+  compileTarget: string;
   codeID: string;
   client: any;
   setCodeID: Dispatch<React.SetStateAction<string>>;
@@ -37,6 +41,7 @@ export interface InjectiveDeployHistoryCreateDto {
 }
 
 export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   client,
   codeID,
   setCodeID,
@@ -91,10 +96,13 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       resolve(contractAddress);
     });
   };
-
+  
   const instantiateKeplr = async () => {
     try {
-      const funds = fund ? { denom: 'inj', amount: fund.toString() } : undefined;
+      const funds =
+        fund === 0
+          ? undefined
+          : { denom: 'inj', amount: new BigNumberInBase(fund).toWei().toFixed() };
       const msg = MsgInstantiateContract.fromJSON({
         sender: injectiveAddress,
         admin: immutableChecked ? '' : injectiveAddress,
@@ -105,6 +113,29 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       });
       const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       const contract = await getContract(txResult!.txHash);
+      if (contract) {
+        const injectiveDeployHistoryCreateDto: InjectiveDeployHistoryCreateDto = {
+          chainId: chainId,
+          account: injectiveAddress,
+          codeId: codeID,
+          contractAddress: contract as string,
+          compileTimestamp: Number(timestamp),
+          deployTimestamp: null,
+          txHash: txResult!.txHash,
+          checksum: checksum,
+          isSrcUploaded: true,
+          createdBy: 'REMIX',
+        };
+        try {
+          const res = await axios.post(
+            INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT + '/injective/deploy-histories',
+            injectiveDeployHistoryCreateDto,
+          );
+          log.info(`deploy-histories api res`, res);
+        } catch (e) {
+          log.error(`deploy-histories api error`);
+        }
+      }
       log.debug('Contract address:', contract);
       setContractAddress(contract as any);
       setDisabled(true);
@@ -318,6 +349,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       </ReactForm.Group>
       {contractAddress ? (
         <Contract
+          compileTarget={compileTarget}
           contractAddress={contractAddress || ''}
           client={client}
           fund={fund}

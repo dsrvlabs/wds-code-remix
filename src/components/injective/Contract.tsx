@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
-import { Button, Form as ReactForm } from 'react-bootstrap';
-import { ChainGrpcWasmApi, MsgExecuteContract } from '@injectivelabs/sdk-ts';
+import { Button, InputGroup, Form as ReactForm } from 'react-bootstrap';
+import {
+  ChainGrpcWasmApi,
+  MsgExecuteContract,
+  spotPriceToChainPriceToFixed,
+  spotQuantityToChainQuantityToFixed,
+} from '@injectivelabs/sdk-ts';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { ChainId } from '@injectivelabs/ts-types';
@@ -10,6 +15,7 @@ import { log } from '../../utils/logger';
 import { useWalletStore } from './WalletContextProvider';
 
 interface InterfaceProps {
+  compileTarget: string;
   contractAddress: string;
   client: any;
   fund: number;
@@ -18,12 +24,16 @@ interface InterfaceProps {
 }
 
 export const Contract: React.FunctionComponent<InterfaceProps> = ({
+  compileTarget,
   contractAddress,
   client,
   schemaExec,
   fund,
   schemaQuery,
 }) => {
+  const [price, setPrice] = useState('');
+  const [quantity, setQuantity] = useState('');
+
   const [queryMsgErr, setQueryMsgErr] = useState('');
   const [queryResult, setQueryResult] = useState('');
 
@@ -37,14 +47,54 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   const executeKeplr = async () => {
     try {
       const funds = fund ? [{ denom: 'inj', amount: fund.toString() }] : [];
+      const usdtFunds = [
+        {
+          denom: 'peggy0x87aB3B4C8661e07D6372361211B96ed4Dc36B1B5',
+          amount: spotQuantityToChainQuantityToFixed({
+            value: fund.toString(),
+            baseDecimals: 6,
+          }),
+        },
+      ];
+
       const executeMsg_ = { ...executeMsg };
-      recursiveValueChange(executeMsg_, stringToNumber);
-      const msg = MsgExecuteContract.fromJSON({
-        contractAddress: contractAddress,
-        sender: injectiveAddress,
-        msg: executeMsg_,
-        funds: funds,
+      const fixedPrice = spotPriceToChainPriceToFixed({
+        value: price,
+        baseDecimals: 18,
+        quoteDecimals: 6,
       });
+      const fixedQuantity = spotQuantityToChainQuantityToFixed({
+        value: quantity,
+        baseDecimals: 18,
+      });
+
+      console.log(fixedPrice, fixedQuantity, usdtFunds);
+      recursiveValueChange(executeMsg_, stringToNumber);
+      const msg = compileTarget.split('/').find((dir) => dir === 'atomic-order-example')
+        ? MsgExecuteContract.fromJSON({
+            contractAddress: contractAddress,
+            sender: injectiveAddress,
+            msg: {
+              swap_spot: {
+                price: spotPriceToChainPriceToFixed({
+                  value: price,
+                  baseDecimals: 18,
+                  quoteDecimals: 6,
+                }),
+                quantity: spotQuantityToChainQuantityToFixed({
+                  value: quantity,
+                  baseDecimals: 18,
+                }),
+              },
+            },
+            funds: usdtFunds,
+          })
+        : MsgExecuteContract.fromJSON({
+            contractAddress: contractAddress,
+            sender: injectiveAddress,
+            msg: executeMsg_,
+            funds: funds,
+          });
       const txResult = await injectiveBroadcastMsg(msg, injectiveAddress);
       await client.terminal.log({
         type: 'info',
@@ -104,6 +154,13 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   const uiSchemaQuery = generateUiSchemaFromSchema(schemaQuery);
   const uiSchemaExecute = generateUiSchemaFromSchema(schemaExec);
 
+  const handlePriceChange = (e: any) => {
+    setPrice(e.target.value);
+  };
+  const handleQuantityChange = (e: any) => {
+    setQuantity(e.target.value);
+  };
+
   return (
     <div>
       <ReactForm>
@@ -137,17 +194,50 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
             style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
             className="mb-2"
           >
-            <Form
-              schema={schemaExec}
-              validator={validator}
-              uiSchema={uiSchemaExecute}
-              onChange={handleExecuteChange}
-              formData={executeMsg || {}}
-            >
-              <Button onClick={executeKeplr} size={'sm'}>
-                Execute
-              </Button>
-            </Form>
+            {compileTarget.split('/').find((dir) => dir === 'atomic-order-example') ? (
+              <ReactForm>
+                <ReactForm.Text className="text-muted" style={{ marginBottom: '4px' }}>
+                  <small>Price</small>
+                </ReactForm.Text>
+                <InputGroup>
+                  <ReactForm.Control
+                    type="number"
+                    placeholder="0"
+                    value={price}
+                    onChange={handlePriceChange}
+                    size="sm"
+                  />
+                  <ReactForm.Control type="text" placeholder="" value={'USDT'} size="sm" readOnly />
+                </InputGroup>
+                <ReactForm.Text className="text-muted" style={{ marginBottom: '4px' }}>
+                  <small>Quantity</small>
+                </ReactForm.Text>
+                <InputGroup>
+                  <ReactForm.Control
+                    type="number"
+                    placeholder="0"
+                    value={quantity}
+                    onChange={handleQuantityChange}
+                    size="sm"
+                  />
+                </InputGroup>
+                <Button onClick={executeKeplr} size={'sm'}>
+                  Execute
+                </Button>
+              </ReactForm>
+            ) : (
+              <Form
+                schema={schemaExec}
+                validator={validator}
+                uiSchema={uiSchemaExecute}
+                onChange={handleExecuteChange}
+                formData={executeMsg || {}}
+              >
+                <Button onClick={executeKeplr} size={'sm'}>
+                  Execute
+                </Button>
+              </Form>
+            )}
           </div>
           <div>
             <span style={{ color: 'red' }}>{executeMsgErr}</span>

@@ -63,7 +63,7 @@ export const INJECTIVE_COMPILER_CONSUMER_ENDPOINT = INJECTIVE_COMPILER_CONSUMER_
 const INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
   local: 'http://localhost:8000',
   dev: 'https://dev.compiler.welldonestudio.io',
-  prod: 'https://prod.compiler.welldonestudio.io/',
+  prod: 'https://prod.compiler.welldonestudio.io',
 };
 
 export const INJECTIVE_COMPILER_CONSUMER_API_ENDPOINT =
