@@ -150,6 +150,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         rustToolchainContent,
       );
       projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+      log.info(
+        `@@@ compile compileTarget=${compileTarget}, refresh projFiles=${JSON.stringify(
+          projFiles,
+          null,
+          2,
+        )}`,
+      );
     }
 
     const blob = await generateZip(projFiles);
