@@ -128,7 +128,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     init();
     // setAbi([]); // todo
 
-    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
+    let projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     log.info(
       `@@@ compile compileTarget=${compileTarget}, projFiles=${JSON.stringify(projFiles, null, 2)}`,
     );
@@ -149,6 +149,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         `browser/${compileTarget}/rust-toolchain.toml`,
         rustToolchainContent,
       );
+      projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
     }
 
     const blob = await generateZip(projFiles);
