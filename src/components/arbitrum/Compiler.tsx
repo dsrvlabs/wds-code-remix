@@ -400,13 +400,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             }
           }
 
-          if (data.logMsg.includes('wasm data fee:')) {
+          // wasm data fee: 0.000062 ETH
+          const prefix = 'wasm data fee: ';
+          const suffix = ' ETH';
+          if (data.logMsg.includes(prefix)) {
             setIsReadToActivate(true);
             const msg = stripAnsi(data.logMsg);
             console.log(`msg=${msg}`);
-            const idx = msg.indexOf('Ξ');
-            const lineFeedIdx = msg.indexOf('\n');
-            const dataFee = msg.slice(idx + 1, lineFeedIdx);
+            const startIdx = msg.indexOf(prefix) + prefix.length;
+            const endIdx = msg.indexOf(suffix);
+            const dataFee = msg.slice(startIdx, endIdx);
             const web3 = new Web3();
             const wei = web3.utils.toWei(dataFee, 'ether');
             const finalWei = new BigNumber(wei).multipliedBy(120).div(100).toString();
@@ -478,18 +481,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             await Promise.all(
               Object.keys(zip.files).map(async (filename) => {
                 log.info(`arbitrum build result filename=${filename}`);
-                if (filename.endsWith('output/deployment_tx_data')) {
-                  const fileData = await zip.files[filename].async('blob');
-                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
+                if (filename.endsWith('output/deployment_tx_data.txt')) {
+                  const hex = await zip.files[filename].async('string');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     hex,
                   );
                   setDeploymentTx(hex);
                   setFileName(filename);
-                } else if (filename.endsWith('output/activation_tx_data')) {
-                  const fileData = await zip.files[filename].async('blob');
-                  const hex = Buffer.from(await fileData.arrayBuffer()).toString('hex');
+                } else if (filename.endsWith('output/activation_tx_data.txt')) {
+                  const hex = await zip.files[filename].async('string');
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/' + filename,
                     hex,
