@@ -8,6 +8,8 @@ interface IDynamicFormProps {
   setMsgData: Dispatch<React.SetStateAction<{ [key: string]: any }>>;
 }
 
+type CosmwasmSchemaType = 'boolean' | 'object' | 'intger' | 'array';
+
 const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProps) => {
   const [selectedSchemaIndex, setSelectedSchemaIndex] = useState(0);
 
@@ -19,7 +21,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
     }
   }, [selectedSchemaIndex, schema]);
 
-  const initializeFormData = (properties: { [x: string]: any }) => {
+  const initializeFormData = (properties: { [key: string]: any }) => {
     const initialData: { [x: string]: any } = {};
     Object.keys(properties).forEach((key) => {
       const property = properties[key];
@@ -42,40 +44,88 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     parentKey: string | number,
     key: string | number,
+    fieldType: CosmwasmSchemaType,
   ) => {
     const { value } = e.target;
-    setMsgData((prevData) => ({
-      ...prevData,
-      [parentKey]: {
-        ...prevData[parentKey],
-        [key]: value,
-      },
-    }));
+    const booleanValueId = e.target.id.split('-');
+    if (fieldType === 'boolean') {
+      setMsgData((prevData) => ({
+        ...prevData,
+        [parentKey]: {
+          ...prevData[parentKey],
+          [key]: booleanValueId[booleanValueId.length - 1],
+        },
+      }));
+    } else {
+      setMsgData((prevData) => ({
+        ...prevData,
+        [parentKey]: {
+          ...prevData[parentKey],
+          [key]: value,
+        },
+      }));
+    }
   };
 
-  const renderFormFields = (properties: { [x: string]: any }, parentKey: string) => {
+  const renderFormFields = (
+    properties: { [key: string]: any },
+    parentKey: string,
+    definitions?: { [key: string]: string },
+  ) => {
+    // console.log(definitions);
     return Object.keys(properties).map((key) => {
       const property = properties[key];
       if (property.type === 'object' && property.properties) {
         return <div key={key}>{renderFormFields(property.properties, key)}</div>;
       } else if (property.type === 'object' && !property.properties) {
-        // return <div key={key}>{`${Object.keys(properties)}`}</div>;
+        // JSON Object property with no property inside
         return null;
-      } // Need more condition for more types
-
-      return (
-        <div key={key}>
-          <Form.Text>{key}</Form.Text>
-          <InputGroup key={key}>
-            <Form.Control
-              key={key}
-              type={property.type === 'integer' ? 'number' : 'text'}
-              value={msgData[parentKey]?.[key] || ''}
-              onChange={(e) => handleInputChange(e, parentKey, key)}
-            ></Form.Control>
-          </InputGroup>
-        </div>
-      );
+      } else if (property.type === 'integer' || property.type === 'string') {
+        return (
+          <div key={key}>
+            <Form.Text>{key}</Form.Text>
+            <InputGroup key={key}>
+              <Form.Control
+                key={key}
+                type={property.type === 'integer' ? 'number' : 'text'}
+                value={msgData[parentKey]?.[key] || ''}
+                onChange={(e) => handleInputChange(e, parentKey, key, property.type)}
+              ></Form.Control>
+            </InputGroup>
+          </div>
+        );
+      } else if (property.type === 'array') {
+        return (
+          <div key={key}>
+            <Form.Text>Array</Form.Text>
+          </div>
+        );
+      } else if (property.type === 'boolean') {
+        return (
+          <div key="inline-radio" className="mt-2">
+            <Form.Check
+              inline
+              name="group1"
+              type="radio"
+              id="inj-radio-bool-true"
+              label={'true'}
+              onChange={(e) => {
+                handleInputChange(e, parentKey, key, property.type);
+              }}
+            />
+            <Form.Check
+              inline
+              name="group1"
+              type="radio"
+              id="inj-radio-bool-true"
+              label={'false'}
+              onChange={(e) => {
+                handleInputChange(e, parentKey, key, property.type);
+              }}
+            />
+          </div>
+        );
+      }
     });
   };
 
@@ -86,6 +136,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
   return (
     <div>
       <Form.Group className="mb-2">
+        <Form.Text className="mb-2">{schema.title}</Form.Text>
         <Form.Control className="custom-select" as="select" onChange={handleSchemaSelection}>
           {schema.oneOf
             ? schema.oneOf.map((option: any, index: any) => (
@@ -95,7 +146,9 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
               ))
             : null}
         </Form.Control>
-        {schema.oneOf ? renderFormFields(schema.oneOf[selectedSchemaIndex].properties, '') : null}
+        {schema.oneOf
+          ? renderFormFields(schema.oneOf[selectedSchemaIndex].properties, '', schema.definitions)
+          : null}
       </Form.Group>
       {children}
     </div>
