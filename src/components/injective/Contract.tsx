@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Button, InputGroup, Form as ReactForm } from 'react-bootstrap';
 import {
@@ -7,12 +7,14 @@ import {
   spotPriceToChainPriceToFixed,
   spotQuantityToChainQuantityToFixed,
 } from '@injectivelabs/sdk-ts';
-import Form from '@rjsf/core';
+import Form, { IChangeEvent } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { ChainId } from '@injectivelabs/ts-types';
 import { toBase64, fromBase64 } from '@injectivelabs/sdk-ts';
 import { log } from '../../utils/logger';
 import { useWalletStore } from './WalletContextProvider';
+import DynamicForm from './DynamicForm';
+import { RJSFSchema, RegistryWidgetsType, WidgetProps } from '@rjsf/utils';
 
 interface InterfaceProps {
   compileTarget: string;
@@ -40,8 +42,8 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
   const [executeMsgErr, setExecuteMsgErr] = useState('');
   const [executeResult, setExecuteResult] = useState('');
 
-  const [queryMsg, setQueryMsg] = useState({});
-  const [executeMsg, setExecuteMsg] = useState({});
+  const [queryMsg, setQueryMsg] = useState<{ [key: string]: any }>({});
+  const [executeMsg, setExecuteMsg] = useState<{ [key: string]: any }>({});
   const { injectiveBroadcastMsg, injectiveAddress, chainId } = useWalletStore();
 
   const executeKeplr = async () => {
@@ -68,7 +70,6 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         baseDecimals: 18,
       });
 
-      console.log(fixedPrice, fixedQuantity, usdtFunds);
       recursiveValueChange(executeMsg_, stringToNumber);
       const msg = compileTarget.split('/').find((dir) => dir === 'atomic-order-example')
         ? MsgExecuteContract.fromJSON({
@@ -132,27 +133,22 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     setQueryMsg(formData);
   };
 
-  const handleExecuteChange = ({ formData }: any) => {
-    setExecuteMsg(formData);
-  };
-
   const generateUiSchemaFromSchema = (schema: any) => {
     if (schema.oneOf) {
+      // Create enumOptions from schema.oneOf
       const enumOptions = schema.oneOf.map((obj: any, key: any) => {
-        const lbl = Object.keys(obj.properties)[0];
+        const lbl = Object.keys(obj.properties)[0]; // Use the first property as the label
         return { value: key, label: lbl };
       });
+
       return {
         'ui:widget': 'select',
         'ui:options': { enumOptions },
-        classNames: 'no-legend',
+        'ui:classNames': 'no-legend',
       };
     }
     return {};
   };
-
-  const uiSchemaQuery = generateUiSchemaFromSchema(schemaQuery);
-  const uiSchemaExecute = generateUiSchemaFromSchema(schemaExec);
 
   const handlePriceChange = (e: any) => {
     setPrice(e.target.value);
@@ -172,7 +168,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
             <Form
               schema={schemaQuery}
               validator={validator}
-              uiSchema={uiSchemaQuery}
+              uiSchema={generateUiSchemaFromSchema(schemaQuery)}
               onChange={handleQueryChange}
               formData={queryMsg || {}}
             >
@@ -190,10 +186,7 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
         </ReactForm.Group>
         <hr />
         <ReactForm.Group>
-          <div
-            style={{ display: 'flex', alignItems: 'center', margin: '0.3em 0.3em' }}
-            className="mb-2"
-          >
+          <div className="mb-2">
             {compileTarget.split('/').find((dir) => dir === 'atomic-order-example') ? (
               <ReactForm>
                 <ReactForm.Text className="text-muted" style={{ marginBottom: '4px' }}>
@@ -226,17 +219,11 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
                 </Button>
               </ReactForm>
             ) : (
-              <Form
-                schema={schemaExec}
-                validator={validator}
-                uiSchema={uiSchemaExecute}
-                onChange={handleExecuteChange}
-                formData={executeMsg || {}}
-              >
+              <DynamicForm schema={schemaExec} msgData={executeMsg} setMsgData={setExecuteMsg}>
                 <Button onClick={executeKeplr} size={'sm'}>
                   Execute
                 </Button>
-              </Form>
+              </DynamicForm>
             )}
           </div>
           <div>
