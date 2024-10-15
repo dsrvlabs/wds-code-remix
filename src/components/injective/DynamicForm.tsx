@@ -32,25 +32,47 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
     const initialData: { [x: string]: any } = {};
     Object.keys(properties).forEach((key) => {
       const property = properties[key];
-
       if (property.type === 'object' && property.properties) {
-        initialData[key] = initializeFormData(property.properties);
+        initialData[key] = initializeFormData(property.properties, key);
       } else if (property.type === 'string' || property === 'string') {
         initialData[key] = '';
       } else if (property.type === 'integer' || property === 'integer') {
         initialData[key] = 0;
       } else if (property.type === 'array') {
-        initialData[key] = [];
+        const arrayInitialData: any[] = [];
+        const initialArrayData = initializeFormData(property.items, key);
+        if (property.items) {
+          Object.keys(initialArrayData).forEach((key) => {
+            if (key === '$ref') {
+              if (initialArrayData.$ref.type !== '' && initialArrayData.$ref.type) {
+                arrayInitialData.push(initialArrayData[key]);
+              } else {
+                // console.log(initialArrayData);
+              }
+            } else {
+              arrayInitialData.push(initialArrayData);
+            }
+          });
+        }
+        initialData[key] = arrayInitialData;
       } else if (property.type === 'object' && !property.properties) {
         initialData[key] = {};
-      } else if (property.$ref) {
-        const refProperty = resolveRef(property.$ref, schema.definitions);
-        initialData[key] = initializeFormData(refProperty);
+      } else if (property.$ref || key === '$ref') {
+        const refProperty = resolveRef(
+          key === '$ref' ? property : property.$ref,
+          schema.definitions,
+        );
+        const refData = initializeFormData(refProperty, key);
+        if (typeof refData === 'string' || typeof refData === 'number' || Array.isArray(refData)) {
+          initialData[key] = refData;
+        } else {
+          Object.keys(refData).find((refDataKey) => refDataKey === key)
+            ? Object.assign(initialData, refData)
+            : (initialData[key] = refData);
+        }
       } else if (isObject(property) && !property.type) {
-        // type 이 들어감
         Object.keys(property).forEach((key) => {
-          const { type } = initializeFormData(property[key]);
-
+          const { type } = initializeFormData(property[key], key);
           initialData[key] = type;
         });
       }
@@ -60,29 +82,67 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
 
   const updateSpecificNestedKey = (
     obj: any,
-    parentKey: string | number,
-    targetKey: string | number,
+    parentKey: string,
+    targetKey: string,
     newValue: any,
   ) => {
     const newData = JSON.parse(JSON.stringify(obj));
-    function recurse(currentObj: { [x: string]: any }) {
+
+    const recurse = (currentObj: { [x: string]: any }) => {
       Object.keys(currentObj).forEach((key) => {
         if (typeof currentObj[key] === 'object' && currentObj[key] !== null) {
           if (key === parentKey && currentObj[key].hasOwnProperty(targetKey)) {
             currentObj[key][targetKey] = newValue;
           }
           recurse(currentObj[key]);
+        } else if (Array.isArray(currentObj[key])) {
+          if (
+            key === parentKey &&
+            currentObj[key].find((obj: any) => Object.keys(obj).includes(targetKey))
+          ) {
+            const targetObjIndex = currentObj[key].findIndex((obj: any) =>
+              Object.keys(obj).includes(targetKey),
+            );
+            currentObj[key][targetObjIndex][targetKey] = newValue;
+          }
+          recurse(currentObj[key]);
         }
       });
-    }
+    };
     recurse(newData);
     return newData;
+  };
+  const findSpecificNestedValue = (obj: any, parentKey: any, targetKey: any, index?: number) => {
+    let foundValue: string | number = 'default';
+
+    const recursiveFindValue = (currentObj: { [x: string]: any }) => {
+      Object.keys(currentObj).forEach((key) => {
+        if (isObject(currentObj[key]) && currentObj[key] !== null) {
+          if (key === parentKey && currentObj[key].hasOwnProperty(targetKey)) {
+            foundValue = currentObj[key][targetKey];
+          }
+          recursiveFindValue(currentObj[key]);
+        } else if (Array.isArray(currentObj[key])) {
+          if (
+            key === parentKey &&
+            currentObj[key].find((obj: any) => Object.keys(obj).includes(targetKey))
+          ) {
+            const targetObjIndex = currentObj[key].findIndex((obj: any) =>
+              Object.keys(obj).includes(targetKey),
+            );
+            foundValue = currentObj[key][targetObjIndex][targetKey];
+          }
+        }
+      });
+    };
+    recursiveFindValue(obj);
+    return foundValue;
   };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    parentKey: string | number,
-    key: string | number,
+    parentKey: string,
+    key: string,
     fieldType: CosmwasmSchemaType,
   ) => {
     const { value } = e.target;
@@ -98,6 +158,11 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
     } else if (!Object.keys(msgData).some((key) => key === parentKey)) {
       const updatedMsgData = updateSpecificNestedKey(msgData, parentKey, key, value);
       setMsgData(updatedMsgData);
+    } else if (fieldType === 'array') {
+      setMsgData((prevData) => ({
+        ...prevData,
+        [parentKey]: [...prevData[parentKey]].concat(value),
+      }));
     } else {
       setMsgData((prevData) => ({
         ...prevData,
@@ -112,8 +177,6 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
   const handleRefFieldChange = (e: any) => {
     setSelectedRefFieldIndex(Number(e.target.value));
   };
-
-  // TODO: Accept object itself not properties
 
   const renderFormFields: any = (
     schemaProperty: { [key: string]: any },
@@ -130,6 +193,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
         // JSON Object property with no property inside
         return <div>No Object</div>;
       } else if (type === 'integer' || type === 'string') {
+        console.log(property);
         return (
           <div key={key}>
             <Form.Text>{key}</Form.Text>
@@ -137,9 +201,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
               <Form.Control
                 key={key}
                 type={property.type === 'integer' ? 'number' : 'text'}
-                //had to use uncotrolled form since this form doesn't have submit not really critical
-                //but have to fix it
-                // value={msgData[pathKeys[0]]?.[pathKeys[1] as any]?.[key as any] || ''}
+                value={findSpecificNestedValue(msgData, parentKey, key) || ''}
                 onChange={(e) => handleInputChange(e, parentKey, key, property.type)}
               ></Form.Control>
             </InputGroup>
@@ -149,6 +211,11 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
         return (
           <div key={key}>
             <Form.Text>Array</Form.Text>
+            <Button size="sm" onClick={() => {}}>
+              +
+            </Button>
+            {/* {renderFormFields(property, key, definitions)} */}
+            {/* <Form.Control></Form.Control> */}
           </div>
         );
       } else if (type === 'boolean') {
@@ -179,10 +246,9 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
       } else if (property.$ref) {
         const refKey = property.$ref.replace('#/definitions/', '');
         const refProperty = resolveRef(property.$ref, definitions!);
-
         return (
           <div key={key}>
-            <Form.Text style={{ fontSize: '1em' }}>{key === '0' ? null : key}</Form.Text>
+            {/* <Form.Text style={{ fontSize: '1em' }}>{key === '0' ? null : key}</Form.Text> */}
             <Form.Text>{refKey}</Form.Text>
             {renderFormFields(refProperty, key, definitions)}
           </div>
@@ -237,6 +303,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
           ? renderFormFields(schema.oneOf[selectedSchemaIndex], '', schema.definitions)
           : null}
       </Form.Group>
+      {children}
       <Button
         onClick={() => {
           console.log(msgData);
@@ -244,9 +311,7 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
       >
         Test
       </Button>
-      {children}
     </div>
   );
 };
-
 export default DynamicForm;
