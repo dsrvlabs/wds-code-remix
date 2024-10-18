@@ -153,15 +153,22 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
                       //ref inside the ref (e.g FPDecimal)
                       if (refData.properties) {
                         Object.keys(refData.properties).forEach((propertyKey) => {
-                          setMsgData((prevData) => ({
-                            [schemaName]: {
-                              ...prevData[schemaName],
-                              [key]: {
-                                [propertyKey]:
-                                  refData.properties[propertyKey].type === 'integer' ? 0 : '',
-                              },
-                            },
-                          }));
+                          setMsgData((prevData) => {
+                            if (prevData[schemaName]) {
+                              return {
+                                [schemaName]: {
+                                  ...prevData[schemaName],
+                                  [key]: {
+                                    ...prevData[schemaName][key],
+                                    [propertyKey]:
+                                      refData.properties[propertyKey].type === 'integer' ? 0 : '',
+                                  },
+                                },
+                              };
+                            } else {
+                              return prevData;
+                            }
+                          });
                         });
                         setFieldData((prevData) => ({
                           ...prevData,
@@ -207,13 +214,32 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
       }
     });
   };
-  const handleInputChange = (e: any, fieldKey: any, parentKey?: any, index?: number) => {
-    setMsgData((prevData) => ({
-      [selectedSchemaName]: {
-        ...prevData[selectedSchemaName],
-        [fieldKey]: e.target.value,
-      },
-    }));
+
+  const handleInputChange = (e: any, fieldKey: any, subFieldKey?: any, index?: number) => {
+    if (subFieldKey) {
+      setMsgData((prevData) => {
+        if (prevData[selectedSchemaName]) {
+          return {
+            [selectedSchemaName]: {
+              ...prevData[selectedSchemaName],
+              [fieldKey]: {
+                ...prevData[selectedSchemaName][fieldKey],
+                [subFieldKey]: e.target.value,
+              },
+            },
+          };
+        } else {
+          return prevData;
+        }
+      });
+    } else {
+      setMsgData((prevData) => ({
+        [selectedSchemaName]: {
+          ...prevData[selectedSchemaName],
+          [fieldKey]: e.target.value,
+        },
+      }));
+    }
   };
 
   const renderForm = () => {
@@ -254,7 +280,15 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
           </div>
         );
       } else if (fieldData[dataKey] === 'string') {
-        return <Form.Control className="mb-2" key={dataKey} type="text"></Form.Control>;
+        return (
+          <Form.Control
+            className="mb-2"
+            key={dataKey}
+            type="text"
+            value={msgData[selectedSchemaName][fieldName]}
+            onChange={(e) => handleInputChange(e, fieldName)}
+          ></Form.Control>
+        );
       } else if (fieldData[dataKey] === 'integer') {
         return (
           <Form.Control
@@ -262,9 +296,31 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
             key={dataKey}
             type="number"
             value={msgData[selectedSchemaName][fieldName]}
-            onChange={(e) => handleInputChange(e, fieldName, parentKey)}
+            onChange={(e) => handleInputChange(e, fieldName)}
           ></Form.Control>
         );
+      } else if (isObject(fieldData[dataKey])) {
+        if (fieldData[dataKey].type === 'string') {
+          return (
+            <Form.Control
+              className="mb-2"
+              key={dataKey}
+              type="text"
+              value={msgData[selectedSchemaName][fieldName][dataKey]}
+              onChange={(e) => handleInputChange(e, fieldName, dataKey)}
+            ></Form.Control>
+          );
+        } else if (fieldData[dataKey].type === 'integer') {
+          return (
+            <Form.Control
+              className="mb-2"
+              key={dataKey}
+              type="number"
+              value={msgData[selectedSchemaName][fieldName][dataKey]}
+              onChange={(e) => handleInputChange(e, fieldName, dataKey)}
+            ></Form.Control>
+          );
+        }
       } else {
         return null;
       }
@@ -281,7 +337,6 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
     if (schema.oneOf) {
       makeSelectedSchemaData(schema.oneOf[selectedSchemaIndex], schema.definitions);
     }
-    console.log(msgData);
   }, [makeSelectedSchemaData, schema, selectedSchemaIndex]);
 
   return (
@@ -302,14 +357,6 @@ const DynamicForm = ({ schema, children, msgData, setMsgData }: IDynamicFormProp
             : null}
         </Form.Control>
         {renderForm()}
-        <Button
-          onClick={() => {
-            console.log(msgData);
-            console.log(selectedSchemaName);
-          }}
-        >
-          Test
-        </Button>
         {children}
       </Form.Group>
     </div>
