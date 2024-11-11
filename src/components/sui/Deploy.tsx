@@ -208,6 +208,24 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         suiDeployHistoryCreateDto,
       );
       log.info(`sui-packages api res`, res);
+
+      axios
+        .post(COMPILER_API_ENDPOINT + '/sui/verifications', {
+          network: res.data.chainId,
+          packageId: res.data.packageId,
+        })
+        .then((response) => {
+          console.log('Success (POST /sui/verifications): ', response.data);
+        })
+        .catch((error) => {
+          console.error(
+            'Error (POST /sui/verifications):',
+            error.response ? error.response.data : error.message,
+          );
+        })
+        .finally(() => {
+          console.log('POST /sui/verifications Request completed');
+        });
     } catch (e) {
       log.error(`sui-packages api error`);
       console.error(e);
