@@ -227,11 +227,32 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
                     'Content-Type': 'application/octet-stream',
                   },
                 })
-                .then((response) => {
+                .then(async (response) => {
                   console.log(
                     'Success (PUT https://publisher.walrus-testnet.walrus.space/v1/store): ',
                     response.data,
                   );
+                  const result = response.data;
+                  let walrusBlobId;
+                  if (result.newlyCreated?.blobObject?.blobId) {
+                    walrusBlobId = result.newlyCreated.blobObject.blobId;
+                  } else if (result.alreadyCertified?.blobId) {
+                    walrusBlobId = result.alreadyCertified.blobId;
+                  } else {
+                    console.error(`Not found walrus blobId`);
+                  }
+
+                  if (walrusBlobId) {
+                    try {
+                      const res = await axios.post(COMPILER_API_ENDPOINT + '/sui/walrus-blob-id', {
+                        chainId: dapp.networks.sui.chain,
+                        packageId: publishedChange.packageId,
+                        blobId: walrusBlobId,
+                      });
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }
                 })
                 .catch((error) => {
                   console.error(
