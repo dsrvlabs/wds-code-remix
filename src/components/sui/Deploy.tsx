@@ -46,6 +46,7 @@ interface InterfaceProps {
   setInputAddress: Function;
   initContract: Function;
   uploadCodeChecked: boolean;
+  blob: Blob | undefined;
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
@@ -67,6 +68,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   setInputAddress,
   initContract,
   uploadCodeChecked,
+  blob,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -209,23 +211,52 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       );
       log.info(`sui-packages api res`, res);
 
-      axios
-        .post(COMPILER_API_ENDPOINT + '/sui/verifications', {
-          network: res.data.chainId,
-          packageId: res.data.packageId,
-        })
-        .then((response) => {
-          console.log('Success (POST /sui/verifications): ', response.data);
-        })
-        .catch((error) => {
-          console.error(
-            'Error (POST /sui/verifications):',
-            error.response ? error.response.data : error.message,
-          );
-        })
-        .finally(() => {
-          console.log('POST /sui/verifications Request completed');
-        });
+      if (uploadCodeChecked) {
+        axios
+          .post(COMPILER_API_ENDPOINT + '/sui/verifications', {
+            network: res.data.chainId,
+            packageId: res.data.packageId,
+          })
+          .then((response) => {
+            console.log('Success (POST /sui/verifications): ', response.data);
+            console.log(`@@@ blob`, blob);
+            if (blob) {
+              console.log(`try walrus upload.`);
+              axios
+                .post('https://publisher.walrus-testnet.walrus.space', blob, {
+                  headers: {
+                    'Content-Type': 'application/octet-stream',
+                  },
+                })
+                .then((response) => {
+                  console.log(
+                    'Success (POST https://publisher.walrus-testnet.walrus.space): ',
+                    response.data,
+                  );
+                })
+                .catch((error) => {
+                  console.error(
+                    'Error (POST https://publisher.walrus-testnet.walrus.space):',
+                    error.response ? error.response.data : error.message,
+                  );
+                })
+                .finally(() => {
+                  console.log(
+                    'POST https://publisher.walrus-testnet.walrus.space): Request completed',
+                  );
+                });
+            }
+          })
+          .catch((error) => {
+            console.error(
+              'Error (POST /sui/verifications):',
+              error.response ? error.response.data : error.message,
+            );
+          })
+          .finally(() => {
+            console.log('POST /sui/verifications Request completed');
+          });
+      }
     } catch (e) {
       log.error(`sui-packages api error`);
       console.error(e);
