@@ -155,6 +155,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [targetFunc, setTargetFunc] = useState<SuiFunc>();
   const [genericParameters, setGenericParameters] = useState<string[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
+  const [zipBlob, setZipBlob] = useState<Blob | undefined>(undefined);
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
   useEffect(() => {
@@ -165,6 +166,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setFileNames([]);
     setCompiledModulesAndDeps(undefined);
     setCliVersion('');
+    setZipBlob(undefined);
   }, [compileTarget]);
 
   const handleCheckboxChange = (event: {
@@ -195,6 +197,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       setFileNames([]);
       setCompiledModulesAndDeps(undefined);
       setCliVersion('');
+      setZipBlob(undefined);
     } catch (e) {
       log.info(`no out folder`);
     }
@@ -285,6 +288,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const address = accountID;
     const timestamp = Date.now().toString();
     setCompileTimestamp(timestamp);
+    setZipBlob(blob);
 
     // ------------------------------------------------------------------
     const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
@@ -1207,6 +1211,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setFileNames([]);
     setCompiledModulesAndDeps(undefined);
     setCliVersion('');
+    setZipBlob(undefined);
 
     if (isEmptyList(artifactPaths)) {
       return [];
@@ -1415,6 +1420,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             setInputAddress={setInputAddress}
             initContract={initContract}
             uploadCodeChecked={uploadCodeChecked}
+            blob={zipBlob}
           />
         ) : null
         // <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
