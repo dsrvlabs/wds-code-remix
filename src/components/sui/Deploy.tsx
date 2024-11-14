@@ -223,26 +223,26 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             if (blob) {
               console.log(`try walrus upload.`);
               axios
-                .post('https://publisher.walrus-testnet.walrus.space', blob, {
+                .post('https://publisher.walrus-testnet.walrus.space/v1/store', blob, {
                   headers: {
                     'Content-Type': 'application/octet-stream',
                   },
                 })
                 .then((response) => {
                   console.log(
-                    'Success (POST https://publisher.walrus-testnet.walrus.space): ',
+                    'Success (POST https://publisher.walrus-testnet.walrus.space/v1/store): ',
                     response.data,
                   );
                 })
                 .catch((error) => {
                   console.error(
-                    'Error (POST https://publisher.walrus-testnet.walrus.space):',
+                    'Error (POST https://publisher.walrus-testnet.walrus.space/v1/store):',
                     error.response ? error.response.data : error.message,
                   );
                 })
                 .finally(() => {
                   console.log(
-                    'POST https://publisher.walrus-testnet.walrus.space): Request completed',
+                    'POST https://publisher.walrus-testnet.walrus.space/v1/store): Request completed',
                   );
                 });
             }
