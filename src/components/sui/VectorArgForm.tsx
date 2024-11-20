@@ -705,32 +705,36 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
               <label>String</label>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              className={`vec-parse-type-${parentIdx}`}
-              id={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
-              type="radio"
-              name={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
-              placeholder={vectorElType}
-              onChange={(event) => handleParseType(event, parentIdx)}
-            />
-            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-              <label>Decimal</label>
+          {vectorElType !== '0x1::string::String' && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                className={`vec-parse-type-${parentIdx}`}
+                id={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
+                type="radio"
+                name={`vec-parse-type-${parentIdx}-decimal-${indexMemo.join('-')}`}
+                placeholder={vectorElType}
+                onChange={(event) => handleParseType(event, parentIdx)}
+              />
+              <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+                <label>Decimal</label>
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              className={`vec-parse-type-${parentIdx}`}
-              id={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
-              type="radio"
-              name={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
-              placeholder={vectorElType}
-              onChange={(event) => handleParseType(event, parentIdx)}
-            />
-            <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-              <label>Hex</label>
+          )}
+          {vectorElType !== '0x1::string::String' && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                className={`vec-parse-type-${parentIdx}`}
+                id={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
+                type="radio"
+                name={`vec-parse-type-${parentIdx}-hex-${indexMemo.join('-')}`}
+                placeholder={vectorElType}
+                onChange={(event) => handleParseType(event, parentIdx)}
+              />
+              <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
+                <label>Hex</label>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
       <div style={{ border: '0.1px solid', padding: '0.5em' }}>{renderWrapper()}</div>
