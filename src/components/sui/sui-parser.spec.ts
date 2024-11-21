@@ -10,7 +10,7 @@ import {
   stringifySuiVectorType,
   suiTypeName,
 } from './sui-parser';
-import { SuiMoveAbilitySet, SuiMoveNormalizedType } from '@mysten/sui.js/client';
+import { SuiMoveAbilitySet, SuiMoveNormalizedType } from '@mysten/sui/client';
 
 describe('Sui Parser', () => {
   it('isHexadecimal', async () => {
