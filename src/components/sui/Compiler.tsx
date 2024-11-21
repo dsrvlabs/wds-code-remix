@@ -67,7 +67,7 @@ import {
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import { SuiFunc, SuiModule } from './sui-types';
-import { SuiObjectData } from '@mysten/sui.js/client';
+import { SuiObjectData } from '@mysten/sui/client';
 import { Deploy } from './Deploy';
 import { CustomTooltip } from '../common/CustomTooltip';
 import { CopyToClipboard } from '../common/CopyToClipboard';

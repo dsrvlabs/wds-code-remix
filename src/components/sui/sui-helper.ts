@@ -1,16 +1,16 @@
 import { log } from '../../utils/logger';
 import { ensureBigInt, ensureNumber } from './transaction_builder/builder_utils';
 import { CompiledModulesAndDeps } from 'wds-event';
-import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { fromB64, normalizeSuiObjectId } from '@mysten/sui.js/utils';
+import { Transaction } from '@mysten/sui/transactions';
+import { fromB64, normalizeSuiObjectId } from '@mysten/sui/utils';
 import {
   getFullnodeUrl,
   SuiClient,
   SuiTransactionBlockResponse,
   SuiMoveNormalizedType,
-} from '@mysten/sui.js/client';
+} from '@mysten/sui/client';
 import { SuiFunc, SuiModule } from './sui-types';
-import { SuiObjectData } from '@mysten/sui.js/client';
+import { SuiObjectData } from '@mysten/sui/client';
 import { delay } from '../near/utils/waitForTransaction';
 
 const yaml = require('js-yaml');
@@ -22,7 +22,7 @@ export async function dappPublishTxn(
   compiledModulesAndDeps: CompiledModulesAndDeps,
   gas: number,
 ) {
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
   tx.setGasBudget(gas);
   const cap = tx.publish({
@@ -31,7 +31,7 @@ export async function dappPublishTxn(
       normalizeSuiObjectId(addr),
     ),
   });
-  tx.transferObjects([cap], tx.pure(accountId));
+  tx.transferObjects([cap], tx.pure.address(accountId));
   tx.setSender(accountId);
   return tx.serialize();
 }
@@ -58,7 +58,7 @@ export async function moveCallTxn(
       '\n\n--------------------------------------------------------------------',
   });
   log.debug('gas', gas);
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   tx.setSender(accountId);
   // TODO: Publish dry runs fail currently, so we need to set a gas budget:
   tx.setGasBudget(gas);
@@ -77,7 +77,7 @@ export async function moveCallTxn(
         )
       ) {
         return tx.makeMoveVec({
-          objects: arg.map((a: any) => tx.pure(a)),
+          elements: arg.map((a: any) => tx.pure(a)),
         });
       }
       return tx.pure(arg);

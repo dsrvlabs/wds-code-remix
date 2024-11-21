@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Form } from 'react-bootstrap';
 import { SuiFunc } from './sui-types';
-import { SuiMoveNormalizedType } from '@mysten/sui.js/client';
+import { SuiMoveNormalizedType } from '@mysten/sui/client';
 import { log } from '../../utils/logger';
 import { txCtxRemovedParameters } from './sui-helper';
 import {
