@@ -79,10 +79,24 @@ export async function moveCallTxn(
         return tx.makeMoveVec({
           elements: arg.map((a: any) => tx.pure(a)),
         });
-      } else if (arg.includes('0x')) {
-        return tx.object(arg);
-      } else {
+      } else if (parameter === 'Bool') {
+        return tx.pure.u8(arg);
+      } else if (parameter === 'U8') {
+        return tx.pure.u8(arg);
+      } else if (parameter === 'U16') {
+        return tx.pure.u16(arg);
+      } else if (parameter === 'U32') {
+        return tx.pure.u32(arg);
+      } else if (parameter === 'U64') {
         return tx.pure.u64(arg);
+      } else if (parameter === 'U128') {
+        return tx.pure.u128(arg);
+      } else if (parameter === 'U256') {
+        return tx.pure.u256(arg);
+      } else if (parameter.MutableReference?.Struct) {
+        return tx.object(arg);
+      } else if (parameter === 'Address') {
+        return tx.pure.address(arg);
       }
     }),
   };
