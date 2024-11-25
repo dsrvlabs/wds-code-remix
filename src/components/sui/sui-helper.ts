@@ -79,8 +79,11 @@ export async function moveCallTxn(
         return tx.makeMoveVec({
           elements: arg.map((a: any) => tx.pure(a)),
         });
+      } else if (arg.includes('0x')) {
+        return tx.object(arg);
+      } else {
+        return tx.pure.u64(arg);
       }
-      return tx.pure(arg);
     }),
   };
   log.info('moveCallInput', moveCallInput);
