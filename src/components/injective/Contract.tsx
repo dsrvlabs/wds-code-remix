@@ -13,9 +13,6 @@ import { ChainId } from '@injectivelabs/ts-types';
 import { toBase64, fromBase64 } from '@injectivelabs/sdk-ts';
 import { log } from '../../utils/logger';
 import { useWalletStore } from './WalletContextProvider';
-import DynamicForm from './DynamicForm';
-import { RJSFSchema, RegistryWidgetsType, WidgetProps } from '@rjsf/utils';
-
 interface InterfaceProps {
   compileTarget: string;
   contractAddress: string;
@@ -157,6 +154,12 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     setQuantity(e.target.value);
   };
 
+  const handleExecuteChange = ({ formData }: any) => {
+    setExecuteMsg(formData);
+  };
+
+  const uiSchemaExecute = generateUiSchemaFromSchema(schemaExec);
+
   return (
     <div>
       <ReactForm>
@@ -219,13 +222,23 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
                 </Button>
               </ReactForm>
             ) : (
-              <DynamicForm schema={schemaExec} msgData={executeMsg} setMsgData={setExecuteMsg}>
+              <Form
+                schema={schemaExec}
+                validator={validator}
+                uiSchema={uiSchemaExecute}
+                onChange={handleExecuteChange}
+                formData={executeMsg || {}}
+                experimental_defaultFormStateBehavior={{
+                  mergeDefaultsIntoFormData: 'useDefaultIfFormDataUndefined',
+                }}
+              >
                 <Button onClick={executeKeplr} size={'sm'}>
                   Execute
                 </Button>
-              </DynamicForm>
+              </Form>
             )}
           </div>
+
           <div>
             <span style={{ color: 'red' }}>{executeMsgErr}</span>
           </div>
