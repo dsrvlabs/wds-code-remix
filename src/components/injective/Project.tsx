@@ -7,6 +7,9 @@ import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import JSZip from 'jszip';
 
+import { useWalletStore } from './WalletContextProvider';
+import AtAddress from './AtAddress';
+
 const mt8 = {
   marginTop: '8px',
 };
@@ -24,7 +27,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
   const [template, setTemplate] = useState<string>('counter');
-  const templateList = ['counter','dummy','atomic-order-example','cw20-adapter'];
+  const templateList = ['counter', 'dummy', 'atomic-order-example', 'cw20-adapter'];
   const [fileName, setFileName] = useState<string>('');
   const [contractAddress, setContractAddress] = useState<string>('');
   const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
@@ -259,12 +262,14 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
           </InputGroup>
         </Form.Group>
       </Form>
+
       <Compiler
         fileName={fileName}
         setFileName={setFileName}
         compileTarget={compileTarget}
         client={client}
       />
+      <AtAddress />
     </div>
   );
 };
