@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Button, InputGroup, Form as ReactForm } from 'react-bootstrap';
 import {
@@ -7,12 +7,13 @@ import {
   spotPriceToChainPriceToFixed,
   spotQuantityToChainQuantityToFixed,
 } from '@injectivelabs/sdk-ts';
-import Form, { IChangeEvent } from '@rjsf/core';
+import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { ChainId } from '@injectivelabs/ts-types';
 import { toBase64, fromBase64 } from '@injectivelabs/sdk-ts';
 import { log } from '../../utils/logger';
 import { useWalletStore } from './WalletContextProvider';
+import { recursiveValueChange, stringToNumber } from './injective-helper';
 interface InterfaceProps {
   compileTarget: string;
   contractAddress: string;
@@ -250,20 +251,3 @@ export const Contract: React.FunctionComponent<InterfaceProps> = ({
     </div>
   );
 };
-
-function recursiveValueChange(obj: any, callback: any) {
-  for (const key in obj) {
-    if (typeof obj[key] === 'object' && obj[key] !== null) {
-      recursiveValueChange(obj[key], callback);
-    } else {
-      obj[key] = callback(obj[key]);
-    }
-  }
-}
-
-function stringToNumber(value: any) {
-  if (!isNaN(value) && typeof value === 'string' && value.trim() !== '') {
-    return parseFloat(value);
-  }
-  return value;
-}
