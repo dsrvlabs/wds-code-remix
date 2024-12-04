@@ -1,7 +1,7 @@
 import {
   ChainGrpcWasmApi,
   toBase64,
-  TxGrpcClient,
+  TxGrpcApi,
   MsgExecuteContractCompat,
   createTransaction,
   ChainRestAuthApi,
@@ -71,7 +71,7 @@ const AtAddress = () => {
     const network = chainId === 'injective-888' ? Network.Testnet : Network.Mainnet;
     const endpoints = getNetworkEndpoints(network);
     const grpcWasmApi = new ChainGrpcWasmApi(endpoints.grpc);
-    const txService = new TxGrpcClient(endpoints.grpc);
+    const txService = new TxGrpcApi(endpoints.grpc);
 
     if (!(contractAddr.includes('inj') && contractAddr.length === 42)) {
       //TODO Error code here

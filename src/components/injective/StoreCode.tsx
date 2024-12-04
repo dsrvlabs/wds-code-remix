@@ -2,7 +2,7 @@ import { Button, Form, InputGroup } from 'react-bootstrap';
 import React, { Dispatch, useState } from 'react';
 import { log } from '../../utils/logger';
 import {
-  TxGrpcClient,
+  TxGrpcApi,
   MsgStoreCode,
   getEip712TypedDataV2,
   ChainGrpcAuthApi,
@@ -56,7 +56,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
     ).grpc;
     try {
-      const txResult = await new TxGrpcClient(grpcEndpoing).fetchTxPoll(txHash, 30000);
+      const txResult = await new TxGrpcApi(grpcEndpoing).fetchTxPoll(txHash, 30000);
       const decoder = new TextDecoder();
       const codeIDUint8Array = txResult
         .events!.find(
@@ -88,7 +88,6 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       } else {
         throw new Error('Error while broadcasting. Please Check your wallet is locked');
       }
-
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
