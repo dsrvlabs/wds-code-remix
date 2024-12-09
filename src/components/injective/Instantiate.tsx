@@ -1,5 +1,5 @@
 import React, { Dispatch, useEffect, useState } from 'react';
-import { TxRestClient, MsgInstantiateContract, MsgMigrateContract } from '@injectivelabs/sdk-ts';
+import { TxRestApi, MsgInstantiateContract, MsgMigrateContract } from '@injectivelabs/sdk-ts';
 import { ChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { log } from '../../utils/logger';
@@ -74,7 +74,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
     );
 
-    const txRestClient = new TxRestClient(endPoint.rest);
+    const txRestClient = new TxRestApi(endPoint.rest);
     return new Promise(async function (resolve) {
       const result = await txRestClient.fetchTxPoll(hash, 30000);
       if (result.code !== 0) {
@@ -96,7 +96,7 @@ export const Instantiate: React.FunctionComponent<InterfaceProps> = ({
       resolve(contractAddress);
     });
   };
-  
+
   const instantiateKeplr = async () => {
     try {
       const funds =

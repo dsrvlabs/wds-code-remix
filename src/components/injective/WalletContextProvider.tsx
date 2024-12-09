@@ -181,11 +181,26 @@ const WalletContextProvider = (props: Props) => {
 
   const injectiveBroadcastMsg = async (msg: any, address?: string) => {
     try {
+      //TODO Refactor this code (works but looks weird)
       if (address) {
         if (walletType === Wallet.Metamask) {
           chainId === ChainId.Mainnet
-            ? await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Mainnet)
-            : await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Sepolia);
+            ? await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [
+                  {
+                    chainId: '0x0',
+                  },
+                ],
+              })
+            : await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [
+                  {
+                    chainId: '0xaa36a7',
+                  },
+                ],
+              });
           const result = await msgBroadcastClient?.broadcastV2({
             injectiveAddress: address,
             msgs: msg,

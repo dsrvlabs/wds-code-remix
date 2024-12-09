@@ -1,26 +1,11 @@
 import { Button, Form, InputGroup } from 'react-bootstrap';
 import React, { Dispatch, useState } from 'react';
 import { log } from '../../utils/logger';
-import {
-  TxGrpcClient,
-  MsgStoreCode,
-  getEip712TypedDataV2,
-  ChainGrpcAuthApi,
-  ChainGrpcTendermintApi,
-  SIGN_EIP712_V2,
-  createTransaction,
-  createTxRawEIP712,
-  createWeb3Extension,
-  getGasPriceBasedOnMessage,
-  hexToBuff,
-} from '@injectivelabs/sdk-ts';
-import { ChainId, EthereumChainId } from '@injectivelabs/ts-types';
-import { BigNumberInBase, DEFAULT_BLOCK_TIMEOUT_HEIGHT, getStdFee } from '@injectivelabs/utils';
+import { TxGrpcApi, MsgStoreCode } from '@injectivelabs/sdk-ts';
+import { ChainId } from '@injectivelabs/ts-types';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { Instantiate } from './Instantiate';
 import { useWalletStore } from './WalletContextProvider';
-import { Wallet } from '@injectivelabs/wallet-ts';
-import { UtilsWallets } from '@injectivelabs/wallet-ts/dist/esm/exports';
 
 interface InterfaceProps {
   compileTarget: string;
@@ -49,14 +34,14 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
   timestamp,
 }) => {
   const [fund, setFund] = useState<number>(0);
-  const { injectiveBroadcastMsg, injectiveAddress, walletStrategy, chainId } = useWalletStore();
+  const { injectiveBroadcastMsg, injectiveAddress, chainId, walletType } = useWalletStore();
 
   const waitGetCodeID = async (txHash: string) => {
     const grpcEndpoing = getNetworkEndpoints(
       chainId === ChainId.Mainnet ? Network.Mainnet : Network.Testnet,
     ).grpc;
     try {
-      const txResult = await new TxGrpcClient(grpcEndpoing).fetchTxPoll(txHash, 30000);
+      const txResult = await new TxGrpcApi(grpcEndpoing).fetchTxPoll(txHash, 30000);
       const decoder = new TextDecoder();
       const codeIDUint8Array = txResult
         .events!.find(
@@ -88,98 +73,10 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       } else {
         throw new Error('Error while broadcasting. Please Check your wallet is locked');
       }
-
     } catch (error: any) {
       await client.terminal.log({ type: 'error', value: error?.message?.toString() });
     }
   };
-
-  // const metaMaskProceed = async () => {
-  //   await UtilsWallets.updateMetamaskNetwork(EthereumChainId.Sepolia);
-
-  //   const endpoint = getNetworkEndpoints(Network.Testnet);
-
-  //   const accountDetails = await new ChainGrpcAuthApi(endpoint.grpc).fetchAccount(injectiveAddress);
-  //   const { baseAccount } = accountDetails;
-
-  //   const latestBlock = await new ChainGrpcTendermintApi(endpoint.grpc).fetchLatestBlock();
-  //   const latestHeight = latestBlock!.header!.height;
-  //   const timeoutHeight = new BigNumberInBase(latestHeight).plus(DEFAULT_BLOCK_TIMEOUT_HEIGHT);
-
-  //   const buffer = Buffer.from(wasm, 'base64');
-
-  //   const wasmUint8array = new Uint8Array(buffer);
-
-  //   const msg = MsgStoreCode.fromJSON({
-  //     sender: injectiveAddress,
-  //     wasmBytes: wasmUint8array,
-  //   });
-
-  //   let gasFee = getGasPriceBasedOnMessage([msg]).toString(); // TODO: Add custom gas
-  //   if (baseAccount.pubKey) {
-  //     gasFee = (
-  //       await simulateInjectiveTx(
-  //         endpoint.grpc,
-  //         baseAccount.pubKey,
-  //         chainId,
-  //         msg,
-  //         baseAccount.sequence,
-  //         baseAccount.accountNumber,
-  //       )
-  //     ).toString();
-  //   }
-
-  //   // This is where string is changed to uint8Array
-  //   const eip712TypedData = getEip712TypedDataV3({
-  //     wasm: wasm,
-  //     msgs: [msg],
-  //     fee: { gas: gasFee },
-  //     tx: {
-  //       memo: undefined,
-  //       accountNumber: baseAccount.accountNumber.toString(),
-  //       sequence: baseAccount.sequence.toString(),
-  //       timeoutHeight: timeoutHeight.toFixed(),
-  //       chainId: chainId,
-  //     },
-  //     ethereumChainId: EthereumChainId.Sepolia,
-  //   });
-  //   console.log(eip712TypedData);
-  //   // eip712TypedData.message.msgs hardcode the string value here and it is fixed
-  //   const signature = await walletStrategy!.signEip712TypedData(
-  //     JSON.stringify(eip712TypedData),
-  //     ethAddress,
-  //   );
-
-  //   /** Get Public Key of the signer */
-  //   const pubKeyOrSignatureDerivedPubKey = getEthereumWalletPubKey({
-  //     pubKey: baseAccount.pubKey?.key,
-  //     eip712TypedData,
-  //     signature,
-  //   });
-
-  //   const { txRaw } = createTransaction({
-  //     message: [msg],
-  //     memo: undefined,
-  //     signMode: SIGN_EIP712_V2,
-  //     fee: getStdFee({ gas: gasFee }),
-  //     pubKey: pubKeyOrSignatureDerivedPubKey,
-  //     sequence: baseAccount.sequence,
-  //     timeoutHeight: timeoutHeight.toNumber(),
-  //     accountNumber: baseAccount.accountNumber,
-  //     chainId,
-  //   });
-  //   const web3Extension = createWeb3Extension({
-  //     ethereumChainId: EthereumChainId.Sepolia,
-  //   });
-  //   const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
-  //   txRawEip712.signatures = [hexToBuff(signature)];
-  //   const res = await walletStrategy?.sendTransaction(txRawEip712, {
-  //     chainId: ChainId.Testnet,
-  //     endpoints: endpoint,
-  //     txTimeout: 30,
-  //     address: injectiveAddress,
-  //   });
-  // };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -189,6 +86,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
       setFund(0);
     }
   };
+
   return (
     <>
       <Form>
@@ -215,29 +113,23 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             />
           </InputGroup>
         </Form>
-        {/*<Form>*/}
-        {/*  <Form.Text className="text-muted" style={mb4}>*/}
-        {/*    <small>GAS PRICE</small>*/}
-        {/*  </Form.Text>*/}
-        {/*  <InputGroup>*/}
-        {/*    <Form.Control*/}
-        {/*      type="number"*/}
-        {/*      placeholder={gasPrice.toString()}*/}
-        {/*      value={gasPrice}*/}
-        {/*      size="sm"*/}
-        {/*      onChange={(e) => setGasPrice(Number(e.target.value))}*/}
-        {/*    />*/}
-        {/*    <Form.Control type="text" placeholder="" value={'untrn'} size="sm" readOnly />*/}
-        {/*  </InputGroup>*/}
-        {/*</Form>*/}
         <hr />
-        <Button
-          variant="primary"
-          onClick={proceedStoreCode}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          <span>Store Code</span>
-        </Button>
+        {walletType === 'metamask' ? (
+          <Button
+            disabled={true}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+          >
+            Ethereum Native Wallets Can't Deploy Smart Contracts on Injective
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            onClick={proceedStoreCode}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+          >
+            <span>Store Code</span>
+          </Button>
+        )}
       </Form>
       <hr />
       <div>
