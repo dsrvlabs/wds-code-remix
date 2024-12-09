@@ -62,7 +62,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
-  const { injectiveAddress, chainId } = useWalletStore();
+  const { injectiveAddress, chainId, walletType } = useWalletStore();
 
   useEffect(() => {
     exists();
@@ -630,15 +630,24 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           </label>
         </CustomTooltip>
       </div>
-      <Button
-        variant="primary"
-        disabled={injectiveAddress === '' || loading || !compileTarget}
-        onClick={readCode}
-        className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-      >
-        <FaSyncAlt className={iconSpin} />
-        <span> Compile {compileTarget}</span>
-      </Button>
+      {walletType === 'metamask' ? (
+        <Button
+          disabled={true}
+          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+        >
+          Ethereum Native Wallets Can't Deploy Smart Contracts on Injective
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          disabled={injectiveAddress === '' || loading || !compileTarget}
+          onClick={readCode}
+          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+        >
+          <FaSyncAlt className={iconSpin} />
+          <span> Compile {compileTarget}</span>
+        </Button>
+      )}
       {compileError !== '' && (
         <Alert
           variant="danger"
