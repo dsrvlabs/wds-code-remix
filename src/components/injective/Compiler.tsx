@@ -623,20 +623,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   //inEVM Compile via Remix Client
   useEffect(() => {
-    client.on(
-      'solidity',
-      'compilationFinished',
-      async (compilationDetails: {
-        // contractMap: { file: string } | Record<string, any>; typescript error happens update typescript to remove the error
-        contractMap: any;
-        contractsDetails: Record<string, any>;
-        target?: string;
-        input?: Record<string, any>;
-      }) => {
-        const res = await client.solidity.getCompilationResult();
-        console.log(res.data.contracts);
-      },
-    );
     client.on('fileManager', 'currentFileChanged', async (currentFile: string) => {
       if (getFileExtension(currentFile) === 'sol') {
         setIsSolidity(true);
