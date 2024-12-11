@@ -6,6 +6,8 @@ import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { MsgSend } from '@injectivelabs/sdk-ts';
 import { BigNumberInBase } from '@injectivelabs/utils';
+import { log } from '../../utils/logger';
+import { ethers } from 'ethers';
 
 const MetaMaskConnect: React.FunctionComponent = () => {
   const [error, setError] = useState<String>('');
@@ -17,11 +19,17 @@ const MetaMaskConnect: React.FunctionComponent = () => {
     init,
     injectiveBroadcastMsg,
     walletStrategy,
+    isInEVM,
+    inEVMBalance,
+    ethAddress,
   } = useWalletStore();
+
   const networks = useMemo(
     () => [
       { name: 'Mainnet', value: ChainId.Mainnet },
       { name: 'Testnet', value: ChainId.Testnet },
+      { name: 'inEVM Mainnet', value: '2525' },
+      { name: 'inEVM Testnet', value: '2424' },
     ],
     [],
   );
@@ -30,8 +38,81 @@ const MetaMaskConnect: React.FunctionComponent = () => {
     init(Wallet.Metamask);
   }, []);
 
-  const handleNetwork = (e: any) => {
-    setChainId(e.target.value);
+  const handleNetwork = async (e: any) => {
+    if (!window.ethereum) {
+      log.error('Something is wrong with MetaMask');
+      return;
+    }
+    //Check if it's inEVM
+    if (e.target.value === '2525' || e.target.value === '2424') {
+      setChainId(e.target.value);
+      try {
+        switch (e.target.value) {
+          case '2525': {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x9DD' }],
+            });
+            break;
+          }
+          case '2424': {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x978' }],
+            });
+            break;
+          }
+        }
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if (switchError.code === 4902) {
+          try {
+            switch (e.target.value) {
+              case '2525': {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [
+                    {
+                      chainId: '0x9DD',
+                      chainName: 'inEVM',
+                      rpcUrls: ['https://mainnet.rpc.inevm.com/http'],
+                      nativeCurrency: {
+                        name: 'INJ',
+                        symbol: 'INJ',
+                        decimals: 18,
+                      },
+                    },
+                  ],
+                });
+                break;
+              }
+              case '2424': {
+                await window.ethereum.request({
+                  method: 'wallet_switchEthereumChain',
+                  params: [
+                    {
+                      chainId: '0x978',
+                      chainName: 'inEVM testnet',
+                      rpcUrls: ['https://testnet.rpc.inevm.com/http'],
+                      nativeCurrency: {
+                        name: 'INJ',
+                        symbol: 'INJ',
+                        decimals: 18,
+                      },
+                    },
+                  ],
+                });
+                break;
+              }
+            }
+          } catch (addError) {
+            log.error(addError);
+          }
+        }
+      }
+    } else {
+      setChainId(e.target.value);
+    }
   };
   return (
     <div>
@@ -57,7 +138,7 @@ const MetaMaskConnect: React.FunctionComponent = () => {
           <Form.Control
             type="text"
             placeholder="Account"
-            value={injectiveAddress ? injectiveAddress : ''}
+            value={injectiveAddress ? (isInEVM ? ethAddress : injectiveAddress) : ''}
             size="sm"
             readOnly
           />
@@ -69,7 +150,7 @@ const MetaMaskConnect: React.FunctionComponent = () => {
           <Form.Control
             type="text"
             placeholder="Balance"
-            value={injectiveAddress ? balance || '' : ''}
+            value={injectiveAddress ? (isInEVM ? inEVMBalance : balance || '') : ''}
             size="sm"
             readOnly
           />

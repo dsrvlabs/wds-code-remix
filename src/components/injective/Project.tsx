@@ -107,7 +107,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         value: projectName + ' is created successfully.',
       });
     } catch (e: any) {
-      console.error(e);
+      log.error(e);
       await client.terminal.log({
         type: 'error',
         value: e.message,
@@ -160,7 +160,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         value: template + ' is created successfully.',
       });
     } catch (e: any) {
-      console.error(e);
+      log.error(e);
       await client.terminal.log({
         type: 'error',
         value: e.message,
