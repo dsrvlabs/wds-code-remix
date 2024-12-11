@@ -6,28 +6,12 @@ interface DeployInEVMProps {
 }
 
 const DeployInEVM = ({ client }: DeployInEVMProps) => {
-  useEffect(() => {
-    client.on(
-      'solidity',
-      'compilationFinished',
-      async (compilationDetails: {
-        // contractMap: { file: string } | Record<string, any>; typescript error happens update typescript to remove the error
-        contractMap: any;
-        contractsDetails: Record<string, any>;
-        target?: string;
-        input?: Record<string, any>;
-      }) => {
-        const res = await client.solidity.getCompilationResult();
-        console.log(res.data.contracts);
-      },
-    );
-    return () => {
-      client.off();
-    };
-  }, []);
+  useEffect(() => {}, []);
   return (
     <>
-      <Button></Button>
+      <Button className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3">
+        Deploy Contract
+      </Button>
     </>
   );
 };

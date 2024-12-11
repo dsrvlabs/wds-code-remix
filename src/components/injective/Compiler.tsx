@@ -31,6 +31,8 @@ import { FaSyncAlt } from 'react-icons/fa';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { StoreCode } from './StoreCode';
 import { useWalletStore } from './WalletContextProvider';
+import DeployInEVM from './DeployInEVM';
+import { CompilationFileSources, CompilationResult } from '@remixproject/plugin-api';
 
 interface InterfaceProps {
   fileName: string;
@@ -620,7 +622,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
     return part[part.length - 1];
   };
-
   //inEVM Compile via Remix Client
   useEffect(() => {
     client.on('fileManager', 'currentFileChanged', async (currentFile: string) => {
@@ -629,8 +630,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setCurrentSolidityFile(currentFile);
       } else {
         setIsSolidity(false);
+        setCurrentSolidityFile('');
       }
     });
+    client.on(
+      'solidity',
+      'compilationFinished',
+      async (
+        fileName: string,
+        source: CompilationFileSources,
+        languageVersion: string,
+        data: CompilationResult,
+      ) => {
+        console.log(data.contracts[fileName]);
+      },
+    );
     return () => {
       client.off('fileManager', 'currentFileChanged');
       client.off('solidity', 'compilationFinished');
@@ -679,7 +693,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             disabled={!isSolidity ? true : false}
             className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
             onClick={async () => {
-              await client.solidity.compile('test.sol');
+              await client.solidity.compile(currentSolidityFile);
             }}
           >
             {isSolidity
@@ -717,15 +731,15 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {fileName ? (
         <div>
-          <small>{isSolidity ? currentSolidityFile : fileName}</small>
+          <small>{fileName}</small>
         </div>
       ) : (
-        false
+        <div>
+          <small>{currentSolidityFile}</small>
+        </div>
       )}
       {isInEVM ? (
-        <div>
-          <Button>Deploy Contract</Button>
-        </div>
+        <DeployInEVM client={client} />
       ) : wasm && !loading ? (
         <StoreCode
           compileTarget={compileTarget}
