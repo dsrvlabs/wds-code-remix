@@ -1,4 +1,4 @@
-import React, { Dispatch, useEffect, useState } from 'react';
+import React, { Dispatch, useEffect, useMemo, useState } from 'react';
 import { log } from '../../utils/logger';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
@@ -39,6 +39,17 @@ interface InterfaceProps {
   client: any;
 }
 
+//For solidity
+export interface CompilationDetails {
+  contractList: { file: string; name: string }[];
+  contractsDetails: Record<string, any>;
+  target?: string;
+  input?: Record<string, any>;
+}
+export interface ContractsFile {
+  [currentFile: string]: CompilationDetails;
+}
+
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
 const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
 
@@ -60,9 +71,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [schemaExec, setSchemaExec] = useState<Object>({});
   const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
+  const [contractsFile, setContractsFile] = useState<ContractsFile>({});
+  const [isSolidity, setIsSolidity] = useState<boolean>(false);
+  const [currentSolidityFile, setCurrentSolidityFile] = useState<string>('');
+
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
-  const { injectiveAddress, chainId, walletType } = useWalletStore();
+  const { injectiveAddress, chainId, walletType, isInEVM } = useWalletStore();
 
   useEffect(() => {
     exists();
@@ -599,6 +614,43 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  // Return the file name of a path: ex "browser/ballot.sol" -> "ballot.sol"
+  const getFileExtension = (path: string) => {
+    const part = path.split('.');
+
+    return part[part.length - 1];
+  };
+
+  //inEVM Compile via Remix Client
+  useEffect(() => {
+    client.on(
+      'solidity',
+      'compilationFinished',
+      async (compilationDetails: {
+        // contractMap: { file: string } | Record<string, any>; typescript error happens update typescript to remove the error
+        contractMap: any;
+        contractsDetails: Record<string, any>;
+        target?: string;
+        input?: Record<string, any>;
+      }) => {
+        const res = await client.solidity.getCompilationResult();
+        console.log(res.data.contracts);
+      },
+    );
+    client.on('fileManager', 'currentFileChanged', async (currentFile: string) => {
+      if (getFileExtension(currentFile) === 'sol') {
+        setIsSolidity(true);
+        setCurrentSolidityFile(currentFile);
+      } else {
+        setIsSolidity(false);
+      }
+    });
+    return () => {
+      client.off('fileManager', 'currentFileChanged');
+      client.off('solidity', 'compilationFinished');
+    };
+  }, []);
+
   const handleAlertClose = () => {
     setCompileError('');
     client.call('editor', 'discardHighlight');
@@ -607,36 +659,55 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   return (
     <>
-      <div className="mb-2 form-check">
-        <input
-          type="checkbox"
-          className="form-check-input"
-          id="uploadCodeCheckbox"
-          checked={uploadCodeChecked}
-          onChange={handleCheckboxChange}
-          disabled={loading || !!fileName || !!codeID}
-        />
-        <CustomTooltip
-          placement="top"
-          tooltipId="overlay-ataddresss"
-          tooltipText="When you upload the code, a code verification feature will be provided in the future."
-        >
-          <label
-            className="form-check-label"
-            htmlFor="uploadCodeCheckbox"
-            style={{ verticalAlign: 'top' }}
+      {isInEVM ? (
+        <></>
+      ) : (
+        <div className="mb-2 form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="uploadCodeCheckbox"
+            checked={uploadCodeChecked}
+            onChange={handleCheckboxChange}
+            disabled={loading || !!fileName || !!codeID}
+          />
+          <CustomTooltip
+            placement="top"
+            tooltipId="overlay-ataddresss"
+            tooltipText="When you upload the code, a code verification feature will be provided in the future."
           >
-            Upload Code
-          </label>
-        </CustomTooltip>
-      </div>
+            <label
+              className="form-check-label"
+              htmlFor="uploadCodeCheckbox"
+              style={{ verticalAlign: 'top' }}
+            >
+              Upload Code
+            </label>
+          </CustomTooltip>
+        </div>
+      )}
+      {/* If Network is inEVM and wallet is MetaMask Compile solidity contract and deploy it */}
       {walletType === 'metamask' ? (
-        <Button
-          disabled={true}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          Ethereum Native Wallets Can't Deploy Smart Contracts on Injective
-        </Button>
+        isInEVM ? (
+          <Button
+            disabled={!isSolidity ? true : false}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            onClick={async () => {
+              await client.solidity.compile('test.sol');
+            }}
+          >
+            {isSolidity
+              ? 'Compile Solidity Contract'
+              : 'Please choose Solidity Contract in File Browser'}
+          </Button>
+        ) : (
+          <Button
+            disabled={true}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+          >
+            Contract Deployment Not Supported on MetaMask
+          </Button>
+        )
       ) : (
         <Button
           variant="primary"
@@ -660,12 +731,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       )}
       {fileName ? (
         <div>
-          <small>{fileName}</small>
+          <small>{isSolidity ? currentSolidityFile : fileName}</small>
         </div>
       ) : (
         false
       )}
-      {wasm && !loading ? (
+      {isInEVM ? (
+        <div>
+          <Button>Deploy Contract</Button>
+        </div>
+      ) : wasm && !loading ? (
         <StoreCode
           compileTarget={compileTarget}
           client={client}

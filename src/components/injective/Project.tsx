@@ -32,6 +32,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
   const [contractAddress, setContractAddress] = useState<string>('');
   const [contractAddressInputDraft, setContractAddressInputDraft] = useState<string>('');
   const [contractAddressError, setContractAddressError] = useState('');
+  const { isInEVM } = useWalletStore();
 
   useEffect(() => {
     getList();
@@ -201,67 +202,76 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
 
   return (
     <div className="pb-4">
-      <Form>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted mb-1">
-            <small>NEW PROJECT</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control type="text" placeholder="Project Name" size="sm" onChange={setProject} />
-            <Button variant="success" size="sm" onClick={createProject}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>SELECT A TEMPLATE</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={template}
-              onChange={setTargetTemplate}
-            >
-              {templateList.map((temp, idx) => {
-                return (
-                  <option value={temp} key={idx}>
-                    {temp}
-                  </option>
-                );
-              })}
-            </Form.Control>
-            <Button variant="success" size="sm" onClick={createTemplate}>
-              <small>Create</small>
-            </Button>
-          </InputGroup>
-        </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>TARGET PROJECT </small>
-            <span onClick={getList}>
-              <FaSyncAlt />
-            </span>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              className="custom-select"
-              as="select"
-              value={compileTarget}
-              onChange={setTarget}
-            >
-              {projectList.map((projectName, idx) => {
-                return (
-                  <option value={projectName} key={idx}>
-                    {projectName}
-                  </option>
-                );
-              })}
-            </Form.Control>
-          </InputGroup>
-        </Form.Group>
-      </Form>
+      {isInEVM ? (
+        <></>
+      ) : (
+        <Form>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted mb-1">
+              <small>NEW PROJECT</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="text"
+                placeholder="Project Name"
+                size="sm"
+                onChange={setProject}
+              />
+              <Button variant="success" size="sm" onClick={createProject}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>SELECT A TEMPLATE</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={template}
+                onChange={setTargetTemplate}
+              >
+                {templateList.map((temp, idx) => {
+                  return (
+                    <option value={temp} key={idx}>
+                      {temp}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+              <Button variant="success" size="sm" onClick={createTemplate}>
+                <small>Create</small>
+              </Button>
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>TARGET PROJECT </small>
+              <span onClick={getList}>
+                <FaSyncAlt />
+              </span>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                className="custom-select"
+                as="select"
+                value={compileTarget}
+                onChange={setTarget}
+              >
+                {projectList.map((projectName, idx) => {
+                  return (
+                    <option value={projectName} key={idx}>
+                      {projectName}
+                    </option>
+                  );
+                })}
+              </Form.Control>
+            </InputGroup>
+          </Form.Group>
+        </Form>
+      )}
 
       <Compiler
         fileName={fileName}

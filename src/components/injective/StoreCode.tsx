@@ -119,7 +119,7 @@ export const StoreCode: React.FunctionComponent<InterfaceProps> = ({
             disabled={true}
             className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
           >
-            Ethereum Native Wallets Can't Deploy Smart Contracts on Injective
+            Contract Deployment Not Supported on MetaMask
           </Button>
         ) : (
           <Button
