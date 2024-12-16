@@ -279,7 +279,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         compileTarget={compileTarget}
         client={client}
       />
-      <AtAddress />
+      {isInEVM ? <></> : <AtAddress />}
     </div>
   );
 };
