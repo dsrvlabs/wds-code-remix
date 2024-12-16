@@ -32,7 +32,11 @@ import AlertCloseButton from '../common/AlertCloseButton';
 import { StoreCode } from './StoreCode';
 import { useWalletStore } from './WalletContextProvider';
 import DeployInEVM from './DeployInEVM';
-import { CompilationFileSources, CompilationResult } from '@remixproject/plugin-api';
+import {
+  ABIDescription,
+  CompilationFileSources,
+  CompilationResult,
+} from '@remixproject/plugin-api';
 
 interface InterfaceProps {
   fileName: string;
@@ -73,9 +77,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [schemaExec, setSchemaExec] = useState<Object>({});
   const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
-  const [contractsFile, setContractsFile] = useState<ContractsFile>({});
   const [isSolidity, setIsSolidity] = useState<boolean>(false);
   const [currentSolidityFile, setCurrentSolidityFile] = useState<string>('');
+  const [abi, setAbi] = useState<ABIDescription[]>([]);
+  const [bytecode, setBytecode] = useState('');
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
@@ -616,12 +621,12 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  // Return the file name of a path: ex "browser/ballot.sol" -> "ballot.sol"
   const getFileExtension = (path: string) => {
     const part = path.split('.');
 
     return part[part.length - 1];
   };
+
   //inEVM Compile via Remix Client
   useEffect(() => {
     client.on('fileManager', 'currentFileChanged', async (currentFile: string) => {
@@ -633,6 +638,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         setCurrentSolidityFile('');
       }
     });
+
     client.on(
       'solidity',
       'compilationFinished',
@@ -642,13 +648,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         languageVersion: string,
         data: CompilationResult,
       ) => {
-        console.log(data.contracts[fileName]);
+        const selectedCompiledContract = data.contracts[fileName];
+        const contractName = Object.keys(selectedCompiledContract)[0];
+        const bytecode = data.contracts[fileName][contractName].evm.bytecode.object;
+        const abi = data.contracts[fileName][contractName].abi;
+        setAbi(abi);
+        setBytecode(bytecode);
       },
     );
-    return () => {
-      client.off('fileManager', 'currentFileChanged');
-      client.off('solidity', 'compilationFinished');
-    };
+
+    // return () => {
+    //   client.off('fileManager', 'currentFileChanged');
+    //   client.off('solidity', 'compilationFinished');
+    // };
   }, []);
 
   const handleAlertClose = () => {
@@ -690,15 +702,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       {walletType === 'metamask' ? (
         isInEVM ? (
           <Button
-            disabled={!isSolidity ? true : false}
             className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
             onClick={async () => {
-              await client.solidity.compile(currentSolidityFile);
+              try {
+                const currentOpenFile = await client.fileManager.getCurrentFile();
+                setCurrentSolidityFile(currentOpenFile);
+                await client.solidity.compile(currentOpenFile);
+              } catch (e: any) {
+                await client.terminal.log({ value: e.message, type: 'error' });
+              }
             }}
           >
-            {isSolidity
-              ? 'Compile Solidity Contract'
-              : 'Please choose Solidity Contract in File Browser'}
+            Compile Solidity Contract
           </Button>
         ) : (
           <Button
@@ -733,13 +748,20 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <div>
           <small>{fileName}</small>
         </div>
-      ) : (
+      ) : currentSolidityFile && bytecode ? (
         <div>
           <small>{currentSolidityFile}</small>
         </div>
+      ) : isInEVM ? (
+        <div>
+          <small>Please open the contract to Compile</small>
+        </div>
+      ) : (
+        <div></div>
       )}
-      {isInEVM ? (
-        <DeployInEVM client={client} />
+      {/* Disable it when no solidity contract is set */}
+      {isInEVM && bytecode ? (
+        <DeployInEVM client={client} abi={abi} bytecode={bytecode} />
       ) : wasm && !loading ? (
         <StoreCode
           compileTarget={compileTarget}
