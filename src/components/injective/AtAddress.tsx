@@ -18,11 +18,6 @@ import { Form, InputGroup, Button } from 'react-bootstrap';
 import { useWalletStore } from './WalletContextProvider';
 import { log } from '../../utils/logger';
 
-interface AtAddressProps {
-  isAtAddr: boolean;
-  setItAtAddr: Dispatch<React.SetStateAction<boolean>>;
-}
-
 const AtAddress = () => {
   // At Address
   const [queryFunctionNames, setQueryFunctionNames] = useState<string[]>([]);

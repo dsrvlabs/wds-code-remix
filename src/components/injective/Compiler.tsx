@@ -1,4 +1,4 @@
-import React, { Dispatch, useEffect, useState } from 'react';
+import React, { Dispatch, useEffect, useMemo, useState } from 'react';
 import { log } from '../../utils/logger';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
@@ -31,12 +31,29 @@ import { FaSyncAlt } from 'react-icons/fa';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { StoreCode } from './StoreCode';
 import { useWalletStore } from './WalletContextProvider';
+import DeployInEVM from './DeployInEVM';
+import {
+  ABIDescription,
+  CompilationFileSources,
+  CompilationResult,
+} from '@remixproject/plugin-api';
 
 interface InterfaceProps {
   fileName: string;
   setFileName: Dispatch<React.SetStateAction<string>>;
   compileTarget: string;
   client: any;
+}
+
+//For solidity
+export interface CompilationDetails {
+  contractList: { file: string; name: string }[];
+  contractsDetails: Record<string, any>;
+  target?: string;
+  input?: Record<string, any>;
+}
+export interface ContractsFile {
+  [currentFile: string]: CompilationDetails;
 }
 
 const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
@@ -60,9 +77,14 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [schemaExec, setSchemaExec] = useState<Object>({});
   const [schemaQuery, setSchemaQuery] = useState<Object>({});
 
+  const [isSolidity, setIsSolidity] = useState<boolean>(false);
+  const [currentSolidityFile, setCurrentSolidityFile] = useState<string>('');
+  const [abi, setAbi] = useState<ABIDescription[]>([]);
+  const [bytecode, setBytecode] = useState('');
+
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
-  const { injectiveAddress, chainId, walletType } = useWalletStore();
+  const { injectiveAddress, chainId, walletType, isInEVM } = useWalletStore();
 
   useEffect(() => {
     exists();
@@ -599,6 +621,48 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
+  const getFileExtension = (path: string) => {
+    const part = path.split('.');
+
+    return part[part.length - 1];
+  };
+
+  //inEVM Compile via Remix Client
+  useEffect(() => {
+    client.on('fileManager', 'currentFileChanged', async (currentFile: string) => {
+      if (getFileExtension(currentFile) === 'sol') {
+        setIsSolidity(true);
+        setCurrentSolidityFile(currentFile);
+      } else {
+        setIsSolidity(false);
+        setCurrentSolidityFile('');
+      }
+    });
+
+    client.on(
+      'solidity',
+      'compilationFinished',
+      async (
+        fileName: string,
+        source: CompilationFileSources,
+        languageVersion: string,
+        data: CompilationResult,
+      ) => {
+        const selectedCompiledContract = data.contracts[fileName];
+        const contractName = Object.keys(selectedCompiledContract)[0];
+        const bytecode = data.contracts[fileName][contractName].evm.bytecode.object;
+        const abi = data.contracts[fileName][contractName].abi;
+        setAbi(abi);
+        setBytecode(bytecode);
+      },
+    );
+
+    // return () => {
+    //   client.off('fileManager', 'currentFileChanged');
+    //   client.off('solidity', 'compilationFinished');
+    // };
+  }, []);
+
   const handleAlertClose = () => {
     setCompileError('');
     client.call('editor', 'discardHighlight');
@@ -607,36 +671,58 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
   return (
     <>
-      <div className="mb-2 form-check">
-        <input
-          type="checkbox"
-          className="form-check-input"
-          id="uploadCodeCheckbox"
-          checked={uploadCodeChecked}
-          onChange={handleCheckboxChange}
-          disabled={loading || !!fileName || !!codeID}
-        />
-        <CustomTooltip
-          placement="top"
-          tooltipId="overlay-ataddresss"
-          tooltipText="When you upload the code, a code verification feature will be provided in the future."
-        >
-          <label
-            className="form-check-label"
-            htmlFor="uploadCodeCheckbox"
-            style={{ verticalAlign: 'top' }}
+      {isInEVM ? (
+        <></>
+      ) : (
+        <div className="mb-2 form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="uploadCodeCheckbox"
+            checked={uploadCodeChecked}
+            onChange={handleCheckboxChange}
+            disabled={loading || !!fileName || !!codeID}
+          />
+          <CustomTooltip
+            placement="top"
+            tooltipId="overlay-ataddresss"
+            tooltipText="When you upload the code, a code verification feature will be provided in the future."
           >
-            Upload Code
-          </label>
-        </CustomTooltip>
-      </div>
+            <label
+              className="form-check-label"
+              htmlFor="uploadCodeCheckbox"
+              style={{ verticalAlign: 'top' }}
+            >
+              Upload Code
+            </label>
+          </CustomTooltip>
+        </div>
+      )}
+      {/* If Network is inEVM and wallet is MetaMask Compile solidity contract and deploy it */}
       {walletType === 'metamask' ? (
-        <Button
-          disabled={true}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          Ethereum Native Wallets Can't Deploy Smart Contracts on Injective
-        </Button>
+        isInEVM ? (
+          <Button
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            onClick={async () => {
+              try {
+                const currentOpenFile = await client.fileManager.getCurrentFile();
+                setCurrentSolidityFile(currentOpenFile);
+                await client.solidity.compile(currentOpenFile);
+              } catch (e: any) {
+                await client.terminal.log({ value: e.message, type: 'error' });
+              }
+            }}
+          >
+            Compile Solidity Contract
+          </Button>
+        ) : (
+          <Button
+            disabled={true}
+            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+          >
+            Contract Deployment Not Supported on MetaMask
+          </Button>
+        )
       ) : (
         <Button
           variant="primary"
@@ -662,10 +748,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         <div>
           <small>{fileName}</small>
         </div>
+      ) : currentSolidityFile && bytecode ? (
+        <div>
+          <small>{currentSolidityFile}</small>
+        </div>
+      ) : isInEVM ? (
+        <div>
+          <small>Please open the contract to Compile</small>
+        </div>
       ) : (
-        false
+        <div></div>
       )}
-      {wasm && !loading ? (
+      {/* Disable it when no solidity contract is set */}
+      {isInEVM && bytecode ? (
+        <DeployInEVM client={client} abi={abi} bytecode={bytecode} />
+      ) : wasm && !loading ? (
         <StoreCode
           compileTarget={compileTarget}
           client={client}
