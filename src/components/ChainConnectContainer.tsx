@@ -41,7 +41,17 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   setChain,
 }) => {
   log.debug(chain);
-  const docsChains = ['near', 'sui', 'aptos', 'juno', 'celo', 'klaytn', 'neutron', 'arbitrum','injective'];
+  const docsChains = [
+    'near',
+    'sui',
+    'aptos',
+    'juno',
+    'celo',
+    'klaytn',
+    'neutron',
+    'arbitrum',
+    'injective',
+  ];
 
   const handleLeftBtn = async () => {
     setChain('');
@@ -112,9 +122,9 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
       case 'Neutron':
         return <NeutronConnect client={client} />;
       case 'Arbitrum':
-        return <ArbitrumConnect client={client} />;
+        return <ArbitrumConnect />;
       case 'Injective':
-        return <InjectiveConnect client={client} />
+        return <InjectiveConnect client={client} />;
       default:
         return <></>;
     }
