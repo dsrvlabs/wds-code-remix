@@ -76,7 +76,7 @@
     "typescript": "^4.7.2",
     "util": "^0.12.4",
     "wasm-walrus-tools": "github:AhaLabs/wasm-walrus-tools#v0.1.0",
-    "wds-event": "^1.0.36",
+    "wds-event": "^1.0.5",
     "wds-near-contract-parser": "^0.1.5",
     "web-vitals": "^2.1.4",
     "web3": "^1.3.6"
@@ -113,6 +113,7 @@
     "@types/bn.js": "^5.1.0",
     "@types/gtag.js": "0.0.10",
     "@types/jest": "^27.5.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^16.11.36",
     "@types/pako": "^2.0.0",
     "@types/react": "^18.0.9",
