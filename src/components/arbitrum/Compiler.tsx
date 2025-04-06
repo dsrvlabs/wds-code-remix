@@ -551,6 +551,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         address: account || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'arbitrum',
+        cliVersion: '0.5.8',
       };
 
       socket.emit(REMIX_ARBITRUM_COMPILE_REQUESTED_V1, remixArbitrumCompileRequestedV1);
