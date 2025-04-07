@@ -4,10 +4,24 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { createRoot } from 'react-dom/client';
 
+interface OKXWallet {
+  aptos: {
+    connect(): Promise<{ address: string; publicKey: string }>;
+    account(): Promise<{ address: string; publicKey: string }>;
+    network(): Promise<string>;
+    onAccountChange(
+      callback: (account: { address: string; publicKey: string } | null) => void,
+    ): void;
+    onNetworkChange(callback: (network: string) => void): void;
+    onDisconnect(callback: () => void): void;
+  };
+}
+
 declare global {
   interface Window {
     dapp: any;
     petra: any;
+    okxwallet?: OKXWallet;
   }
 }
 

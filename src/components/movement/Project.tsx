@@ -153,10 +153,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
     const res = await axios.request({
       method: 'GET',
-      url:
-        `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=code-template&fileKey=movement/` +
-        template +
-        '.zip',
+      url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=code-template&fileKey=sui/` + template + '.zip',
       responseType: 'arraybuffer',
       responseEncoding: 'null',
     });

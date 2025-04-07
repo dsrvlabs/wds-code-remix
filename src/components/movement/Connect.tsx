@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { WalletConnect } from './WalletConnect';
 import { Project } from './Project';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { Connect as CommonConnect } from '../common/Connect';
-import { MetamaskConnect } from './MetamaskConnect';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -27,13 +27,14 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({ client }) => 
         wallet={wallet}
       />
       <div>
-        <MetamaskConnect
+        <WalletConnect
           active={active}
           account={account}
           setAccount={setAccount}
           setDapp={setDapp}
           client={client}
           setActive={setActive}
+          wallet={wallet}
         />
         <Project wallet={wallet} account={account} dapp={dapp} client={client} />
       </div>
