@@ -3,6 +3,8 @@
   "version": "0.1.0-beta",
   "private": true,
   "dependencies": {
+    "@aptos-labs/ts-sdk": "^1.38.0",
+    "@aptos-labs/wallet-adapter-react": "^5.0.1",
     "@cosmjs/launchpad": "^0.27.1",
     "@cosmjs/math": "^0.32.2",
     "@cosmjs/proto-signing": "^0.32.2",
@@ -20,6 +22,7 @@
     "@mui/material": "^5.8.6",
     "@mui/styled-engine": "^5.8.0",
     "@mysten/sui": "^1.15.0",
+    "@okxconnect/aptos-provider": "^1.8.0",
     "@remixproject/plugin": "^0.3.31",
     "@remixproject/plugin-api": "^0.3.31",
     "@remixproject/plugin-iframe": "^0.3.31",
