@@ -1,15 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Form, InputGroup } from 'react-bootstrap';
+import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
 import axios from 'axios';
 import { FaSyncAlt } from 'react-icons/fa';
+import { Deploy } from './Deploy';
 import { io } from 'socket.io-client';
 import wrapPromise from '../../utils/wrapPromise';
 import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import stripAnsi from 'strip-ansi';
 
 import * as _ from 'lodash';
-import { COMPILER_API_ENDPOINT, MOVEMENT_COMPILER_CONSUMER_ENDPOINT } from '../../const/endpoint';
+import {
+  MovementGitDependency,
+  compileIdV2,
+  COMPILER_MOVEMENT_COMPILE_COMPLETED_V3,
+  CompilerMovementCompileCompletedV3,
+  REMIX_MOVEMENT_COMPILE_REQUESTED_V2,
+  REMIX_MOVEMENT_PROVE_REQUESTED_V2,
+  RemixMovementCompileRequestedV2,
+  RemixMovementProveRequestedV2,
+  reqIdV2,
+} from 'wds-event';
+
+import { MOVEMENT_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { FileInfo, FileUtil } from '../../utils/FileUtil';
 import { readFile, shortenHexString, stringify } from '../../utils/helper';
@@ -18,61 +31,44 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
-  getModules,
-  getOwnedObjects,
-  getPackageIds,
-  getProvider,
-  initGenericParameters,
-  initParameters,
-  moveCallTxn,
-  parseYaml,
-  MovementChainId,
-  waitForTransactionWithResult,
+  movementNodeUrl,
+  ArgTypeValuePair,
+  codeBytes,
+  dappTxn,
+  getEstimateGas,
+  genPayload,
+  getAccountModules,
+  getAccountResources,
+  metadataSerializedBytes,
+  serializedArgs,
+  viewFunction,
 } from './movement-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
+import { AptosClient as MovementClient, HexString, TxnBuilderTypes, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
-  CompiledModulesAndDeps,
-  compileIdV2,
-  COMPILER_MOVEMENT_COMPILE_COMPLETED_V1,
-  COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V1,
-  COMPILER_MOVEMENT_COMPILE_LOGGED_V1,
-  COMPILER_MOVEMENT_PROVE_COMPLETED_V1,
-  COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V1,
-  COMPILER_MOVEMENT_PROVE_LOGGED_V1,
-  COMPILER_MOVEMENT_TEST_COMPLETED_V1,
-  COMPILER_MOVEMENT_TEST_ERROR_OCCURRED_V1,
-  COMPILER_MOVEMENT_TEST_LOGGED_V1,
-  CompilerMovementCompileCompletedV1,
-  CompilerMovementCompileErrorOccurredV1,
-  CompilerMovementCompileLoggedV1,
-  CompilerMovementProveCompletedV1,
-  CompilerMovementProveErrorOccurredV1,
-  CompilerMovementProveLoggedV1,
-  CompilerMovementTestCompletedV1,
-  CompilerMovementTestErrorOccurredV1,
-  CompilerMovementTestLoggedV1,
-  REMIX_MOVEMENT_COMPILE_REQUESTED_V1,
-  REMIX_MOVEMENT_PROVE_REQUESTED_V1,
-  REMIX_MOVEMENT_TEST_REQUESTED_V1,
-  RemixMovementCompileRequestedV1,
-  RemixMovementProveRequestedV1,
-  RemixMovementTestRequestedV1,
-  reqIdV2,
-} from 'wds-event';
+  COMPILER_MOVEMENT_COMPILE_COMPLETED_V2,
+  COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
+  COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
+  COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
+  COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
+  COMPILER_MOVEMENT_PROVE_LOGGED_V2,
+  CompilerMovementCompileCompletedV2,
+  CompilerMovementCompileErrorOccurredV2,
+  CompilerMovementCompileLoggedV2,
+  CompilerMovementProveCompletedV2,
+  CompilerMovementProveErrorOccurredV2,
+  CompilerMovementProveLoggedV2,
+} from 'wds-event/dist/event/compiler/movement/v2/movement';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
-import { MovementFunc, MovementModule } from './movement-types';
-import { SuiObjectData as MovementObjectData } from '@mysten/sui/client';
-import { Deploy } from './Deploy';
+import copy from 'copy-to-clipboard';
+import EntryButton from './EntryButton';
 import { CustomTooltip } from '../common/CustomTooltip';
-import { CopyToClipboard } from '../common/CopyToClipboard';
-
-type QueryMode = 'package' | 'address' | '';
 
 export interface ModuleWrapper {
   packageName: string;
@@ -83,97 +79,91 @@ export interface ModuleWrapper {
   order: number;
 }
 
-export interface BuildInfo {
-  compiled_package_info: {
-    address_alias_instantiation: { [key: string]: string };
-    build_flags: {
-      additional_named_addresses: { [key: string]: string };
-      architecture: any;
-      dev_mode: boolean;
-      fetch_deps_only: boolean;
-      force_recompilation: boolean;
-      generate_abis: boolean;
-      generate_docs: boolean;
-      install_dir: any;
-      lock_file: string;
-      skip_fetch_latest_git_deps: boolean;
-      test_mode: boolean;
-    };
-    package_name: string;
-    source_digest: string;
-  };
-  dependencies: string[];
-}
+const RCV_EVENT_LOG_PREFIX = `[==> EVENT_RCV]`;
+const SEND_EVENT_LOG_PREFIX = `[EVENT_SEND ==>]`;
 
 interface InterfaceProps {
-  client: Client<Api, Readonly<IRemixApi>>;
   compileTarget: string;
   accountID: string;
   dapp: any;
-  gas: string;
+  client: Client<Api, Readonly<IRemixApi>>;
 }
-
-const RCV_EVENT_LOG_PREFIX = '[RCV_EVENT]';
-const SEND_EVENT_LOG_PREFIX = '[SEND_EVENT]';
 
 export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   client,
   compileTarget,
   accountID,
   dapp,
-  gas,
 }) => {
   const [fileNames, setFileNames] = useState<string[]>([]);
-  const [testLoading, setTestLoading] = useState<boolean>(false);
   const [proveLoading, setProveLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [compileError, setCompileError] = useState<Nullable<string>>(null);
-  const [inputAddress, setInputAddress] = useState<string>('');
   const [atAddress, setAtAddress] = useState<string>('');
   const [isProgress, setIsProgress] = useState<boolean>(false);
   const [deployedContract, setDeployedContract] = useState<string>('');
 
-  const [buildInfo, setBuildInfo] = useState<BuildInfo | undefined>();
   const [packageName, setPackageName] = useState<string>('');
   const [compileTimestamp, setCompileTimestamp] = useState<string>('');
+  const [moduleWrappers, setModuleWrappers] = useState<ModuleWrapper[]>([]);
   const [moduleBase64s, setModuleBase64s] = useState<string[]>([]);
-  const [compiledModulesAndDeps, setCompiledModulesAndDeps] = useState<
-    CompiledModulesAndDeps | undefined
-  >();
+  const [metaData64, setMetaDataBase64] = useState<string>('');
   const [cliVersion, setCliVersion] = useState<string>('');
+  const [movementGitDependencies, setMovementGitDependencies] = useState<MovementGitDependency[]>(
+    [],
+  );
 
-  const [movementObjects, setMovementObjects] = useState<MovementObjectData[]>([]);
-  const [targetObjectId, setTargetObjectId] = useState<string>('');
+  const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
+  const [targetModule, setTargetModule] = useState<string>('');
+  const [moveFunction, setMoveFunction] = useState<Types.MoveFunction | undefined>();
 
-  const [packageIds, setPackageIds] = useState<string[]>([]);
-  const [targetPackageId, setTargetPackageId] = useState('');
-  const [queryMode, setQueryMode] = useState<QueryMode>('');
-
-  const [modules, setModules] = useState<MovementModule[]>([]);
-  const [targetModuleName, setTargetModuleName] = useState<string>('');
-  const [funcs, setFuncs] = useState<MovementFunc[]>([]);
-  const [targetFunc, setTargetFunc] = useState<MovementFunc>();
   const [genericParameters, setGenericParameters] = useState<string[]>([]);
-  const [parameters, setParameters] = useState<any[]>([]);
-  const [zipBlob, setZipBlob] = useState<Blob | undefined>(undefined);
+  const [parameters, setParameters] = useState<ArgTypeValuePair[]>([]);
 
+  const [accountResources, setAccountResources] = useState<Types.MoveResource[]>([]);
+  const [targetResource, setTargetResource] = useState<string>('');
+
+  const [copyMsg, setCopyMsg] = useState<string>('Copy');
+
+  const [estimatedGas, setEstimatedGas] = useState<string | undefined>();
+  const [gasUnitPrice, setGasUnitPrice] = useState<string>('0');
+  const [maxGasAmount, setMaxGasAmount] = useState<string>('0');
+
+  const [entryEstimatedGas, setEntryEstimatedGas] = useState<string | undefined>();
+  const [entryGasUnitPrice, setEntryGasUnitPrice] = useState<string>('0');
+  const [entryMaxGasAmount, setEntryMaxGasAmount] = useState<string>('0');
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
 
   useEffect(() => {
     setPackageName('');
-    setBuildInfo(undefined);
     setCompileTimestamp('');
     setModuleBase64s([]);
     setFileNames([]);
-    setCompiledModulesAndDeps(undefined);
+    setModuleWrappers([]);
+    setMetaDataBase64('');
     setCliVersion('');
-    setZipBlob(undefined);
+    setMovementGitDependencies([]);
   }, [compileTarget]);
-
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
   }) => {
     setUploadCodeChecked(event.target.checked);
+  };
+
+  const setGasUnitPriceValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setGasUnitPrice(e.target.value);
+  };
+
+  const setMaxGasAmountValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setMaxGasAmount(e.target.value);
+  };
+
+  const setEntryGasUnitPriceValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setEntryGasUnitPrice(e.target.value);
+  };
+
+  const setEntryMaxGasAmountValue = (e: { target: { value: React.SetStateAction<string> } }) => {
+    setEntryMaxGasAmount(e.target.value);
   };
 
   const findArtifacts = async () => {
@@ -187,45 +177,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return Object.keys(artifacts || {});
   };
 
-  const removeArtifacts = async () => {
-    log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
-    try {
-      await client?.fileManager.remove('browser/' + compileTarget + '/out');
-      setPackageName('');
-      setBuildInfo(undefined);
-      setCompileTimestamp('');
-      setModuleBase64s([]);
-      setFileNames([]);
-      setCompiledModulesAndDeps(undefined);
-      setCliVersion('');
-      setZipBlob(undefined);
-    } catch (e) {
-      log.info(`no out folder`);
-    }
-  };
-
   const handleAlertClose = () => {
     setCompileError('');
     client.call('editor', 'discardHighlight');
     client.call('editor', 'clearAnnotations');
-  };
-
-  const requestTest = async () => {
-    if (testLoading) {
-      await client.terminal.log({ value: 'Server is working...', type: 'log' });
-      return;
-    }
-    const projFiles = await FileUtil.allFilesForBrowser(client, compileTarget);
-    log.debug(`@@@ test projFiles`, projFiles);
-    const buildFileExcluded = projFiles.filter((f) => !f.path.startsWith(`${compileTarget}/out`));
-    log.debug(`@@@ test buildFileExcluded`, buildFileExcluded);
-    if (isEmptyList(buildFileExcluded)) {
-      return;
-    }
-
-    const blob = await generateZip(buildFileExcluded);
-
-    await wrappedTest(blob);
   };
 
   const requestProve = async () => {
@@ -247,7 +202,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const wrappedRequestCompile = () => wrapPromise(requestCompile(), client);
-  const wrappedRequestTest = () => wrapPromise(requestTest(), client);
   const wrappedRequestProve = () => wrapPromise(requestProve(), client);
 
   const createFile = (code: string, name: string) => {
@@ -278,7 +232,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return zip.generateAsync({ type: 'blob' });
   };
 
-  const sendCompileReq = async (blob: Blob, projFiles: FileInfo[]) => {
+  const sendCompileReq = async (blob: Blob) => {
     setCompileError(null);
     sendCustomEvent('compile', {
       event_category: 'movement',
@@ -289,62 +243,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const address = accountID;
     const timestamp = Date.now().toString();
     setCompileTimestamp(timestamp);
-    setZipBlob(blob);
-
-    // ------------------------------------------------------------------
-    const isSrcZipUploadSuccess = await FileUtil.uploadSrcZip({
-      chainName: CHAIN_NAME.movement,
-      chainId: dapp.networks.movement.chain,
-      account: address || 'noaddress',
-      timestamp: timestamp.toString() || '0',
-      fileType: 'movement',
-      zipFile: blob,
-    });
-    if (!isSrcZipUploadSuccess) {
-      log.error(`src zip upload fail. address=${address}, timestamp=${timestamp}`);
-      setLoading(false);
-      return;
-    }
-
-    const projFiles_ = projFiles
-      .filter((fileinfo) => {
-        if (fileinfo.path.startsWith(`${compileTarget}/Move.lock`)) {
-          return false;
-        }
-        if (fileinfo.path === `${compileTarget}/out` && fileinfo.isDirectory) {
-          return false;
-        }
-        if (fileinfo.path.startsWith(`${compileTarget}/out/`)) {
-          return false;
-        }
-        return true;
-      })
-      .map((pf) => ({
-        path: pf.path.replace(compileTarget + '/', ''),
-        isDirectory: pf.isDirectory,
-      }));
-
-    const uploadUrls = await FileUtil.uploadUrls({
-      chainName: CHAIN_NAME.movement,
-      chainId: dapp.networks.movement.chain,
-      account: address || 'noaddress',
-      timestamp: timestamp.toString() || '0',
-      projFiles: projFiles_,
-    });
-
-    if (uploadUrls.length === 0) {
-      log.error(`uploadUrls fail`);
-      setLoading(false);
-      return;
-    }
-
-    const contents = await FileUtil.contents(client.fileManager, compileTarget, projFiles_);
-    console.log(`@@@ contents`, contents);
-    const uploadResults = await Promise.all(
-      uploadUrls.map((u, i) => axios.put(u.url, contents[i])),
-    );
-    console.log(`@@@ uploadResults`, uploadResults);
-
     try {
       // socket connect
       let socket: Socket;
@@ -364,28 +262,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V1,
-        async (data: CompilerMovementCompileErrorOccurredV1) => {
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
-
+        COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
+        async (data: CompilerMovementCompileErrorOccurredV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2} data=${stringify(
               data,
             )}`,
           );
+
+          if (!uploadCodeChecked) {
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.movement,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
+          }
+
           if (
             data.compileId !==
             compileIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
@@ -400,10 +303,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       );
 
       socket.on(
-        COMPILER_MOVEMENT_COMPILE_LOGGED_V1,
-        async (data: CompilerMovementCompileLoggedV1) => {
+        COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
+        async (data: CompilerMovementCompileLoggedV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_LOGGED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_LOGGED_V2} data=${stringify(
               data,
             )}`,
           );
@@ -413,23 +316,19 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           ) {
             return;
           }
-          const terminalLog = stripAnsi(data.logMsg);
-          if (terminalLog.length > 0) {
-            await client.terminal.log({ value: terminalLog, type: 'info' });
-          }
+
+          await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
         },
       );
 
       socket.on(
-        COMPILER_MOVEMENT_COMPILE_COMPLETED_V1,
-        async (data: CompilerMovementCompileCompletedV1) => {
+        COMPILER_MOVEMENT_COMPILE_COMPLETED_V3,
+        async (data: CompilerMovementCompileCompletedV3) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_COMPLETED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_COMPILE_COMPLETED_V3} data=${stringify(
               data,
             )}`,
           );
-
-          await client.terminal.log({ value: 'Build completed.', type: 'info' });
 
           if (
             data.compileId !==
@@ -446,7 +345,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               fileKey: S3Path.outKey(
                 CHAIN_NAME.movement,
                 dapp.networks.movement.chain,
-                accountID,
+                address,
                 timestamp,
                 BUILD_FILE_TYPE.move,
               ),
@@ -454,21 +353,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             responseType: 'arraybuffer',
             responseEncoding: 'null',
           });
-
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
 
           const zip = await new JSZip().loadAsync(res.data);
           try {
@@ -480,7 +364,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           }
 
           let packageName = '';
-          let buildInfo: BuildInfo | undefined;
           let metaData64 = '';
           let metaData: Buffer;
           let metaDataHex = '';
@@ -489,35 +372,40 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
           log.debug(zip.files);
 
+          if (!uploadCodeChecked) {
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.movement,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
+          }
+
           await Promise.all(
             Object.keys(zip.files).map(async (key) => {
-              if (key.includes('compiledModulesAndDeps.json')) {
-                let content = (await zip.file(key)?.async('blob')) ?? new Blob();
-                const arrayBuffer = await content.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                log.debug(`compiledModulesAndDeps=${buffer.toString()}`);
+              if (key.includes('package-metadata.bcs')) {
+                let content = await zip.file(key)?.async('blob');
+                content = content?.slice(0, content.size) ?? new Blob();
+                metaData64 = await readFile(new File([content], key));
+                metaData = Buffer.from(metaData64, 'base64');
+                const packageNameLength = metaData[0];
+                packageName = metaData.slice(1, packageNameLength + 1).toString();
+                metaDataHex = metaData.toString('hex');
+                log.debug(`metadataFile_Base64=${metaData64}`);
                 try {
                   await client?.fileManager.writeFile(
                     'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                    buffer.toString(),
-                  );
-                } catch (e) {
-                  log.error(e);
-                  setLoading(false);
-                }
-              }
-
-              if (key.includes('BuildInfo.yaml')) {
-                let content = (await zip.file(key)?.async('blob')) ?? new Blob();
-                const arrayBuffer = await content.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                buildInfo = parseYaml(buffer.toString()) as BuildInfo;
-                packageName = buildInfo?.compiled_package_info.package_name || '';
-
-                try {
-                  await client?.fileManager.writeFile(
-                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                    buffer.toString(),
+                    metaData64,
                   );
                 } catch (e) {
                   log.error(e);
@@ -568,149 +456,45 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             }),
           );
           moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-          log.info('@@@ moduleWrappers', moduleWrappers);
 
           setPackageName(packageName);
-          setBuildInfo(buildInfo);
+          setModuleWrappers([...moduleWrappers]);
           setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
           setFileNames([...filenames]);
-          setCompiledModulesAndDeps(data.compiledMovementModulesAndDeps);
+          setMetaDataBase64(metaData64);
           setCliVersion(data.cliVersion);
+          log.info(
+            `@@@ data.movementGitDependencies ${JSON.stringify(data.movementGitDependencies)}`,
+          );
+          setMovementGitDependencies([...data.movementGitDependencies]);
+
+          const movementClient = new MovementClient(movementNodeUrl(dapp.networks.movement.chain));
+
+          const rawTransaction = await movementClient.generateRawTransaction(
+            new HexString(accountID),
+            genPayload(
+              '0x1::code',
+              'publish_package_txn',
+              [],
+              [
+                metadataSerializedBytes(metaData64),
+                codeBytes([...moduleWrappers.map((mw) => mw.module)]),
+              ],
+            ),
+          );
+          const estimatedGas = await getEstimateGas(
+            `https://fullnode.${dapp.networks.movement.chain}.movementlabs.com/v1`,
+            dapp.networks.movement.account.pubKey,
+            rawTransaction,
+          );
+          console.log(`@@@ estimatedGas`, estimatedGas);
+
+          setEstimatedGas(estimatedGas.gas_used);
+          setGasUnitPrice(estimatedGas.gas_unit_price);
+          setMaxGasAmount(estimatedGas.gas_used);
 
           socket.disconnect();
           setLoading(false);
-        },
-      );
-
-      const remixMovementCompileRequestedV1: RemixMovementCompileRequestedV1 = {
-        compileId: compileIdV2(
-          CHAIN_NAME.movement,
-          dapp.networks.movement.chain,
-          address,
-          timestamp,
-        ),
-        chainName: CHAIN_NAME.movement,
-        chainId: dapp.networks.movement.chain,
-        address: address || 'noaddress',
-        timestamp: timestamp.toString() || '0',
-        fileType: 'move',
-      };
-      socket.emit(REMIX_MOVEMENT_COMPILE_REQUESTED_V1, remixMovementCompileRequestedV1);
-      log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_MOVEMENT_COMPILE_REQUESTED_V1} data=${stringify(
-          remixMovementCompileRequestedV1,
-        )}`,
-      );
-    } catch (e) {
-      setLoading(false);
-      log.error(e);
-    }
-  };
-
-  const sendTestReq = async (blob: Blob) => {
-    setTestLoading(true);
-
-    const address = accountID;
-    const timestamp = Date.now().toString();
-    try {
-      // socket connect
-      let socket: Socket;
-      if (STAGE === PROD) {
-        socket = io(MOVEMENT_COMPILER_CONSUMER_ENDPOINT);
-      } else {
-        socket = io(MOVEMENT_COMPILER_CONSUMER_ENDPOINT, {
-          transports: ['websocket'],
-        });
-      }
-
-      socket.on('connect_error', function (err) {
-        // handle server error here
-        log.debug('Error connecting to server');
-        setTestLoading(false);
-        socket.disconnect();
-      });
-
-      socket.on(
-        COMPILER_MOVEMENT_TEST_ERROR_OCCURRED_V1,
-        async (data: CompilerMovementTestErrorOccurredV1) => {
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
-
-          log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_TEST_ERROR_OCCURRED_V1} data=${stringify(
-              data,
-            )}`,
-          );
-
-          if (
-            data.id !==
-            reqIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
-          ) {
-            return;
-          }
-          await client.terminal.log({ value: stripAnsi(data.errMsg), type: 'error' });
-
-          setTestLoading(false);
-          socket.disconnect();
-        },
-      );
-
-      socket.on(COMPILER_MOVEMENT_TEST_LOGGED_V1, async (data: CompilerMovementTestLoggedV1) => {
-        log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_TEST_LOGGED_V1} data=${stringify(data)}`,
-        );
-        if (
-          data.id !== reqIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
-        ) {
-          return;
-        }
-
-        await client.terminal.log({ value: stripAnsi(data.logMsg), type: 'info' });
-      });
-
-      socket.on(
-        COMPILER_MOVEMENT_TEST_COMPLETED_V1,
-        async (data: CompilerMovementTestCompletedV1) => {
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
-
-          log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_TEST_COMPLETED_V1} data=${stringify(
-              data,
-            )}`,
-          );
-          if (
-            data.id !==
-            reqIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
-          ) {
-            return;
-          }
-          socket.disconnect();
-          setTestLoading(false);
         },
       );
 
@@ -736,22 +520,22 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixMovementTestRequestedV1: RemixMovementTestRequestedV1 = {
-        id: compileIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp),
+      const remixMovementCompileRequestedV2: RemixMovementCompileRequestedV2 = {
+        compileId: (CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp),
         chainName: CHAIN_NAME.movement,
         chainId: dapp.networks.movement.chain,
         address: address || 'noaddress',
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_MOVEMENT_TEST_REQUESTED_V1, remixMovementTestRequestedV1);
+      socket.emit(REMIX_MOVEMENT_COMPILE_REQUESTED_V2, remixMovementCompileRequestedV2);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_MOVEMENT_TEST_REQUESTED_V1} data=${stringify(
-          remixMovementTestRequestedV1,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_MOVEMENT_COMPILE_REQUESTED_V2} data=${stringify(
+          remixMovementCompileRequestedV2,
         )}`,
       );
     } catch (e) {
-      setTestLoading(false);
+      setLoading(false);
       log.error(e);
     }
   };
@@ -780,28 +564,31 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V1,
-        async (data: CompilerMovementProveErrorOccurredV1) => {
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
-
+        COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
+        async (data: CompilerMovementProveErrorOccurredV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2} data=${stringify(
               data,
             )}`,
           );
+          if (!uploadCodeChecked) {
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.movement,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
+          }
 
           if (
             data.id !==
@@ -816,9 +603,9 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         },
       );
 
-      socket.on(COMPILER_MOVEMENT_PROVE_LOGGED_V1, async (data: CompilerMovementProveLoggedV1) => {
+      socket.on(COMPILER_MOVEMENT_PROVE_LOGGED_V2, async (data: CompilerMovementProveLoggedV2) => {
         log.debug(
-          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_LOGGED_V1} data=${stringify(data)}`,
+          `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_LOGGED_V2} data=${stringify(data)}`,
         );
         if (
           data.id !== reqIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
@@ -830,28 +617,33 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       });
 
       socket.on(
-        COMPILER_MOVEMENT_PROVE_COMPLETED_V1,
-        async (data: CompilerMovementProveCompletedV1) => {
-          if (!uploadCodeChecked) {
-            await axios.request({
-              method: 'DELETE',
-              url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
-              params: {
-                chainName: 'movement',
-                chainId: dapp.networks.movement.chain,
-                account: accountID,
-                timestamp: timestamp,
-              },
-              responseType: 'arraybuffer',
-              responseEncoding: 'null',
-            });
-          }
-
+        COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
+        async (data: CompilerMovementProveCompletedV2) => {
           log.debug(
-            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_COMPLETED_V1} data=${stringify(
+            `${RCV_EVENT_LOG_PREFIX} ${COMPILER_MOVEMENT_PROVE_COMPLETED_V2} data=${stringify(
               data,
             )}`,
           );
+
+          if (!uploadCodeChecked) {
+            try {
+              await axios.request({
+                method: 'DELETE',
+                url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
+                params: {
+                  chainName: CHAIN_NAME.movement,
+                  chainId: data.chainId,
+                  account: data.address,
+                  timestamp: timestamp,
+                },
+                responseType: 'arraybuffer',
+                responseEncoding: 'null',
+              });
+            } catch (e) {
+              console.log(`Failed to delete.`);
+            }
+          }
+
           if (
             data.id !==
             reqIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp)
@@ -885,7 +677,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         return;
       }
 
-      const remixMovementProveRequestedV1: RemixMovementProveRequestedV1 = {
+      const remixMovementProveRequestedV2: RemixMovementProveRequestedV2 = {
         id: compileIdV2(CHAIN_NAME.movement, dapp.networks.movement.chain, address, timestamp),
         chainName: CHAIN_NAME.movement,
         chainId: dapp.networks.movement.chain,
@@ -893,10 +685,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         timestamp: timestamp.toString() || '0',
         fileType: 'move',
       };
-      socket.emit(REMIX_MOVEMENT_PROVE_REQUESTED_V1, remixMovementProveRequestedV1);
+      socket.emit(REMIX_MOVEMENT_PROVE_REQUESTED_V2, remixMovementProveRequestedV2);
       log.debug(
-        `${SEND_EVENT_LOG_PREFIX} ${REMIX_MOVEMENT_PROVE_REQUESTED_V1} data=${stringify(
-          remixMovementProveRequestedV1,
+        `${SEND_EVENT_LOG_PREFIX} ${REMIX_MOVEMENT_PROVE_REQUESTED_V2} data=${stringify(
+          remixMovementProveRequestedV2,
         )}`,
       );
     } catch (e) {
@@ -905,9 +697,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     }
   };
 
-  const wrappedCompile = (blob: Blob, projFiles: FileInfo[]) =>
-    wrapPromise(sendCompileReq(blob, projFiles), client);
-  const wrappedTest = (blob: Blob) => wrapPromise(sendTestReq(blob), client);
+  const wrappedCompile = (blob: Blob) => wrapPromise(sendCompileReq(blob), client);
   const wrappedProve = (blob: Blob) => wrapPromise(sendProveReq(blob), client);
 
   const getExtensionOfFilename = (filename: string) => {
@@ -916,288 +706,140 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     return filename.substring(_lastDot, _fileLen).toLowerCase();
   };
 
-  function clearAccountCtx() {
-    clearObjectCtx();
-    clearPackageCtx();
-  }
-
-  function clearObjectCtx() {
-    setMovementObjects([]);
-    setTargetObjectId('');
-  }
-
-  function clearPackageCtx() {
-    setPackageIds([]);
-    setTargetPackageId('');
-
-    setModules([]);
-    setTargetModuleName('');
-
-    setFuncs([]);
-    setTargetFunc(undefined);
-  }
-
-  const initPackageCtx = async (account: string, chainId: MovementChainId, packageId?: string) => {
+  const getAccountModulesFromAccount = async (account: string, chainId: string) => {
     try {
-      let loadedPackageIds: string[] = [];
-      if (account) {
-        loadedPackageIds = await getPackageIds(account, chainId);
-        if (isEmptyList(loadedPackageIds)) {
-          return;
-        }
-        setPackageIds([...loadedPackageIds]);
-      }
-
-      let targetInitPackageId;
-      if (packageId) {
-        setTargetPackageId(packageId);
-        targetInitPackageId = packageId;
-        if (!account) {
-          setPackageIds([packageId]);
-        }
-      } else {
-        setTargetPackageId(loadedPackageIds[0]);
-        targetInitPackageId = loadedPackageIds[0];
-      }
-      log.info(`[initPackageCtx] targetInitPackageId=${targetInitPackageId}`);
-      const modules = await getModules(dapp.networks.sui.chain, targetInitPackageId); // todo sui
-      log.info(`[initPackageCtx] modules=${JSON.stringify(modules, null, 2)}`);
-      // const modules = await getModules('devnet', loadedPackageIds[0]);
-      if (isEmptyList(modules)) {
+      const accountModules = await getAccountModules(account, chainId);
+      log.info('@@@ accountModules', accountModules);
+      if (isEmptyList(accountModules)) {
         setModules([]);
-        setTargetModuleName('');
-        setFuncs([]);
-        setTargetFunc(undefined);
+        setTargetModule('');
+        setMoveFunction(undefined);
+        setEntryEstimatedGas(undefined);
+        setEntryGasUnitPrice('0');
+        setEntryMaxGasAmount('0');
         return;
       }
-      setModules([...modules]);
-      const firstModule = modules[0];
-      setTargetModuleName(firstModule.name);
-
-      const entryFuncs = firstModule.exposedFunctions.filter((f) => f.isEntry);
-
-      if (isEmptyList(entryFuncs)) {
-        setFuncs([]);
-        setTargetFunc(undefined);
-        return;
-      }
-      setFuncs([...entryFuncs]);
-
-      const func = entryFuncs[0];
-      setTargetFunc(func);
-      setGenericParameters([...initGenericParameters(func.typeParameters)]);
-      setParameters([...initParameters(func.parameters)]);
+      setModules(accountModules);
+      const firstAccountModule = accountModules[0];
+      setTargetModule(firstAccountModule.abi!.name);
+      setMoveFunction(firstAccountModule.abi!.exposed_functions[0]);
     } catch (e) {
       log.error(e);
       client.terminal.log({ type: 'error', value: 'Cannot get account module error' });
     }
   };
 
-  async function initObjectsCtx(account: string, chainId: MovementChainId) {
-    try {
-      const objects = await getOwnedObjects(account, dapp.networks.sui.chain); // todo sui
-      // const objects = await getOwnedObjects(account, chainId);
-      log.info(`@@@ sui objects`, objects);
-      setMovementObjects([...objects]);
-      if (isNotEmptyList(objects)) {
-        setTargetObjectId(objects[0].objectId);
-      }
-    } catch (e) {
-      log.error(e);
-      client.terminal.log({ type: 'error', value: `Object Fetch Fail. account ${account}` });
+  const getContractAtAddress = async () => {
+    sendCustomEvent('at_address', {
+      event_category: 'movement',
+      method: 'at_address',
+    });
+    setDeployedContract(atAddress);
+    getAccountModulesFromAccount(atAddress, dapp.networks.movement.chain);
+
+    const moveResources = await getAccountResources(atAddress, dapp.networks.movement.chain);
+    log.info(`@@@ moveResources`, moveResources);
+    setAccountResources([...moveResources]);
+    if (isNotEmptyList(moveResources)) {
+      setTargetResource(moveResources[0].type);
+    } else {
+      setTargetResource('');
     }
-  }
-
-  const initContract = async (address: string, packageId?: string, queryMode?: QueryMode) => {
-    clearAccountCtx();
-    setQueryMode(queryMode || '');
-    if (address) {
-      setAtAddress(address);
-      sendCustomEvent('at_address', {
-        event_category: 'sui',
-        method: 'at_address',
-      });
-      setDeployedContract(address);
-
-      await initObjectsCtx(address, dapp.networks.sui.chain); // todo sui
-      // await initObjectsCtx(inputAddress, 'devnet');
-    }
-
-    await initPackageCtx(address, dapp.networks.sui.chain, packageId);
-    // await initPackageCtx(inputAddress, 'devnet');
+    setParameters([]);
   };
 
-  const onChangePackageId = async (e: any) => {
-    const packageId = e.target.value;
-    setTargetPackageId(packageId);
-    log.info(`[onChangePackageId] packageId=${packageId}`);
-    const modules = await getModules(dapp.networks.sui.chain, packageId); // todo sui
-    // const modules = await getModules('devnet', packageId);
-    setModules([...modules]);
-    if (isEmptyList(modules)) {
-      setFuncs([]);
-      setTargetFunc(undefined);
-      setGenericParameters([]);
-      setParameters([]);
-      return;
-    }
-
-    setTargetModuleName(modules[0].name);
-
-    const entryFuncs = modules[0].exposedFunctions.filter((f) => f.isEntry);
-
-    setFuncs([...entryFuncs]);
-    if (isEmptyList(entryFuncs)) {
-      setTargetFunc(undefined);
-      setGenericParameters([]);
-      setParameters([]);
-      return;
-    }
-
-    const func = entryFuncs[0];
-    setTargetFunc(func);
-    setGenericParameters([...initGenericParameters(func.typeParameters)]);
-    setParameters([...initParameters(func.parameters)]);
-    return;
-  };
-
-  const onChangeModuleName = async (e: any) => {
-    log.info('onChangeModuleName', e.target.value);
-    const moduleName = e.target.value;
-    setTargetModuleName(moduleName);
-    const module = modules.find((m) => m.name === moduleName);
-    if (!module) {
-      throw new Error(`Not Found Module ${moduleName}`);
-    }
-
-    const entryFuncs = module.exposedFunctions.filter((f) => f.isEntry);
-    setFuncs([...entryFuncs]);
-    if (isEmptyList(entryFuncs)) {
-      setTargetFunc(undefined);
-      setGenericParameters([]);
-      setParameters([]);
-      return;
-    }
-
-    const func = entryFuncs[0];
-    setTargetFunc(func);
-    setGenericParameters([...initGenericParameters(func.typeParameters)]);
-    setParameters([...initParameters(func.parameters)]);
-  };
-
-  const onChangeFuncName = (e: any) => {
-    log.info('onChangeFuncName', e.target.value);
-    const funcName = e.target.value;
-
-    const func = funcs.find((f) => f.name === funcName);
-    if (!func) {
-      throw new Error(`Not Found Function ${funcName}`);
-    }
-
-    setTargetFunc(func);
-    setGenericParameters([...initGenericParameters(func.typeParameters)]);
-    setParameters([...initParameters(func.parameters)]);
-  };
-
-  const onChangeObjectId = (e: any) => {
-    const objectId = e.target.value;
-    log.info('###', objectId);
-    setTargetObjectId(objectId);
-  };
-
-  const moveCall = async () => {
-    const parameterTypes = targetFunc?.parameters;
-    if (parameterTypes) {
-      for (let i = 0; i < parameterTypes.length; i++) {
-        const parameterType = parameterTypes[i];
-        if (parameterType === 'Bool' && typeof parameters[i] !== 'boolean') {
-          parameters[i] = true;
+  const setModuleAndABI = (e: any) => {
+    setTargetModule(e.target.value);
+    if (modules.length) {
+      modules.map((mod, idx) => {
+        if (mod.abi?.name === e.target.value) {
+          setMoveFunction(mod.abi?.exposed_functions[0]);
+          setParameters([]);
         }
-      }
+      });
+    }
+  };
+
+  const handleFunction = (e: any) => {
+    setParameters([]);
+    setGenericParameters([]);
+    setMoveFunction(undefined);
+    setEntryEstimatedGas(undefined);
+    setEntryGasUnitPrice('0');
+    setEntryMaxGasAmount('0');
+
+    const module = modules.find((m) => m.abi?.name === targetModule);
+    if (!module) {
+      return;
     }
 
-    const dappTxn_ = await moveCallTxn(
-      client,
-      accountID,
-      dapp.networks.sui.chain,
-      targetPackageId,
-      targetModuleName,
-      targetFunc!,
-      genericParameters,
+    const matchFunc = module.abi?.exposed_functions.find((f) => {
+      return f.name === e.target.value;
+    });
+    if (!matchFunc) {
+      return;
+    }
+    setMoveFunction(matchFunc);
+  };
+
+  const onChangeResource = (e: any) => {
+    const resourceType = e.target.value;
+    log.info('###', resourceType);
+    setTargetResource(resourceType);
+  };
+
+  const queryResource = async () => {
+    const resources = await getAccountResources(deployedContract, dapp.networks.movement.chain);
+    log.info(`targetResource`, targetResource);
+    log.info(`deployedContract`, deployedContract);
+    log.info(`resources`, resources);
+    const selectedResource = resources.find((r) => r.type === targetResource);
+    if (!selectedResource) {
+      await client.terminal.log({
+        type: 'error',
+        value: `Resource Not Found For Type ${targetResource}`,
+      });
+      return;
+    }
+
+    await client.terminal.log({
+      type: 'info',
+      value: `\n${targetResource}\n${JSON.stringify(selectedResource.data, null, 2)}\n`,
+    });
+  };
+
+  const view = async () => {
+    console.log(parameters);
+
+    const view = await viewFunction(
+      deployedContract,
+      targetModule,
+      moveFunction?.name || '',
+      dapp.networks.movement.chain,
+      genericParameters, // typeArgs
       parameters,
-      Number(gas),
     );
 
-    const txnHash: string[] = await dapp.request('sui', {
-      method: 'dapp:signAndSendTransaction',
-      params: [dappTxn_],
-    });
-    if (isEmptyList(txnHash)) {
-      console.error(`dapp:signAndSendTransaction fail`);
-      return;
-    }
-    log.info('@@@ txnHash', txnHash);
-
-    let result;
-    try {
-      result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
-    } catch (e) {
-      console.error(e);
+    log.debug(view);
+    if (view.error) {
       await client.terminal.log({
         type: 'error',
-        value: `Failed to get transaction block for ${txnHash}`,
+        value: view.error.split('\\"').join(''),
       });
       return;
     }
-    log.info('tx result', result);
 
-    if (result.effects?.status?.status !== 'success') {
-      log.error(result as any);
+    if (Array.isArray(view.result) && view.result.length === 1) {
       await client.terminal.log({
-        type: 'error',
-        value: `-------------------- Failure ${txnHash} --------------------`,
+        type: 'info',
+        value: `${JSON.stringify(view.result[0], null, 2)}`,
       });
-      await client.terminal.log({ type: 'error', value: JSON.stringify(result, null, 2) });
       return;
     }
 
     await client.terminal.log({
       type: 'info',
-      value: `-------------------- Success ${txnHash} --------------------`,
-    });
-    await client.terminal.log({
-      type: 'info',
-      value: JSON.stringify(result, null, 2),
-    });
-  };
-
-  const queryObject = async () => {
-    log.info(`targetObjectId`, targetObjectId);
-    const selectedObject = movementObjects.find((object) => object.objectId === targetObjectId);
-    if (!selectedObject) {
-      client.terminal.log({
-        type: 'error',
-        value: `Resource Not Found For Object ID ${targetObjectId}`,
-      });
-      return;
-    }
-
-    const object = await getProvider(dapp.networks.sui.chain).getObject({
-      id: targetObjectId,
-      options: {
-        showType: true,
-        showContent: true,
-        // showBcs: true,
-        showOwner: true,
-        // showPreviousTransaction: true,
-        // showStorageRebate: true,
-        showDisplay: true,
-      },
-    });
-
-    client.terminal.log({
-      type: 'info',
-      value: `\n${targetObjectId}\n${JSON.stringify(object, null, 2)}\n`,
+      value: `${JSON.stringify(view.result, null, 2)}`,
     });
   };
 
@@ -1205,22 +847,35 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     const artifactPaths = await findArtifacts();
 
     setPackageName('');
-    setBuildInfo(undefined);
     setCompileTimestamp('');
+    setModuleWrappers([]);
+    setMetaDataBase64('');
     setModuleBase64s([]);
     setFileNames([]);
-    setCompiledModulesAndDeps(undefined);
     setCliVersion('');
-    setZipBlob(undefined);
+    setMovementGitDependencies([]);
 
     if (isEmptyList(artifactPaths)) {
       return [];
     }
 
-    let packageName = '';
-    let buildInfo: BuildInfo | undefined = undefined;
+    let metaData64 = '';
+    let metaData: Buffer;
+    let metaDataHex = '';
     let filenames: string[] = [];
     let moduleWrappers: ModuleWrapper[] = [];
+
+    await Promise.all(
+      artifactPaths.map(async (path) => {
+        if (path.includes('package-metadata.bcs')) {
+          metaData64 = await client?.fileManager.readFile('browser/' + path);
+          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
+        }
+      }),
+    );
+    metaData = Buffer.from(metaData64, 'base64');
+    const packageNameLength = metaData[0];
+    const packageName = metaData.slice(1, packageNameLength + 1).toString();
 
     await Promise.all(
       artifactPaths.map(async (path) => {
@@ -1233,6 +888,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             const moduleNameHex = Buffer.from(
               FileUtil.extractFilenameWithoutExtension(path),
             ).toString('hex');
+            const order = metaDataHex.indexOf(moduleNameHex);
 
             moduleWrappers.push({
               packageName: packageName,
@@ -1240,24 +896,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               module: moduleBase64,
               moduleName: moduleName,
               moduleNameHex: moduleNameHex,
-              order: 0,
+              order: order,
             });
           }
           filenames.push(path);
-        }
-
-        if (path.includes('compiledModulesAndDeps.json')) {
-          const compiledModulesAndDepsStr = await client?.fileManager.readFile('browser/' + path);
-          const compiledModulesAndDeps = JSON.parse(compiledModulesAndDepsStr);
-          console.log('compiledModulesAndDeps', compiledModulesAndDeps);
-          setCompiledModulesAndDeps(compiledModulesAndDeps);
-        }
-
-        if (path.includes('BuildInfo.yaml')) {
-          const buildinfoStr = await client?.fileManager.readFile('browser/' + path);
-          buildInfo = parseYaml(buildinfoStr) as BuildInfo;
-          packageName = buildInfo?.compiled_package_info.package_name || '';
-          log.info('buildinfo', buildInfo);
         }
       }),
     );
@@ -1266,9 +908,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     log.debug('@@@ moduleWrappers', moduleWrappers);
 
     setPackageName(packageName);
-    setBuildInfo(buildInfo);
     setFileNames([...filenames]);
+    setModuleWrappers([...moduleWrappers]);
     setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
+    setMetaDataBase64(metaData64);
 
     return filenames;
   };
@@ -1278,6 +921,27 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
       return;
     }
+
+    setEstimatedGas(undefined);
+    setGasUnitPrice('0');
+    setMaxGasAmount('0');
+
+    const removeArtifacts = async () => {
+      log.info(`removeArtifacts ${'browser/' + compileTarget + '/out'}`);
+      try {
+        await client?.fileManager.remove('browser/' + compileTarget + '/out');
+        setPackageName('');
+        setCompileTimestamp('');
+        setModuleWrappers([]);
+        setMetaDataBase64('');
+        setModuleBase64s([]);
+        setFileNames([]);
+        setCliVersion('');
+        setMovementGitDependencies([]);
+      } catch (e) {
+        log.info(`no out folder`);
+      }
+    };
 
     await removeArtifacts();
 
@@ -1302,7 +966,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    await wrappedCompile(blob, projFiles);
+    await wrappedCompile(blob);
   };
 
   return (
@@ -1315,9 +979,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             id="uploadCodeCheckbox"
             checked={uploadCodeChecked}
             onChange={handleCheckboxChange}
-            disabled={
-              loading || (!!compiledModulesAndDeps && compiledModulesAndDeps.modules.length > 0)
-            }
+            disabled={loading || (!!moduleWrappers && moduleWrappers.length > 0)}
           />
           <CustomTooltip
             placement="top"
@@ -1335,7 +997,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         </div>
         <Button
           variant="primary"
-          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
             await wrappedRequestCompile();
           }}
@@ -1348,30 +1010,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
 
         <Button
           variant="warning"
-          disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}
+          disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
-            await wrappedRequestTest();
+            await wrappedRequestProve();
           }}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
-          <FaSyncAlt className={testLoading ? 'fa-spin' : ''} />
-          <span> Test</span>
+          <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
+          <span> Prove</span>
         </Button>
 
-        {/*<Button*/}
-        {/*  variant="warning"*/}
-        {/*  disabled={accountID === '' || testLoading || proveLoading || loading || !compileTarget}*/}
-        {/*  onClick={async () => {*/}
-        {/*    await wrappedRequestProve();*/}
-        {/*  }}*/}
-        {/*  className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"*/}
-        {/*>*/}
-        {/*  <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />*/}
-        {/*  <span> Prove</span>*/}
-        {/*</Button>*/}
-
         {fileNames.map((filename, i) => (
-          <small key={`sui-module-file-${i}`}>
+          <small key={`movement-module-file-${i}`}>
             {filename}
             {i < filename.length - 1 ? <br /> : false}
           </small>
@@ -1389,150 +1039,164 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-      {
-        compiledModulesAndDeps ? (
+      {metaData64 ? (
+        <div style={{ marginTop: '-1.5em' }}>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>Gas Unit Price</small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="number"
+                placeholder="0"
+                size="sm"
+                onChange={setGasUnitPriceValue}
+                value={gasUnitPrice}
+              />
+            </InputGroup>
+          </Form.Group>
+          <Form.Group style={mt8}>
+            <Form.Text className="text-muted" style={mb4}>
+              <small>
+                Max Gas Amount
+                {estimatedGas ? (
+                  <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
+                    {' '}
+                    ( Estimated Gas {estimatedGas}. If the transaction fails, try again with a
+                    higher gas fee. )
+                  </span>
+                ) : undefined}
+              </small>
+            </Form.Text>
+            <InputGroup>
+              <Form.Control
+                type="number"
+                placeholder="0"
+                size="sm"
+                onChange={setMaxGasAmountValue}
+                value={maxGasAmount}
+              />
+            </InputGroup>
+          </Form.Group>
           <Deploy
             wallet={'Dsrv'}
             accountID={accountID}
             compileTimestamp={compileTimestamp}
-            cliVersion={cliVersion}
             packageName={packageName}
-            compiledModulesAndDeps={compiledModulesAndDeps}
+            moduleWrappers={moduleWrappers}
+            metaData64={metaData64}
+            moduleBase64s={moduleBase64s}
+            cliVersion={cliVersion}
+            movementGitDependencies={movementGitDependencies}
             dapp={dapp}
             client={client}
-            gas={gas}
             setDeployedContract={setDeployedContract}
             setAtAddress={setAtAddress}
-            setMovementObjects={setMovementObjects}
-            setTargetObjectId={setTargetObjectId}
-            setGenericParameters={setGenericParameters}
+            setAccountResources={setAccountResources}
+            setTargetResource={setTargetResource}
             setParameters={setParameters}
-            setInputAddress={setInputAddress}
-            initContract={initContract}
-            uploadCodeChecked={uploadCodeChecked}
-            blob={zipBlob}
+            getAccountModulesFromAccount={getAccountModulesFromAccount}
+            estimatedGas={estimatedGas}
+            setEstimatedGas={setEstimatedGas}
+            gasUnitPrice={gasUnitPrice}
+            setGasUnitPrice={setGasUnitPrice}
+            maxGasAmount={maxGasAmount}
+            setMaxGasAmount={setMaxGasAmount}
           />
-        ) : null
-        // <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
-        //   <small>NO COMPILED CONTRACT</small>
-        // </p>
-      }
+        </div>
+      ) : (
+        <p className="text-center" style={{ marginTop: '0px !important', marginBottom: '3px' }}>
+          <small>NO COMPILED CONTRACT</small>
+        </p>
+      )}
+      <p className="text-center" style={{ marginTop: '5px !important', marginBottom: '5px' }}>
+        <small>OR</small>
+      </p>
       <Form.Group>
         <InputGroup>
-          <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-            <Form.Control
-              type="text"
-              placeholder="Package or Address"
-              size="sm"
-              onChange={(e) => {
-                setInputAddress(e.target.value.trim());
-              }}
-              disabled={accountID === '' || isProgress}
-              value={inputAddress}
-            />
-            <div style={{ marginLeft: '0.3em' }}> </div>
-            {/*<CustomTooltip*/}
-            {/*  placement="top"*/}
-            {/*  tooltipId="overlay-package"*/}
-            {/*  tooltipText="Package Object ID"*/}
-            {/*>*/}
+          <Form.Control
+            type="text"
+            placeholder="account"
+            size="sm"
+            onChange={(e) => {
+              setAtAddress(e.target.value.trim());
+            }}
+            value={atAddress}
+          />
+          <OverlayTrigger
+            placement="left"
+            overlay={<Tooltip id="overlay-ataddresss">Use deployed Contract account</Tooltip>}
+          >
             <Button
               variant="info"
               size="sm"
               disabled={accountID === '' || isProgress}
-              // disabled={true}
-              onClick={() => initContract('', inputAddress, 'package')}
-              style={queryMode === 'package' ? enabledStyle() : disabledStyle()}
+              onClick={getContractAtAddress}
             >
-              <small>Package</small>
+              <small>At Address</small>
             </Button>
-            {/*</CustomTooltip>*/}
-            <div style={{ marginLeft: '0.3em' }}> </div>
-            {/*<CustomTooltip placement="top" tooltipId="overlay-ataddresss" tooltipText="Account ID">*/}
-            <Button
-              variant="info"
-              size="sm"
-              disabled={accountID === '' || isProgress}
-              // disabled={true}
-              onClick={() => initContract(inputAddress, undefined, 'address')}
-              style={queryMode === 'address' ? enabledStyle() : disabledStyle()}
-            >
-              <small>Address</small>
-            </Button>
-            {/*</CustomTooltip>*/}
-          </div>
+          </OverlayTrigger>
         </InputGroup>
       </Form.Group>
-      {movementObjects.length > 0 ? (
+      <hr />
+
+      {atAddress || deployedContract ? (
         <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
-            <small>Objects</small>
+            <span style={mr6}>Deployed Contract</span>
+            <span>{shortenHexString(deployedContract, 6, 6)}</span>
+            <OverlayTrigger placement="top" overlay={<Tooltip>{copyMsg}</Tooltip>}>
+              <Button
+                variant="link"
+                size="sm"
+                className="mt-0 pt-0"
+                onClick={() => {
+                  copy(deployedContract);
+                  setCopyMsg('Copied');
+                }}
+                onMouseLeave={() => {
+                  setTimeout(() => setCopyMsg('Copy'), 100);
+                }}
+              >
+                <i className="far fa-copy" />
+              </Button>
+            </OverlayTrigger>
+          </Form.Text>
+          <Form.Text className="text-muted" style={mb4}>
+            <small>Resources</small>
           </Form.Text>
           <InputGroup>
             <Form.Control
               style={{ width: '80%', marginBottom: '10px' }}
-              className="custom-select pr15rem"
+              className="custom-select"
               as="select"
-              value={targetObjectId}
-              onChange={onChangeObjectId}
+              value={targetResource}
+              onChange={onChangeResource}
             >
-              {movementObjects.map((object, idx) => {
-                const packageId = object.type?.split('::') ? object.type.split('::')[0] : '';
-                const objectType =
-                  object.type?.indexOf(':') && object.type.indexOf(':') > 10
-                    ? `${shortenHexString(packageId, 6, 4)}::${object.type?.slice(
-                        object.type.indexOf(':') + 2,
-                      )}`
-                    : object.type;
+              {accountResources.map((accountResource, idx) => {
                 return (
-                  <option value={object.objectId} key={`sui-object-${idx}`}>
-                    {`${object.objectId} >> ${objectType}`}
+                  <option value={accountResource.type} key={`accountResources-${idx}`}>
+                    {accountResource.type}
                   </option>
                 );
               })}
             </Form.Control>
-            <CopyToClipboard tip="Copy" content={targetObjectId} direction="auto-start" />
           </InputGroup>
           <Button
             style={{ marginTop: '10px', minWidth: '70px' }}
             variant="warning"
             size="sm"
-            onClick={queryObject}
+            onClick={queryResource}
           >
-            <small>Query Object</small>
+            <small>Query Resource</small>
           </Button>
         </Form.Group>
       ) : (
         false
       )}
 
-      {packageIds.length > 0 ? (
+      {modules.length > 0 ? (
         <>
-          {queryMode === 'address' ? (
-            <Form.Group>
-              <Form.Text className="text-muted" style={mb4}>
-                <small>Packages</small>
-              </Form.Text>
-              <InputGroup>
-                <Form.Control
-                  className="custom-select pr15rem"
-                  as="select"
-                  value={targetPackageId}
-                  onChange={onChangePackageId}
-                >
-                  {packageIds.map((packageId, idx) => {
-                    return (
-                      <option value={packageId} key={`packageId-${packageId}}`}>
-                        {packageId}
-                      </option>
-                    );
-                  })}
-                </Form.Control>
-                <CopyToClipboard tip="Copy" content={targetPackageId} direction="auto-start" />
-              </InputGroup>
-            </Form.Group>
-          ) : null}
-
           <Form.Group>
             <Form.Text className="text-muted" style={mb4}>
               <small>Modules</small>
@@ -1541,13 +1205,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               <Form.Control
                 className="custom-select"
                 as="select"
-                value={targetModuleName}
-                onChange={onChangeModuleName}
+                value={targetModule}
+                onChange={setModuleAndABI}
               >
-                {modules.map((module) => {
+                {modules.map((mod, idx) => {
                   return (
-                    <option value={module.name} key={`${targetPackageId}-${module.name}`}>
-                      {module.name}
+                    <option value={mod.abi?.name} key={idx + 1}>
+                      {mod.abi?.name}
                     </option>
                   );
                 })}
@@ -1562,38 +1226,103 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               style={{ marginBottom: '10px' }}
               className="custom-select"
               as="select"
-              value={targetFunc?.name}
-              onChange={onChangeFuncName}
+              value={moveFunction?.name}
+              onChange={handleFunction}
             >
-              {funcs.map((func) => {
-                return (
-                  <option
-                    value={func.name}
-                    key={`${targetPackageId}-${targetModuleName}-${func.name}`}
-                  >
-                    {func.name}
-                  </option>
-                );
+              {modules.map((mod, idx) => {
+                if (mod.abi?.name === targetModule) {
+                  return mod.abi.exposed_functions.map((func: any, idx: any) => {
+                    return (
+                      <option value={func.name} key={idx}>
+                        {func.name}
+                      </option>
+                    );
+                  });
+                }
               })}
             </Form.Control>
           </Form.Group>
-          {targetFunc ? (
+          {moveFunction ? (
             <Form.Group>
               <InputGroup>
                 <Parameters
-                  func={targetFunc}
+                  func={moveFunction}
                   setGenericParameters={setGenericParameters}
                   setParameters={setParameters}
                 />
-                <div>
-                  <Button
-                    style={{ marginTop: '10px', minWidth: '70px' }}
-                    variant="primary"
-                    size="sm"
-                    onClick={moveCall}
-                  >
-                    <small>{targetFunc.name}</small>
-                  </Button>
+                <div style={{ width: '100%' }}>
+                  {moveFunction.is_entry ? (
+                    <div>
+                      {entryEstimatedGas ? (
+                        <div>
+                          <Form.Group style={mt8}>
+                            <Form.Text className="text-muted" style={mb4}>
+                              <small>Gas Unit Price</small>
+                            </Form.Text>
+                            <InputGroup>
+                              <Form.Control
+                                type="number"
+                                placeholder="0"
+                                size="sm"
+                                onChange={setEntryGasUnitPriceValue}
+                                value={entryGasUnitPrice}
+                              />
+                            </InputGroup>
+                          </Form.Group>
+                          <Form.Group style={mt8}>
+                            <Form.Text className="text-muted" style={mb4}>
+                              <small>
+                                Max Gas Amount
+                                {entryEstimatedGas ? (
+                                  <span style={{ fontWeight: 'bolder', fontSize: '1.1em' }}>
+                                    {' '}
+                                    ( Estimated Gas {entryEstimatedGas}. If the transaction fails,
+                                    try again with a higher gas fee. )
+                                  </span>
+                                ) : undefined}
+                              </small>
+                            </Form.Text>
+                            <InputGroup>
+                              <Form.Control
+                                type="number"
+                                placeholder="0"
+                                size="sm"
+                                onChange={setEntryMaxGasAmountValue}
+                                value={entryMaxGasAmount}
+                              />
+                            </InputGroup>
+                          </Form.Group>
+                        </div>
+                      ) : null}
+
+                      <EntryButton
+                        accountId={accountID}
+                        dapp={dapp}
+                        atAddress={atAddress}
+                        targetModule={targetModule}
+                        moveFunction={moveFunction}
+                        genericParameters={genericParameters}
+                        parameters={parameters}
+                        entryEstimatedGas={entryEstimatedGas}
+                        setEntryEstimatedGas={setEntryEstimatedGas}
+                        entryGasUnitPrice={entryGasUnitPrice}
+                        setEntryGasUnitPrice={setEntryGasUnitPrice}
+                        entryMaxGasAmount={entryMaxGasAmount}
+                        setEntryMaxGasAmount={setEntryMaxGasAmount}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <Button
+                        style={{ marginTop: '10px', minWidth: '70px' }}
+                        variant="warning"
+                        size="sm"
+                        onClick={view}
+                      >
+                        <small>{moveFunction.name}</small>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </InputGroup>
               <hr />
@@ -1609,21 +1338,13 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   );
 };
 
-function enabledStyle() {
-  return {
-    color: '#fff',
-    fontSize: '1.1em',
-    textShadow: '0 0 7px #D3D6DF, 0 0 10px #D3D6DF, 0 0 21px #D3D6DF',
-  };
-}
-
-function disabledStyle() {
-  return {
-    color: '#D3D6DF',
-    fontSize: '1.1em',
-  };
-}
-
 const mb4 = {
   marginBottom: '4px',
+};
+const mr6 = {
+  marginRight: '6px',
+};
+
+const mt8 = {
+  marginTop: '8px',
 };

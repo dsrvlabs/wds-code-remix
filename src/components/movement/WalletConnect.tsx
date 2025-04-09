@@ -105,7 +105,14 @@ export const WalletConnect: React.FunctionComponent<InterfaceProps> = ({
           });
 
           // Set wallet instance for DApp
-          setDapp(window.okxwallet.aptos);
+          setDapp({
+            ...window.okxwallet.aptos,
+            networks: {
+              movement: {
+                chain: getChainId(selectedNetwork),
+              },
+            },
+          });
         } catch (e: any) {
           log.error(e);
           if (e.code === 4001) {
@@ -125,6 +132,17 @@ export const WalletConnect: React.FunctionComponent<InterfaceProps> = ({
     setSelectedNetwork(newNetwork);
     if (account) {
       await fetchBalance(account);
+    }
+  };
+
+  const getChainId = (network: string): string => {
+    switch (network) {
+      case 'Movement Mainnet':
+        return 'mainnet';
+      case 'Movement Testnet':
+        return 'testnet';
+      default:
+        return 'testnet';
     }
   };
 

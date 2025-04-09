@@ -5,25 +5,32 @@ import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { dappPublishTxn, MovementChainId, waitForTransactionWithResult } from './movement-helper';
+import {
+  codeBytes,
+  dappTxn,
+  getAccountResources,
+  getTx,
+  metadataSerializedBytes,
+  shortHex,
+  waitForTransactionWithResult,
+} from './movement-helper';
 
 import copy from 'copy-to-clipboard';
+import { isNotEmptyList } from '../../utils/ListUtil';
 import axios from 'axios';
 import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
-import { CompiledModulesAndDeps } from 'wds-event';
-import { isEmptyList } from '../../utils/ListUtil';
-
+import { ModuleWrapper } from './Compiler';
+import { Types } from 'aptos';
+import { MovementGitDependency } from 'wds-event';
 export interface MovementDeployHistoryCreateDto {
   chainId: string;
   account: string;
-  packageId: string;
-  packageName: string;
-  compileTimestamp: number | null;
-  deployTimestamp: number | null;
+  package: string;
+  compileTimestamp: number;
+  deployTimestamp: number;
+  upgradeNumber: string | null;
+  upgradePolicy: number | null;
   txHash: string;
-  status: string | null;
-  cliVersion: string | null;
-  isSrcUploaded: boolean;
   modules: string[];
 }
 
@@ -31,44 +38,65 @@ interface InterfaceProps {
   wallet: string;
   accountID: string;
   compileTimestamp: string;
-  cliVersion: string;
   packageName: string;
-  compiledModulesAndDeps: CompiledModulesAndDeps;
+  moduleWrappers: ModuleWrapper[];
+  metaData64: string;
+  moduleBase64s: string[];
+  cliVersion: string | null;
+  movementGitDependencies: MovementGitDependency[];
   dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
-  gas: string;
   setDeployedContract: Function;
   setAtAddress: Function;
-  setMovementObjects: Function;
-  setTargetObjectId: Function;
-  setGenericParameters: Function;
+  setAccountResources: Function;
+  setTargetResource: Function;
   setParameters: Function;
-  setInputAddress: Function;
-  initContract: Function;
-  uploadCodeChecked: boolean;
-  blob: Blob | undefined;
+  getAccountModulesFromAccount: Function;
+  estimatedGas?: string;
+  setEstimatedGas: Function;
+  gasUnitPrice: string;
+  setGasUnitPrice: Function;
+  maxGasAmount: string;
+  setMaxGasAmount: Function;
+}
+
+interface WriteResourcePackageModule {
+  name: string;
+}
+
+interface WriteResourcePackage {
+  name: string;
+  upgrade_number: string;
+  upgrade_policy: {
+    policy: number;
+  };
+  modules: WriteResourcePackageModule[];
 }
 
 export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   client,
   accountID,
   compileTimestamp,
-  cliVersion,
   packageName,
-  compiledModulesAndDeps,
+  moduleWrappers,
+  metaData64,
+  moduleBase64s,
+  cliVersion,
+  movementGitDependencies,
   wallet,
   dapp,
-  gas,
   setDeployedContract,
   setAtAddress,
-  setMovementObjects,
-  setTargetObjectId,
-  setGenericParameters,
+  setAccountResources,
+  setTargetResource,
   setParameters,
-  setInputAddress,
-  initContract,
-  uploadCodeChecked,
-  blob,
+  getAccountModulesFromAccount,
+  estimatedGas,
+  setEstimatedGas,
+  gasUnitPrice,
+  setGasUnitPrice,
+  maxGasAmount,
+  setMaxGasAmount,
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
@@ -89,7 +117,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       throw new Error('Wallet is not Dsrv');
     }
 
-    if (!compiledModulesAndDeps) {
+    if (!(metaData64 && moduleBase64s.length > 0)) {
       throw new Error('Not prepared metadata and module');
     }
 
@@ -107,200 +135,138 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       return;
     }
 
-    setDeployIconSpin('fa-spin');
-    const rawTx_ = await dappPublishTxn(
-      accountID,
-      dapp.networks.movement.chain as MovementChainId,
-      compiledModulesAndDeps,
-      Number(gas),
-    );
-
-    const txnHash: string[] = await dapp.request('movement', {
-      method: 'dapp:signAndSendTransaction',
-      params: [rawTx_],
-    });
-    if (isEmptyList(txnHash)) {
-      console.error(`dapp:signAndSendTransaction fail`);
-      return;
-    }
-    log.info('@@@ txnHash', txnHash);
-
-    let result;
     try {
-      result = await waitForTransactionWithResult(txnHash, dapp.networks.movement.chain);
-    } catch (e) {
-      console.error(e);
-      await client.terminal.log({
-        type: 'error',
-        value: `Failed to get transaction block for ${txnHash}`,
+      setDeployIconSpin('fa-spin');
+      const rawTx_ = await dappTxn(
+        accountID,
+        dapp.networks.movement.chain,
+        '0x1::code',
+        'publish_package_txn',
+        [],
+        [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
+        dapp,
+        gasUnitPrice,
+        maxGasAmount,
+      );
+
+      const txnHash = await dapp.request('movement', {
+        method: 'dapp:signAndSendTransaction',
+        params: [rawTx_],
       });
-      return;
-    }
-    log.info('tx result', result);
+      log.debug(`@@@ txnHash=${txnHash}`);
 
-    if (result.effects?.status?.status !== 'success') {
-      log.error(result);
-      await client.terminal.log({ type: 'error', value: JSON.stringify(result, null, 2) });
-      return;
-    }
+      const result = (await waitForTransactionWithResult(
+        txnHash,
+        dapp.networks.movement.chain,
+      )) as any;
+      log.info('tx result', result);
+      if (result.success) {
+        await client.terminal.log({
+          type: 'info',
+          value: {
+            version: result.version,
+            hash: result.hash,
+            gas_unit_price: result.gas_unit_price,
+            gas_used: result.gas_used,
+            sender: result.sender,
+            sequence_number: result.sequence_number,
+            timestamp: result.timestamp,
+            vm_status: result.vm_status,
+          },
+        });
 
-    await client.terminal.log({
-      type: 'info',
-      value: `-------------------- ${txnHash} --------------------`,
-    });
-    await client.terminal.log({
-      type: 'info',
-      value: JSON.stringify(result, null, 2),
-    });
+        const tx: Types.Transaction_UserTransaction = (await getTx(
+          txnHash,
+          dapp.networks.movement.chain,
+        )) as Types.Transaction_UserTransaction;
 
-    const objectChanges = result.objectChanges || [];
-    log.info('objectChanges', objectChanges);
-    const publishedChange = objectChanges.find((oc) => oc.type === 'published') as
-      | {
-          packageId: string;
-          type: 'published';
-          version: number;
-          digest: string;
-          modules: string[];
+        const change = tx.changes.find((change) => {
+          const change_: Types.WriteSetChange_WriteResource =
+            change as Types.WriteSetChange_WriteResource;
+          return (
+            change_.address === shortHex(accountID) &&
+            change_.type === 'write_resource' &&
+            change_.data.type === '0x1::code::PackageRegistry'
+          );
+        });
+        const change_: Types.WriteSetChange_WriteResource =
+          change as Types.WriteSetChange_WriteResource;
+
+        const data = change_.data.data as any;
+        const writeResourcePackages = data.packages as WriteResourcePackage[];
+        const writeResourcePackage = writeResourcePackages.find((pkg) => pkg.name === packageName);
+        console.log(`writeResourcePackage`, JSON.stringify(writeResourcePackage, null, 2));
+        const movementDeployHistoryCreateDto = {
+          chainId: dapp.networks.movement.chain,
+          account: accountID,
+          package: packageName,
+          compileTimestamp: Number(compileTimestamp),
+          deployTimestamp: Number(result.timestamp),
+          upgradeNumber: writeResourcePackage?.upgrade_number,
+          upgradePolicy: writeResourcePackage?.upgrade_policy.policy,
+          cliVersion: cliVersion,
+          movementGitDependencies: movementGitDependencies,
+          txHash: result.hash,
+          modules: writeResourcePackage?.modules.map((m) => m.name),
+        };
+        console.log(
+          `movementDeployHistoryCreateDto`,
+          JSON.stringify(movementDeployHistoryCreateDto, null, 2),
+        );
+
+        const res = await axios.post(
+          COMPILER_API_ENDPOINT + '/movement-deploy-histories',
+          movementDeployHistoryCreateDto,
+        );
+
+        log.info(`movement-deploy-histories api res`, res);
+
+        setDeployedContract(accountID);
+        // setAtAddress('');
+        setAtAddress(accountID);
+        const moveResources = await getAccountResources(accountID, dapp.networks.movement.chain);
+        log.info(`@@@ moveResources`, moveResources);
+        setAccountResources([...moveResources]);
+        if (isNotEmptyList(moveResources)) {
+          setTargetResource(moveResources[0].type);
+        } else {
+          setTargetResource('');
         }
-      | undefined;
+        setParameters([]);
 
-    if (!publishedChange) {
-      log.error(`no publishedChange`);
-      return;
-    }
-
-    if (!publishedChange.packageId) {
-      log.error(`no packageId`, publishedChange);
-      return;
-    }
-    const modules = publishedChange.modules || [];
-
-    const movementDeployHistoryCreateDto: MovementDeployHistoryCreateDto = {
-      chainId: dapp.networks.movement.chain,
-      account: accountID,
-      packageId: publishedChange.packageId,
-      packageName: packageName,
-      compileTimestamp: Number(compileTimestamp),
-      deployTimestamp: Number(result.timestampMs) || 0,
-      txHash: result.digest,
-      isSrcUploaded: uploadCodeChecked,
-      status: result.effects.status.status,
-      cliVersion: cliVersion || null,
-      modules: modules,
-    };
-    log.info('movementDeployHistoryCreateDto', movementDeployHistoryCreateDto);
-
-    try {
-      const res = await axios.post(
-        COMPILER_API_ENDPOINT + '/movement-deploy-histories',
-        movementDeployHistoryCreateDto,
-      );
-      log.info(`movement-deploy-histories api res`, res);
-    } catch (e) {
-      log.error(`movement-deploy-histories api error`);
-      console.error(e);
-    }
-
-    try {
-      const res = await axios.post(
-        COMPILER_API_ENDPOINT + '/movement/packages',
-        movementDeployHistoryCreateDto,
-      );
-      log.info(`movement-packages api res`, res);
-
-      if (uploadCodeChecked) {
-        axios
-          .post(COMPILER_API_ENDPOINT + '/movement/verifications', {
-            network: res.data.chainId,
-            packageId: res.data.packageId,
-          })
-          .then((response) => {
-            console.log('Success (POST /movement/verifications): ', response.data);
-            if (blob) {
-              console.log(`try walrus upload.`);
-              axios
-                .put('https://publisher.walrus-testnet.walrus.space/v1/store', blob, {
-                  headers: {
-                    'Content-Type': 'application/octet-stream',
-                  },
-                })
-                .then(async (response) => {
-                  console.log(
-                    'Success (PUT https://publisher.walrus-testnet.walrus.space/v1/store): ',
-                    response.data,
-                  );
-                  const result = response.data;
-                  let walrusBlobId;
-                  if (result.newlyCreated?.blobObject?.blobId) {
-                    walrusBlobId = result.newlyCreated.blobObject.blobId;
-                  } else if (result.alreadyCertified?.blobId) {
-                    walrusBlobId = result.alreadyCertified.blobId;
-                  } else {
-                    console.error(`Not found walrus blobId`);
-                  }
-
-                  if (walrusBlobId) {
-                    try {
-                      const res = await axios.post(
-                        COMPILER_API_ENDPOINT + '/movement/walrus-blob-id',
-                        {
-                          chainId: dapp.networks.movement.chain,
-                          packageId: publishedChange.packageId,
-                          blobId: walrusBlobId,
-                        },
-                      );
-                    } catch (e) {
-                      console.error(e);
-                    }
-                  }
-                })
-                .catch((error) => {
-                  console.error(
-                    'Error (PUT https://publisher.walrus-testnet.walrus.space/v1/store):',
-                    error.response ? error.response.data : error.message,
-                  );
-                })
-                .finally(() => {
-                  console.log(
-                    'PUT https://publisher.walrus-testnet.walrus.space/v1/store): Request completed',
-                  );
-                });
-            }
-          })
-          .catch((error) => {
-            console.error(
-              'Error (POST /movement/verifications):',
-              error.response ? error.response.data : error.message,
-            );
-          })
-          .finally(() => {
-            console.log('POST /movement/verifications Request completed');
-          });
+        getAccountModulesFromAccount(accountID, dapp.networks.movement.chain);
+      } else {
+        log.error((result as any).vm_status);
+        await client.terminal.log({ type: 'error', value: (result as any).vm_status });
       }
-    } catch (e) {
-      log.error(`movement-packages api error`);
-      console.error(e);
+    } catch (e: any) {
+      log.error(e);
+      await client.terminal.log({ type: 'error', value: e?.message?.toString() });
     }
-
-    log.info(`dsrvProceed accountID=${accountID}`);
-    setDeployedContract(accountID);
-    setAtAddress(accountID);
-    setInputAddress(accountID);
-    initContract(accountID, publishedChange?.packageId, 'address');
-    await client.terminal.log({ type: 'info', value: `transaction hash ---> ${txnHash}` });
-
     setInProgress(false);
     setDeployIconSpin('');
     setInProgress(false);
   };
+
+  // movementClient.getAccountResources(accountID).then((res) => {
+  //   console.log('getAccountResources', res)
+  //   res.map(async (accountResource: any)=>{
+  //     if(accountResource.type === accountID+"::"+abi.name+"::"+resource){
+  //       console.log(accountResource.data)
+  //       await client.terminal.log({
+  //         type: 'info',
+  //         value: accountResource.data
+  //       });
+  //     }
+  //   })
+  // })
 
   return (
     <>
       <div className="d-grid gap-2">
         <Button
           variant="warning"
-          disabled={inProgress || !compiledModulesAndDeps}
+          disabled={inProgress || !metaData64}
           onClick={async () => {
             try {
               await checkExistContract();

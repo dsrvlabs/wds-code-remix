@@ -1,324 +1,398 @@
-import { log } from '../../utils/logger';
-import { ensureBigInt, ensureNumber } from '../sui/transaction_builder/builder_utils';
-import { CompiledModulesAndDeps } from 'wds-event';
-import { Transaction } from '@mysten/sui/transactions';
-import { fromB64, normalizeSuiObjectId } from '@mysten/sui/utils';
 import {
-  SuiClient,
-  SuiTransactionBlockResponse,
-  SuiMoveNormalizedType,
-  SuiObjectData,
-} from '@mysten/sui/client';
-import { MovementFunc, MovementModule } from './movement-types';
-import { delay } from '../near/utils/waitForTransaction';
-import yaml from 'js-yaml';
+  AptosClient,
+  BCS,
+  HexString,
+  TransactionBuilderEd25519,
+  TxnBuilderTypes,
+  Types,
+  TypeTagParser,
+} from 'aptos';
+import { sha3_256 } from 'js-sha3';
+import { log } from '../../utils/logger';
+import {
+  ensureBigInt,
+  ensureNumber,
+  serializeArg,
+} from '../aptos/transaction_builder/builder_utils';
 
-export type MovementChainId = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
-
-const MOVEMENT_RPC_ENDPOINTS = {
-  mainnet: 'https://fullnode.mainnet.movement.com',
-  testnet: 'https://fullnode.testnet.movement.com',
-  devnet: 'https://fullnode.devnet.movement.com',
-  localnet: 'http://127.0.0.1:9000',
-};
-
-export async function dappPublishTxn(
-  accountId: string,
-  chainId: MovementChainId,
-  compiledModulesAndDeps: CompiledModulesAndDeps,
-  gas: number,
-) {
-  const tx = new Transaction();
-  tx.setGasBudget(gas);
-  const cap = tx.publish({
-    modules: compiledModulesAndDeps.modules.map((m: any) => Array.from(fromB64(m))),
-    dependencies: compiledModulesAndDeps.dependencies.map((addr: string) =>
-      normalizeSuiObjectId(addr),
-    ),
-  });
-  tx.transferObjects([cap], tx.pure.address(accountId));
-  tx.setSender(accountId);
-  return tx.serialize();
+export interface ViewResult {
+  result?: Types.MoveValue;
+  error: string;
 }
 
-export async function moveCallTxn(
-  client: any,
-  accountId: string,
-  chainId: MovementChainId,
-  packageId: string,
-  moduleName: string,
-  func: MovementFunc,
-  typeArgs: string[],
-  args: any[],
-  gas: number,
-) {
-  log.info('args', JSON.stringify(args, null, 2));
-  await client.terminal.log({
-    type: 'info',
-    value:
-      '--------------------------- Tx Arguments ---------------------------\n\n' +
-      `${JSON.stringify(args, null, 2)}` +
-      '\n\n--------------------------------------------------------------------',
-  });
-  log.debug('gas', gas);
-  const tx = new Transaction();
-  tx.setSender(accountId);
-  tx.setGasBudget(gas);
+export interface ArgTypeValuePair {
+  type: string;
+  val: any;
+}
 
-  const moveCallInput = {
-    target: `${packageId}::${moduleName}::${func.name}`,
-    typeArguments: typeArgs,
-    arguments: args.map((arg, i) => {
-      const parameter: any = func.parameters[i];
-      if (
-        parameter.Vector?.Struct &&
-        !(
-          parameter.Vector.Struct.address === '0x1' &&
-          parameter.Vector.Struct.module === 'string' &&
-          parameter.Vector.Struct.name === 'String'
-        )
-      ) {
-        return tx.makeMoveVec({
-          elements: arg.map((a: any) => tx.pure(a)),
-        });
-      } else if (parameter === 'Bool') {
-        return tx.pure.u8(arg);
-      } else if (parameter === 'U8') {
-        return tx.pure.u8(arg);
-      } else if (parameter === 'U16') {
-        return tx.pure.u16(arg);
-      } else if (parameter === 'U32') {
-        return tx.pure.u32(arg);
-      } else if (parameter === 'U64') {
-        return tx.pure.u64(arg);
-      } else if (parameter === 'U128') {
-        return tx.pure.u128(arg);
-      } else if (parameter === 'U256') {
-        return tx.pure.u256(arg);
-      } else if (parameter.MutableReference?.Struct) {
-        return tx.object(arg);
-      } else if (parameter === 'Address') {
-        return tx.pure.address(arg);
+export async function dappTxn(
+  accountId: string,
+  chainId: string,
+  module: string,
+  func: string,
+  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
+  args: BCS.Seq<BCS.Bytes>,
+  dapp: any,
+  gasUnitPrice: string,
+  maxGasAmount: string,
+) {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+
+  const rawTransaction = await movementClient.generateRawTransaction(
+    new HexString(accountId),
+    genPayload(module, func, type_args, args),
+  );
+  log.info(`rawTransaction`, rawTransaction);
+
+  const sendingRawTransaction = await movementClient.generateRawTransaction(
+    new HexString(accountId),
+    genPayload(module, func, type_args, args),
+    {
+      gasUnitPrice: gasUnitPrice ? BigInt(gasUnitPrice) : rawTransaction.gas_unit_price,
+      maxGasAmount: maxGasAmount ? BigInt(maxGasAmount) : rawTransaction.max_gas_amount,
+    },
+  );
+  log.info(`sendingRawTransaction`, sendingRawTransaction);
+
+  const header = Buffer.from(sha3_256(Buffer.from('MOVEMENT::RawTransaction', 'ascii')), 'hex');
+  return (
+    '0x' +
+    header.toString('hex') +
+    Buffer.from(BCS.bcsToBytes(sendingRawTransaction)).toString('hex')
+  );
+}
+
+export function genPayload(
+  module: string,
+  func: string,
+  type_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
+  args: BCS.Seq<BCS.Bytes>,
+) {
+  return new TxnBuilderTypes.TransactionPayloadEntryFunction(
+    TxnBuilderTypes.EntryFunction.natural(module, func, type_args, args),
+  );
+}
+
+export function metadataSerializedBytes(base64EncodedMetadata: string) {
+  return BCS.bcsSerializeBytes(
+    new HexString(Buffer.from(base64EncodedMetadata, 'base64').toString('hex')).toUint8Array(),
+  );
+}
+
+export function codeBytes(base64EncodedModules: string[]): BCS.Bytes {
+  const modules = base64EncodedModules
+    .map((module) => Buffer.from(module, 'base64'))
+    .map((buf) => new TxnBuilderTypes.Module(new HexString(buf.toString('hex')).toUint8Array()));
+
+  const codeSerializer = new BCS.Serializer();
+  BCS.serializeVector(modules, codeSerializer);
+  return codeSerializer.getBytes();
+}
+
+export async function waitForTransactionWithResult(txnHash: string, chainId: string) {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+  return movementClient.waitForTransactionWithResult(txnHash);
+}
+
+export async function getTx(txnHash: string, chainId: string) {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+  return movementClient.getTransactionByHash(txnHash);
+}
+
+export function serializedArgs(args_: ArgTypeValuePair[]) {
+  return args_.map((arg, idx) => {
+    if (arg.type === 'bool') {
+      return BCS.bcsSerializeBool(arg.val === 'true');
+    } else if (arg.type === 'u8') {
+      return BCS.bcsSerializeU8(Number(arg.val));
+    } else if (arg.type === 'u16') {
+      return BCS.bcsSerializeU16(Number(arg.val));
+    } else if (arg.type === 'u32') {
+      return BCS.bcsSerializeU32(Number(arg.val));
+    } else if (arg.type === 'u64') {
+      return BCS.bcsSerializeUint64(Number(arg.val));
+    } else if (arg.type === 'u128') {
+      return BCS.bcsSerializeU128(Number(arg.val));
+    } else if (arg.type === 'u256') {
+      const serializer = new BCS.Serializer();
+      serializer.serializeU256(Number(arg.val));
+      return serializer.getBytes();
+    } else if (arg.type === 'address') {
+      const address = TxnBuilderTypes.AccountAddress.fromHex(arg.val);
+      return BCS.bcsToBytes(address);
+    } else if (arg.type === '0x1::string::String') {
+      const ser = new BCS.Serializer();
+      ser.serializeStr(arg.val);
+      return ser.getBytes();
+    } else if (arg.type.startsWith('vector')) {
+      const ser = new BCS.Serializer();
+      const parser = new TypeTagParser(arg.type);
+      const typeTag = parser.parseTypeTag();
+      serializeArg(arg.val, typeTag, ser);
+      return ser.getBytes();
+    }
+    // else if (arg.type === 'vector<0x1::string::String>') {
+    //   const strs = arg.val.split(',');
+    //   return BCS.serializeVectorWithFunc(strs, 'serializeStr');
+    // } else if (arg.type === 'vector<vector<u8>>') {
+    //   const hexStrs = arg.val.split(',');
+    //   const serializer = new BCS.Serializer();
+    //   serializer.serializeU32AsUleb128(hexStrs.length);
+    //   hexStrs.forEach((hexStr) => {
+    //     const uint8Arr = new HexString(hexStr).toUint8Array();
+    //     serializer.serializeBytes(uint8Arr);
+    //   });
+    //   return serializer.getBytes();
+    // } else if (arg.type === 'vector<bool>') {
+    //   const strs = arg.val.split(',').map((v) => v === 'true');
+    //   return BCS.serializeVectorWithFunc(strs, 'serializeBool');
+    // }
+    else {
+      const ser = new BCS.Serializer();
+      ser.serializeBytes(new HexString(arg.val).toUint8Array());
+      return ser.getBytes();
+    }
+  });
+}
+
+export function getVectorArgTypeStr(vectorTypeFullName: string): string {
+  const argType = extractVectorElementTypeTag(vectorTypeFullName);
+  if (argType instanceof TxnBuilderTypes.TypeTagBool) {
+    return 'bool';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU8) {
+    return 'u8';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU16) {
+    return 'u16';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU32) {
+    return 'u32';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU64) {
+    return 'u64';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU128) {
+    return 'u128';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagU256) {
+    return 'u256';
+  }
+  if (argType instanceof TxnBuilderTypes.TypeTagAddress) {
+    return 'address';
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagStruct) {
+    const {
+      address,
+      module_name: moduleName,
+      name,
+    } = (argType as TxnBuilderTypes.TypeTagStruct).value;
+    if (
+      `${HexString.fromUint8Array(address.address).toShortString()}::${moduleName.value}::${
+        name.value
+      }` !== '0x1::string::String'
+    ) {
+      throw new Error('The only supported struct arg is of type 0x1::string::String');
+    }
+    return '0x1::string::String';
+  }
+  throw new Error('Unsupported arg type.');
+}
+
+export function extractVectorElementTypeTag(vectorType: string): TxnBuilderTypes.TypeTag {
+  const depth = wordCount(vectorType, 'vector');
+  const parser = new TypeTagParser(vectorType);
+  let curTypeTag: TxnBuilderTypes.TypeTag = parser.parseTypeTag();
+  for (let i = 0; i < depth; i++) {
+    if (curTypeTag instanceof TxnBuilderTypes.TypeTagVector) {
+      curTypeTag = curTypeTag.value;
+    }
+  }
+
+  return curTypeTag;
+}
+
+export function parseArgVal(argVal: any, argType: TxnBuilderTypes.TypeTag) {
+  if (argType instanceof TxnBuilderTypes.TypeTagBool) {
+    return argVal;
+  }
+
+  if (
+    argType instanceof TxnBuilderTypes.TypeTagU8 ||
+    argType instanceof TxnBuilderTypes.TypeTagU16 ||
+    argType instanceof TxnBuilderTypes.TypeTagU32
+  ) {
+    return ensureNumber(argVal);
+  }
+
+  if (
+    argType instanceof TxnBuilderTypes.TypeTagU64 ||
+    argType instanceof TxnBuilderTypes.TypeTagU128 ||
+    argType instanceof TxnBuilderTypes.TypeTagU256
+  ) {
+    return ensureBigInt(argVal);
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagAddress) {
+    return TxnBuilderTypes.AccountAddress.fromHex(argVal);
+  }
+
+  if (argType instanceof TxnBuilderTypes.TypeTagStruct) {
+    const {
+      address,
+      module_name: moduleName,
+      name,
+    } = (argType as TxnBuilderTypes.TypeTagStruct).value;
+    if (
+      `${HexString.fromUint8Array(address.address).toShortString()}::${moduleName.value}::${
+        name.value
+      }` !== '0x1::string::String'
+    ) {
+      throw new Error('The only supported struct arg is of type 0x1::string::String');
+    }
+    return argVal;
+  }
+
+  throw new Error(`Unsupported Type. ${argType}`);
+}
+
+export function wordCount(str: string, word: string): number {
+  let depth = 0;
+  let curIdx = -1;
+  while (curIdx < str.length) {
+    curIdx = str.indexOf(word, curIdx);
+    if (curIdx === -1) {
+      break;
+    }
+    depth++;
+    curIdx = curIdx + word.length;
+  }
+  return depth;
+}
+
+export async function getAccountModules(account: string, chainId: string) {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+  return await movementClient.getAccountModules(account);
+}
+
+export async function getAccountResources(account: string, chainId: string) {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+  return await movementClient.getAccountResources(account);
+}
+
+export async function viewFunction(
+  account: string,
+  moduleName: string,
+  functionName: string,
+  chainId: string,
+  typeArg: string[],
+  param: ArgTypeValuePair[],
+): Promise<ViewResult> {
+  const movementClient = new AptosClient(movementNodeUrl(chainId));
+
+  const payload = {
+    function: account + '::' + moduleName + '::' + functionName,
+    type_arguments: typeArg,
+    arguments: param.map((p) => {
+      if (p.type === 'vector<u8>') {
+        const vals: number[] = p.val;
+        return Buffer.from(vals).toString();
       }
+
+      if (p.type === 'bool') {
+        return p.val === 'true' ? true : false;
+      }
+
+      return p.val;
     }),
   };
-  log.info('moveCallInput', moveCallInput);
-  tx.moveCall(moveCallInput as any);
-  return tx.serialize();
-}
+  console.log(`viewFunction payload=${JSON.stringify(payload, null, 2)}`);
 
-const PROVIDER_MAINNET = new SuiClient({
-  url: MOVEMENT_RPC_ENDPOINTS.mainnet,
-});
-
-const PROVIDER_TESTNET = new SuiClient({
-  url: MOVEMENT_RPC_ENDPOINTS.testnet,
-});
-
-const PROVIDER_DEVNET = new SuiClient({
-  url: MOVEMENT_RPC_ENDPOINTS.devnet,
-});
-
-const PROVIDER_LOCALNET = new SuiClient({
-  url: MOVEMENT_RPC_ENDPOINTS.localnet,
-});
-
-export function getProvider(chainId: MovementChainId): SuiClient {
-  switch (chainId) {
-    case 'mainnet':
-      return PROVIDER_MAINNET;
-    case 'testnet':
-      return PROVIDER_TESTNET;
-    case 'devnet':
-      return PROVIDER_DEVNET;
-    case 'localnet':
-      return PROVIDER_LOCALNET;
-    default:
-      throw new Error(`Invalid ChainId=${chainId}`);
-  }
-}
-
-export async function waitForTransactionWithResult(
-  txnHash: string[],
-  chainId: MovementChainId,
-): Promise<SuiTransactionBlockResponse> {
-  await delay(5_000);
-  const client = getProvider(chainId);
-  log.info(`getTransactionBlock txHash`, txnHash);
-  const try_num = 3;
-  let result;
-  for (let i = 0; i < try_num; i++) {
-    try {
-      log.info(`Trying getTransactionBlock n=${i + 1}.`);
-      result = await client.getTransactionBlock({
-        digest: txnHash[0],
-        options: {
-          showInput: true,
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true,
-          showBalanceChanges: true,
-        },
-      });
-      if (result) {
-        return result;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    await delay(5_000);
-  }
-  throw new Error(`movement client getTransactionBlock fail.`);
-}
-
-export function parseArgVal(argVal: any, argType: string, u8parseType?: string) {
-  log.info(`### parseArgVal argVal=${argVal}, argType=${argType}, u8parseType=${u8parseType}`);
-  if (argType === 'Bool') {
-    return argVal;
-  }
-
-  if (argType === 'U8') {
-    if (u8parseType === 'string') {
-      return argVal;
-    }
-
-    if (u8parseType === 'hex') {
-      return argVal;
-    }
-
-    return ensureNumber(argVal);
-  }
-
-  if (argType === 'U8' || argType === 'U16' || argType === 'U32') {
-    return ensureNumber(argVal);
-  }
-
-  if (argType === 'U64' || argType === 'U128' || argType === 'U256') {
-    return ensureBigInt(argVal).toString();
-  }
-
-  if (argType === 'Address') {
-    return argVal;
-  }
-
-  return argVal;
-}
-
-export async function getModules(
-  chainId: MovementChainId,
-  packageId: string,
-): Promise<MovementModule[]> {
-  log.info(`[getModules] chainId=${chainId}, packageId=${packageId}`);
-  const movementMoveNormalizedModules = await getProvider(
-    chainId,
-  ).getNormalizedMoveModulesByPackage({
-    package: packageId,
-  });
-
-  return Object.keys(movementMoveNormalizedModules).map((moduleName) => {
-    const module = movementMoveNormalizedModules[moduleName];
-    const movementFuncs = Object.keys(module.exposedFunctions).map((funcName) => {
-      const func = module.exposedFunctions[funcName];
-      return {
-        name: funcName,
-        ...func,
-      };
-    });
-
-    const movementStructs = Object.keys(module.structs).map((structName) => {
-      const struct = module.structs[structName];
-      return {
-        name: structName,
-        ...struct,
-      };
-    });
+  try {
+    const res = await movementClient.view(payload);
+    log.info(res);
     return {
-      fileFormatVersion: module.fileFormatVersion,
-      address: module.address,
-      name: module.name,
-      friends: module.friends,
-      exposedFunctions: movementFuncs,
-      structs: movementStructs,
+      result: res,
+      error: '',
     };
-  });
+  } catch (e: any) {
+    return {
+      result: undefined,
+      error: e.toString(),
+    };
+  }
 }
 
-export async function getPackageIds(account: string, chainId: MovementChainId): Promise<string[]> {
-  const provider = getProvider(chainId);
-  const { data } = await provider.getOwnedObjects({
-    owner: account,
-    filter: {
-      StructType: '0x2::package::UpgradeCap',
+export const getEstimateGas = async (
+  url: string,
+  pubKey: string,
+  rawTransaction: TxnBuilderTypes.RawTransaction,
+): Promise<{ gas_unit_price: string; max_gas_amount: string; gas_used: string }> => {
+  // eslint-disable-next-line no-unused-vars
+  const txnBuilder = new TransactionBuilderEd25519(
+    (_signingMessage: TxnBuilderTypes.SigningMessage) => {
+      // @ts-ignore
+      const invalidSigBytes = new Uint8Array(64);
+      return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
     },
-    options: {
-      showType: true,
-      showContent: true,
-      showOwner: true,
-      showDisplay: true,
+    Buffer.from(pubKey.replace('0x', ''), 'hex'),
+  );
+  const signedTxn = txnBuilder.sign(rawTransaction);
+
+  const response = await fetch(`${url}/transactions/simulate`, {
+    method: 'POST',
+    headers: {
+      // https://github.com/aptos-labs/aptos-core/blob/e7d5f952afe3afcf5d1415b67e167df6d49019bf/ecosystem/typescript/sdk/src/aptos_client.ts#L336
+      'Content-Type': 'application/x.aptos.signed_transaction+bcs',
     },
+    body: signedTxn,
   });
 
-  if (!data) {
-    return [];
+  const result = await response.json();
+  console.log(`simulation result=${JSON.stringify(result, null, 2)}`);
+  return {
+    gas_unit_price: result[0].gas_unit_price,
+    max_gas_amount: result[0].max_gas_amount,
+    gas_used: result[0].gas_used,
+  };
+};
+
+export function movementNodeUrl(chainId: string) {
+  if (chainId === 'mainnet') {
+    return 'https://mainnet.movementnetwork.xyz/v1';
   }
 
-  return data.map((d: any) => d.data?.content?.fields?.package).filter((p) => p !== undefined);
+  if (chainId === 'testnet') {
+    return 'https://testnet.bardock.movementnetwork.xyz/v1';
+  }
+
+  if (chainId === 'devnet') {
+    return 'https://devnet.suzuka.movementnetwork.xyz/v1';
+  }
+
+  throw new Error(`Invalid chainId=${chainId}`);
 }
 
-export async function getOwnedObjects(
-  account: string,
-  chainId: MovementChainId,
-): Promise<SuiObjectData[]> {
-  const provider = await getProvider(chainId);
-  log.info('getOwnedObjects account', account);
-  const { data: movementObjectResponses } = await provider.getOwnedObjects({
-    owner: account,
-    options: {
-      showType: true,
-      showContent: true,
-      showOwner: true,
-      showDisplay: true,
-    },
-  });
-  return movementObjectResponses
-    .map((d) => d.data)
-    .filter((d): d is SuiObjectData => {
-      return !(d === null || d === undefined);
-    });
+export function shortHex(hex: string) {
+  let hex_ = hex.slice(0);
+  if (hex_.startsWith('0x')) {
+    hex_ = hex_.slice(2);
+  }
+
+  const buf = Buffer.from(hex_, 'hex');
+  console.log(buf);
+  const arr = toArrayBuffer(buf);
+  console.log(arr);
+  const short = HexString.fromUint8Array(arr).toShortString();
+  return short;
 }
 
-export function parseYaml(str: string) {
-  return yaml.load(str);
-}
-
-export function initGenericParameters(typeParameters: any[]) {
-  return new Array(typeParameters.length);
-}
-
-export function initParameters(parameters: SuiMoveNormalizedType[]) {
-  return new Array(txCtxRemovedParametersLen(parameters));
-}
-
-export function txCtxRemovedParametersLen(parameters: SuiMoveNormalizedType[]) {
-  return parameters.filter(
-    (p: any, index: number) => !(index === parameters.length - 1 && isTxCtx(p)),
-  ).length;
-}
-
-export function txCtxRemovedParameters(parameters: SuiMoveNormalizedType[]) {
-  console.log('txCtxRemovedParameters parameters', parameters);
-  return parameters.filter(
-    (p: any, index: number) => !(index === parameters.length - 1 && isTxCtx(p)),
-  );
-}
-
-function isTxCtx(p: any) {
-  return (
-    (p.MutableReference?.Struct?.address === '0x2' &&
-      p.MutableReference?.Struct?.module === 'tx_context' &&
-      p.MutableReference?.Struct?.name === 'TxContext') ||
-    (p.Reference?.Struct?.address === '0x2' &&
-      p.Reference?.Struct?.module === 'tx_context' &&
-      p.Reference?.Struct?.name === 'TxContext')
-  );
+function toArrayBuffer(buffer: Buffer) {
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < buffer.length; ++i) {
+    view[i] = buffer[i];
+  }
+  return Uint8Array.from(view);
 }

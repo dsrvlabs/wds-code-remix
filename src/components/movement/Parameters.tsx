@@ -1,72 +1,42 @@
 import React, { useEffect } from 'react';
 import { Form } from 'react-bootstrap';
-import { MovementFunc } from './movement-types';
-import { SuiMoveNormalizedType } from '@mysten/sui/client';
-import { log } from '../../utils/logger';
-import { txCtxRemovedParameters } from './movement-helper';
-import {
-  stringifySuiVectorElementType as stringifyMovementVectorElementType,
-  stringifySuiVectorType as stringifyMovementVectorType,
-  suiTypeName as movementTypeName,
-  suiTypeParameterName as movementTypeParameterName,
-} from '../sui/sui-parser';
-import VectorArgForm from '../sui/VectorArgForm';
+
+import { Types } from 'aptos';
+import { ArgTypeValuePair, getVectorArgTypeStr } from './movement-helper';
+import VectorArgForm from './VectorArgForm';
 
 interface InterfaceProps {
-  func: MovementFunc;
-  setParameters: Function;
+  func: Types.MoveFunction;
   setGenericParameters: Function;
+  setParameters: Function;
 }
 
 export const Parameters: React.FunctionComponent<InterfaceProps> = ({
   func,
-  setParameters,
   setGenericParameters,
+  setParameters,
 }) => {
-  log.info('func', JSON.stringify(func, null, 2));
-  log.debug('parameters', JSON.stringify(func.parameters, null, 2));
-  log.debug('typeParameters ', JSON.stringify(func.typeParameters, null, 2));
   useEffect(() => {
     const parameterBoxes = document.getElementsByClassName('movement-parameter');
     for (let i = 0; i < parameterBoxes.length; i++) {
       (parameterBoxes[i] as any).value = '';
     }
   }, [func]);
+  const singerRemovedParams = func.params.filter((para, i) => {
+    return !(i === 0 && (para === 'signer' || para === '&signer'));
+  });
 
-  const updateVecParam = (value: any, idx: number, parameterType: string) => {
+  const updateParam = (value: any, idx: number, parameterType: string) => {
     console.log(`@@@ updateParam`, value, idx, parameterType);
-    setParameters((existingParams: string[]) => {
-      existingParams[idx] = value;
+    setParameters((existingParams: ArgTypeValuePair[]) => {
+      existingParams[idx] = {
+        type: parameterType,
+        val: value,
+      };
       console.log('existingParams', existingParams);
       return existingParams;
     });
   };
-
-  const counterBoolElementId = (id: string) => {
-    if (id.includes('true')) {
-      return id.replace('true', 'false');
-    } else {
-      return id.replace('false', 'true');
-    }
-  };
-
-  const updateParam = (event: any, idx: number, parameterType: SuiMoveNormalizedType) => {
-    setParameters((existingParams: string[]) => {
-      if (parameterType === 'Bool') {
-        const id = event.target.id;
-        const el: any = document.getElementById(counterBoolElementId(id));
-        el.checked = !el.checked;
-        existingParams[idx] = el.checked;
-        log.info('existingParams', existingParams);
-        return existingParams;
-      }
-
-      existingParams[idx] = event.target.value;
-      log.info('existingParams', existingParams);
-      return existingParams;
-    });
-  };
-
   const updateGenericParam = (e: any, idx: any) => {
     setGenericParameters((existingGenericParams: string[]) => {
       existingGenericParams[idx] = e.target.value;
@@ -77,14 +47,13 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
   return (
     <div style={{ width: '100%' }}>
       <div>
-        <div>{func.typeParameters.length > 0 ? <small>Type Parameters</small> : <></>}</div>
-        {func.typeParameters.map((param: any, idx: number) => {
+        <div>{func.generic_type_params.length > 0 ? <small>Type Parameters</small> : <></>}</div>
+        {func.generic_type_params.map((param: any, idx: number) => {
           return (
             <Form.Control
-              className={`movement-parameter`}
               style={{ width: '100%', marginBottom: '5px' }}
               type="text"
-              placeholder={`${movementTypeParameterName(idx, param)}`}
+              placeholder={`Type Arg ${idx + 1}`}
               size="sm"
               onChange={(e) => {
                 updateGenericParam(e, idx);
@@ -94,72 +63,44 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
           );
         })}
       </div>
-      <div>{func.parameters.length > 0 ? <small>Parameters</small> : <></>}</div>
-      {txCtxRemovedParameters(func.parameters).map(
-        (parameterType: SuiMoveNormalizedType, idx: number) => {
-          if (typeof parameterType !== 'string' && (parameterType as any).Vector) {
-            return (
-              <VectorArgForm
-                func={func}
-                typeName={stringifyMovementVectorType(parameterType)}
-                vectorElType={stringifyMovementVectorElementType(parameterType)}
-                updateParam={updateVecParam}
-                parentIdx={idx}
-              />
-            );
-          }
-          if (movementTypeName(parameterType, func.typeParameters) === 'Bool') {
-            return (
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', height: '1em' }}>
-                  <input
-                    className={'movement-parameter'}
-                    id={`movement-parameter-bool-true-${idx}`}
-                    type="radio"
-                    placeholder={movementTypeName(parameterType, func.typeParameters)}
-                    defaultChecked={true}
-                    onChange={(e) => {
-                      updateParam(e, idx, parameterType);
-                    }}
-                  />
-                  <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-                    <label>True</label>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <input
-                    className={'movement-parameter'}
-                    id={`movement-parameter-bool-false-${idx}`}
-                    type="radio"
-                    placeholder={movementTypeName(parameterType, func.typeParameters)}
-                    onChange={(e) => {
-                      updateParam(e, idx, parameterType);
-                    }}
-                  />
-                  <div style={{ marginLeft: '0.5em', marginRight: '0.5em' }}>
-                    <label>False</label>
-                  </div>
-                </div>
-                <br></br>
-              </div>
-            );
-          }
-
+      <div>{func.params.length > 0 ? <small>Parameters</small> : <></>}</div>
+      {singerRemovedParams.map((parameterType: string, idx: number) => {
+        if (parameterType.startsWith('vector') && parameterType !== 'vector<u8>') {
           return (
-            <Form.Control
-              className={`movement-parameter`}
-              style={{ width: '100%', marginBottom: '5px' }}
-              type="text"
-              placeholder={movementTypeName(parameterType, func.typeParameters)}
-              size="sm"
-              key={`movement-parameterType-${idx}`}
-              onChange={(e) => {
-                updateParam(e, idx, parameterType);
-              }}
+            <VectorArgForm
+              func={func}
+              typeName={parameterType}
+              vectorElType={getVectorArgTypeStr(parameterType)}
+              updateParam={updateParam}
+              parentIdx={idx}
             />
           );
-        },
-      )}
+        }
+        return (
+          <Form.Control
+            className={'movement-parameter'}
+            style={{ width: '100%', marginBottom: '5px' }}
+            type="text"
+            placeholder={movementParameterPlaceHolder(parameterType)}
+            size="sm"
+            onChange={(e) => {
+              updateParam(e.target.value, idx, parameterType);
+            }}
+          />
+        );
+      })}
     </div>
   );
 };
+
+function movementParameterPlaceHolder(parameterType: string) {
+  if (parameterType === 'vector<u8>') {
+    return `vector<u8> (ex. 616263)`;
+  }
+
+  if (parameterType === 'bool') {
+    return `bool (true / false)`;
+  }
+
+  return parameterType;
+}

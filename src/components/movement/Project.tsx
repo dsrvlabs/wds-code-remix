@@ -21,8 +21,6 @@ interface InterfaceProps {
   dapp: any;
 }
 
-const DEFAULT_GAS = '30000000';
-
 export const Project: React.FunctionComponent<InterfaceProps> = ({
   wallet,
   account,
@@ -32,19 +30,15 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
-  const [template, setTemplate] = useState<string>('forge');
-  const [gas, setGas] = useState<string>(DEFAULT_GAS);
+  const [template, setTemplate] = useState<string>('hello_blockchain');
 
   const templateList = [
-    'forge',
-    'dynamic_field',
-    'dynamic_object_field',
-    'objects_tutorial',
-    'basics',
-    'my_coin',
-    'fungible_tokens',
-    'vec_test',
-    'bridge',
+    'fa_coin',
+    'hello_blockchain',
+    'ticket',
+    'hello_prover',
+    'marketplace',
+    'moon_coin',
   ];
 
   useEffect(() => {
@@ -61,10 +55,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   const setProject = (e: { target: { value: React.SetStateAction<string> } }) => {
     setProjectName(e.target.value);
-  };
-
-  const setGasValue = (e: { target: { value: React.SetStateAction<string> } }) => {
-    setGas(e.target.value);
   };
 
   const setTarget = (e: { target: { value: React.SetStateAction<string> } }) => {
@@ -108,7 +98,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       });
     }
   };
-
   const wrappedCreateProject = () => wrapPromise(createProject(), client);
 
   const getProjectList = async () => {
@@ -120,6 +109,8 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
     }
     return [];
   };
+
+  // const wrappedGetProjectList = () => wrapPromise(getProjectList(), client);
 
   const isExists = async (dir: string) => {
     try {
@@ -139,7 +130,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       method: 'create_template',
     });
 
-    log.debug('create ' + template);
     if (await isExists(template)) {
       await client.terminal.log({
         type: 'error',
@@ -153,7 +143,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
     const res = await axios.request({
       method: 'GET',
-      url: `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=code-template&fileKey=sui/` + template + '.zip',
+      url:
+        `${COMPILER_API_ENDPOINT}/s3Proxy?bucket=code-template&fileKey=movement/` +
+        template +
+        '.zip',
       responseType: 'arraybuffer',
       responseEncoding: 'null',
     });
@@ -247,29 +240,10 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             </Form.Control>
           </InputGroup>
         </Form.Group>
-        <Form.Group style={mt8}>
-          <Form.Text className="text-muted" style={mb4}>
-            <small>GAS</small>
-          </Form.Text>
-          <InputGroup>
-            <Form.Control
-              type="number"
-              defaultValue={DEFAULT_GAS}
-              size="sm"
-              onChange={setGasValue}
-            />
-          </InputGroup>
-        </Form.Group>
       </Form>
 
       <hr />
-      <Compiler
-        compileTarget={compileTarget}
-        accountID={account}
-        dapp={dapp}
-        client={client}
-        gas={gas}
-      />
+      <Compiler compileTarget={compileTarget} accountID={account} dapp={dapp} client={client} />
     </div>
   );
 };
