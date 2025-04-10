@@ -9,6 +9,7 @@ import Juno from '../assets/Juno-Big.png';
 import Klaytn from '../assets/Klaytn-Big.png';
 import Arbitrum from '../assets/Arbitrum.png';
 import Injective from '../assets/Injective-Big.png';
+import Movement from '../assets/Movement-Big.png';
 import RefreshButton from './common/RefreshButton';
 import { FunctionComponent } from 'react';
 import { EditorClient } from '../utils/editor';
@@ -158,6 +159,20 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <b>Klaytn (EVM)</b>
         </ListGroup.Item> */}
         </ListGroup>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Movement');
+          }}
+        >
+          <img src={Movement} style={{ width: '35px', marginRight: '20px' }} alt="Movement logo" />
+          <b>Movement (MoveVM)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            New
+          </Badge>
+        </ListGroup.Item>
       </Form.Group>
     </div>
   );

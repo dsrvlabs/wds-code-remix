@@ -9,6 +9,7 @@ import { Connect as JunoConnect } from './juno/Connect';
 import { Connect as NeutronConnect } from './neutron/Connect';
 import { Connect as ArbitrumConnect } from './arbitrum/Connect';
 import { Connect as InjectiveConnect } from './injective/Connect';
+import { Connect as MovementConnect } from './movement/Connect';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -51,6 +52,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
     'neutron',
     'arbitrum',
     'injective',
+    'movement',
   ];
 
   const handleLeftBtn = async () => {
@@ -125,6 +127,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <ArbitrumConnect />;
       case 'Injective':
         return <InjectiveConnect client={client} />;
+      case 'Movement':
+        return <MovementConnect client={client} />;
       default:
         return <></>;
     }

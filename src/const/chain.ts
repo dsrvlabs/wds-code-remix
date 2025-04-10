@@ -5,4 +5,5 @@ export const CHAIN_NAME = {
   neutron: 'neutron',
   juno: 'juno',
   injective: 'injective',
+  movement: 'movement',
 };

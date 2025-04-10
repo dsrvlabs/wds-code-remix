@@ -8,6 +8,7 @@ import Welldone from '../../assets/dsrv_wallet_icon.png';
 import Petra from '../../assets/petra.png';
 import Keplr from '../../assets/Keplr-Big.svg';
 import Metamask from '../../assets/MetaMask.png';
+import OKX from '../../assets/okx.png';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -27,14 +28,61 @@ const wallets = {
     errorMsg:
       'Please Install WELLDONE Wallet http://abit.ly/install-welldone-wallet . If you have installed it, please press the refresh button.',
   },
-  petra: {
-    chains: [''],
-    image: Petra,
-    label: 'Connect to Petra',
-    checkInstalled: () => !!(window as any).aptos,
-    errorMsg:
-      'Please Install Petra Wallet https://petra.app/ . If you have installed it, please press the refresh button.',
+  okx: {
+    chains: ['movement'],
+    image: OKX,
+    label: 'Connect to OKX Wallet',
+    checkInstalled: () => !!(window as any).okxwallet,
+    errorMsg: (
+      <>
+        Please Install OKX Wallet from{' '}
+        <span
+          style={{ cursor: 'pointer', color: '#0d6efd' }}
+          onClick={(e) => {
+            const target = e.currentTarget;
+            const originalText = target.textContent;
+            const tempInput = document.createElement('input');
+            tempInput.value =
+              'https://chromewebstore.google.com/detail/okx-wallet/mcohilncbfahbmgdjkbpemcciiolgcge';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            // 복사 성공 시 텍스트 변경
+            target.textContent = 'Copied!';
+            target.style.color = '#198754';
+
+            // 2초 후 원래 텍스트로 복구
+            setTimeout(() => {
+              target.textContent = originalText;
+              target.style.color = '#0d6efd';
+            }, 2000);
+          }}
+        >
+          Chrome Web Store.
+        </span>
+        <br />
+        If you have installed it, please press the refresh button.
+      </>
+    ),
   },
+  // razor: {
+  //   chains: ['movement'],
+  //   image: Razor,
+  //   label: 'Connect to Razor',
+  //   checkInstalled: () => !!(window as any).razor,
+  //   errorMsg:
+  //     'Please Install Razor Wallet https://razor.network/ . If you have installed it, please press the refresh button.',
+  // },
+  // nightly: {
+  //   chains: ['movement'],
+  //   image: Nightly,
+  //   label: 'Connect to Nightly',
+  //   checkInstalled: () => !!(window as any).nightly,
+  //   errorMsg:
+  //     'Please Install Nightly Wallet https://wallet.nightly.app/ . If you have installed it, please press the refresh button.',
+  // },
   keplr: {
     chains: ['neutron'],
     image: Keplr,
@@ -60,7 +108,7 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
   setWallet,
   wallet,
 }) => {
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string | JSX.Element>('');
 
   return (
     <ListGroup>
@@ -78,8 +126,13 @@ export const Connect: React.FunctionComponent<InterfaceProps> = ({
             active={active && wallet === key}
             onClick={async () => {
               if (!walletInfo.checkInstalled()) {
+                const terminalErrorMsg =
+                  typeof walletInfo.errorMsg === 'string'
+                    ? walletInfo.errorMsg
+                    : `Please Install ${walletInfo.label}. If you have installed it, please press the refresh button.`;
+
                 await client.terminal.log({
-                  value: walletInfo.errorMsg,
+                  value: terminalErrorMsg,
                   type: 'error',
                 });
                 setError(walletInfo.errorMsg);
