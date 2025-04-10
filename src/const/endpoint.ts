@@ -89,14 +89,14 @@ export const ARBITRUM_COMPILER_CONSUMER_API_ENDPOINT =
 const MOVEMENT_COMPILER_CONSUMER_ENDPOINT_POOL = {
   local: 'ws://localhost:8000',
   dev: 'wss://dev.compiler.welldonestudio.io',
-  prod: 'wss://prod.near.compiler.welldonestudio.io',
+  prod: 'wss://mac-arm-compiler.welldonestudio.io',
 };
 export const MOVEMENT_COMPILER_CONSUMER_ENDPOINT = MOVEMENT_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
 
 const MOVEMENT_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
   local: 'http://localhost:8000',
   dev: 'https://dev.compiler.welldonestudio.io',
-  prod: 'https://verify.welldonestudio.io',
+  prod: 'https://mac-arm-compiler.welldonestudio.io',
 };
 
 export const MOVEMENT_COMPILER_CONSUMER_API_ENDPOINT =
