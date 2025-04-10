@@ -82,6 +82,20 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           style={{ cursor: 'pointer' }}
           action
           onClick={() => {
+            setChain('Movement');
+          }}
+        >
+          <img src={Movement} style={{ width: '35px', marginRight: '20px' }} alt="Movement logo" />
+          <b>Movement (MoveVM)</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            New
+          </Badge>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
             setChain('Aptos');
           }}
         >
@@ -159,20 +173,6 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
           <b>Klaytn (EVM)</b>
         </ListGroup.Item> */}
         </ListGroup>
-        <ListGroup.Item
-          as="li"
-          style={{ cursor: 'pointer' }}
-          action
-          onClick={() => {
-            setChain('Movement');
-          }}
-        >
-          <img src={Movement} style={{ width: '35px', marginRight: '20px' }} alt="Movement logo" />
-          <b>Movement (MoveVM)</b>
-          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
-            New
-          </Badge>
-        </ListGroup.Item>
       </Form.Group>
     </div>
   );

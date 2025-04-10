@@ -151,7 +151,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       };
 
       // OKX 지갑을 통해 트랜잭션 서명 및 제출
-      const txnHash = await dapp.aptos.signAndSubmitTransaction(transaction, {
+      const txnHash = await (window.okxwallet as any).aptos.signAndSubmitTransaction(transaction, {
         max_gas_amount: maxGasAmount || '200000',
         gas_unit_price: gasUnitPrice || '100',
         expiration_timestamp_secs: Math.floor(Date.now() / 1000) + 600,
