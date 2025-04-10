@@ -27,13 +27,11 @@ export const Parameters: React.FunctionComponent<InterfaceProps> = ({
   });
 
   const updateParam = (value: any, idx: number, parameterType: string) => {
-    console.log(`@@@ updateParam`, value, idx, parameterType);
     setParameters((existingParams: ArgTypeValuePair[]) => {
       existingParams[idx] = {
         type: parameterType,
         val: value,
       };
-      console.log('existingParams', existingParams);
       return existingParams;
     });
   };

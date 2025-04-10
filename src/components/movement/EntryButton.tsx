@@ -111,8 +111,12 @@ const EntryButton: React.FunctionComponent<Props> = ({
       size="sm"
       onClick={async () => {
         if (!gasRef.current.entryEstimatedGas) {
-          console.log(`!!!!!!!!!!!!!!!!!!!`);
           const movementClient = new AptosClient(movementNodeUrl(dapp.networks.movement.chain));
+          // pubKey가 없는 경우 기본값 사용
+          const pubKey =
+            dapp.networks.movement.account?.pubKey ||
+            '0x0000000000000000000000000000000000000000000000000000000000000000';
+
           const rawTransaction = await movementClient.generateRawTransaction(
             new HexString(accountId),
             genPayload(
@@ -123,13 +127,10 @@ const EntryButton: React.FunctionComponent<Props> = ({
             ),
           );
           const estimatedGas = await getEstimateGas(
-            `https://fullnode.${dapp.networks.movement.chain}.movementlabs.com/v1`,
-            dapp.networks.movement.account.pubKey,
+            movementNodeUrl(dapp.networks.movement.chain),
+            pubKey,
             rawTransaction,
           );
-          console.log(`estimatedGas${JSON.stringify(estimatedGas, null, 2)}`);
-
-          console.log(`gasRef.current=${JSON.stringify(gasRef.current, null, 2)}`);
           setEntryEstimatedGas_(estimatedGas.gas_used);
           setEntryGasUnitPrice_(estimatedGas.gas_unit_price);
           setEntryMaxGasAmount_(estimatedGas.gas_used);

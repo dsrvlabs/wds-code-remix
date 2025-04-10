@@ -307,8 +307,6 @@ export async function viewFunction(
       return p.val;
     }),
   };
-  console.log(`viewFunction payload=${JSON.stringify(payload, null, 2)}`);
-
   try {
     const res = await movementClient.view(payload);
     log.info(res);
@@ -329,6 +327,10 @@ export const getEstimateGas = async (
   pubKey: string,
   rawTransaction: TxnBuilderTypes.RawTransaction,
 ): Promise<{ gas_unit_price: string; max_gas_amount: string; gas_used: string }> => {
+  // pubKey가 없을 경우 기본값 제공
+  const defaultPubKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+  const pubKeyToUse = pubKey || defaultPubKey;
+
   // eslint-disable-next-line no-unused-vars
   const txnBuilder = new TransactionBuilderEd25519(
     (_signingMessage: TxnBuilderTypes.SigningMessage) => {
@@ -336,7 +338,7 @@ export const getEstimateGas = async (
       const invalidSigBytes = new Uint8Array(64);
       return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
     },
-    Buffer.from(pubKey.replace('0x', ''), 'hex'),
+    Buffer.from(pubKeyToUse.replace('0x', ''), 'hex'),
   );
   const signedTxn = txnBuilder.sign(rawTransaction);
 
@@ -350,7 +352,6 @@ export const getEstimateGas = async (
   });
 
   const result = await response.json();
-  console.log(`simulation result=${JSON.stringify(result, null, 2)}`);
   return {
     gas_unit_price: result[0].gas_unit_price,
     max_gas_amount: result[0].max_gas_amount,
@@ -381,9 +382,7 @@ export function shortHex(hex: string) {
   }
 
   const buf = Buffer.from(hex_, 'hex');
-  console.log(buf);
   const arr = toArrayBuffer(buf);
-  console.log(arr);
   const short = HexString.fromUint8Array(arr).toShortString();
   return short;
 }

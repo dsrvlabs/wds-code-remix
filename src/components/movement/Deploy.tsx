@@ -113,18 +113,18 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       throw new Error('No accountID');
     }
 
-    if (wallet !== 'Dsrv') {
-      throw new Error('Wallet is not Dsrv');
-    }
-
     if (!(metaData64 && moduleBase64s.length > 0)) {
       throw new Error('Not prepared metadata and module');
     }
 
-    await dsrvProceed();
+    if (wallet === 'OKX') {
+      await okxProceed();
+    } else {
+      throw new Error('Unsupported wallet');
+    }
   };
 
-  const dsrvProceed = async () => {
+  const okxProceed = async () => {
     setInProgress(true);
     sendCustomEvent('deploy', {
       event_category: 'movement',
@@ -137,21 +137,24 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
     try {
       setDeployIconSpin('fa-spin');
-      const rawTx_ = await dappTxn(
-        accountID,
-        dapp.networks.movement.chain,
-        '0x1::code',
-        'publish_package_txn',
-        [],
-        [metadataSerializedBytes(metaData64), codeBytes(moduleBase64s)],
-        dapp,
-        gasUnitPrice,
-        maxGasAmount,
-      );
 
-      const txnHash = await dapp.request('movement', {
-        method: 'dapp:signAndSendTransaction',
-        params: [rawTx_],
+      // 트랜잭션 인자 생성
+      const metadata = metaData64;
+      const modules = moduleBase64s;
+
+      // 트랜잭션 구성
+      const transaction = {
+        type: 'entry_function_payload',
+        function: '0x1::code::publish_package_txn',
+        type_arguments: [],
+        arguments: [metadata, modules],
+      };
+
+      // OKX 지갑을 통해 트랜잭션 서명 및 제출
+      const txnHash = await dapp.aptos.signAndSubmitTransaction(transaction, {
+        max_gas_amount: maxGasAmount || '200000',
+        gas_unit_price: gasUnitPrice || '100',
+        expiration_timestamp_secs: Math.floor(Date.now() / 1000) + 600,
       });
       log.debug(`@@@ txnHash=${txnHash}`);
 
@@ -160,6 +163,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         dapp.networks.movement.chain,
       )) as any;
       log.info('tx result', result);
+
       if (result.success) {
         await client.terminal.log({
           type: 'info',
@@ -195,7 +199,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         const data = change_.data.data as any;
         const writeResourcePackages = data.packages as WriteResourcePackage[];
         const writeResourcePackage = writeResourcePackages.find((pkg) => pkg.name === packageName);
-        console.log(`writeResourcePackage`, JSON.stringify(writeResourcePackage, null, 2));
         const movementDeployHistoryCreateDto = {
           chainId: dapp.networks.movement.chain,
           account: accountID,
@@ -209,11 +212,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           txHash: result.hash,
           modules: writeResourcePackage?.modules.map((m) => m.name),
         };
-        console.log(
-          `movementDeployHistoryCreateDto`,
-          JSON.stringify(movementDeployHistoryCreateDto, null, 2),
-        );
-
         const res = await axios.post(
           COMPILER_API_ENDPOINT + '/movement-deploy-histories',
           movementDeployHistoryCreateDto,
@@ -222,7 +220,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         log.info(`movement-deploy-histories api res`, res);
 
         setDeployedContract(accountID);
-        // setAtAddress('');
         setAtAddress(accountID);
         const moveResources = await getAccountResources(accountID, dapp.networks.movement.chain);
         log.info(`@@@ moveResources`, moveResources);
@@ -245,21 +242,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     }
     setInProgress(false);
     setDeployIconSpin('');
-    setInProgress(false);
   };
-
-  // movementClient.getAccountResources(accountID).then((res) => {
-  //   console.log('getAccountResources', res)
-  //   res.map(async (accountResource: any)=>{
-  //     if(accountResource.type === accountID+"::"+abi.name+"::"+resource){
-  //       console.log(accountResource.data)
-  //       await client.terminal.log({
-  //         type: 'info',
-  //         value: accountResource.data
-  //       });
-  //     }
-  //   })
-  // })
 
   return (
     <>

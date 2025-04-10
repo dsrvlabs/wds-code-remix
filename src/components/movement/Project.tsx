@@ -33,12 +33,12 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
   const [template, setTemplate] = useState<string>('hello_blockchain');
 
   const templateList = [
-    'fa_coin',
+    // 'fa_coin',
     'hello_blockchain',
-    'ticket',
-    'hello_prover',
-    'marketplace',
-    'moon_coin',
+    // 'ticket',
+    // 'hello_prover',
+    // 'marketplace',
+    // 'moon_coin',
   ];
 
   useEffect(() => {
@@ -233,7 +233,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
               {projectList?.map((projectName, idx) => {
                 return (
                   <option value={projectName} key={idx}>
-                    {projectName}
+                    {projectName.replace('movement/', '')}
                   </option>
                 );
               })}

@@ -110,6 +110,10 @@ export const WalletConnect: React.FunctionComponent<InterfaceProps> = ({
             networks: {
               movement: {
                 chain: getChainId(selectedNetwork),
+                account: {
+                  ...accountInfo,
+                  pubKey: accountInfo.publicKey,
+                },
               },
             },
           });

@@ -285,7 +285,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 responseEncoding: 'null',
               });
             } catch (e) {
-              console.log(`Failed to delete.`);
+              //
             }
           }
 
@@ -387,7 +387,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 responseEncoding: 'null',
               });
             } catch (e) {
-              console.log(`Failed to delete.`);
+              //
             }
           }
 
@@ -482,12 +482,16 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               ],
             ),
           );
+          // pubKey가 없는 경우 기본값 사용
+          const pubKey =
+            dapp.networks.movement.account?.pubKey ||
+            '0x0000000000000000000000000000000000000000000000000000000000000000';
+
           const estimatedGas = await getEstimateGas(
-            `https://fullnode.${dapp.networks.movement.chain}.movementlabs.com/v1`,
-            dapp.networks.movement.account.pubKey,
+            movementNodeUrl(dapp.networks.movement.chain),
+            pubKey,
             rawTransaction,
           );
-          console.log(`@@@ estimatedGas`, estimatedGas);
 
           setEstimatedGas(estimatedGas.gas_used);
           setGasUnitPrice(estimatedGas.gas_unit_price);
@@ -586,7 +590,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 responseEncoding: 'null',
               });
             } catch (e) {
-              console.log(`Failed to delete.`);
+              //
             }
           }
 
@@ -640,7 +644,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
                 responseEncoding: 'null',
               });
             } catch (e) {
-              console.log(`Failed to delete.`);
+              //
             }
           }
 
@@ -809,8 +813,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const view = async () => {
-    console.log(parameters);
-
     const view = await viewFunction(
       deployedContract,
       targetModule,
@@ -1008,7 +1010,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <span> Compile</span>
         </Button>
 
-        <Button
+        {/* <Button
           variant="warning"
           disabled={accountID === '' || proveLoading || loading || !compileTarget}
           onClick={async () => {
@@ -1018,7 +1020,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         >
           <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
           <span> Prove</span>
-        </Button>
+        </Button> */}
 
         {fileNames.map((filename, i) => (
           <small key={`movement-module-file-${i}`}>
@@ -1079,7 +1081,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             </InputGroup>
           </Form.Group>
           <Deploy
-            wallet={'Dsrv'}
+            wallet={'OKX'}
             accountID={accountID}
             compileTimestamp={compileTimestamp}
             packageName={packageName}

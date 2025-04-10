@@ -59,8 +59,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
     const id = event.target.id;
 
     const indices = toIndices(id);
-    console.log('depth', depth);
-    console.log('indices', indices);
 
     const data = [...args];
     if (indices.length === 1) {
@@ -118,18 +116,14 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
   const addRow = (event: any, vectorElType: string) => {
     const depth = wordCount(typeName, 'vector');
     const id = event.target.id as string;
-    console.log(`id`, id);
 
     const indices = id
       .slice('vec-arg-add-'.length)
       .split('-')
       .filter((str) => str.trim() !== '')
       .map((i) => Number(i));
-    console.log('depth', depth);
-    console.log('indices', indices);
 
     const data = [...args];
-    console.log(`data_1`, data);
     if (depth === 1) {
       if (vectorElType === 'bool') {
         data.push(true);
@@ -138,7 +132,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       }
       setArgs([...data]);
       updateParam(data, parentIdx, typeName);
-      console.log(`data_2`, data);
       return;
     }
 
@@ -154,7 +147,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       const idx = indices[i];
       el = el[idx];
     }
-    console.log(`el`, el);
 
     if (indices.length === depth - 1) {
       if (vectorElType === 'bool') {
@@ -166,7 +158,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       el.push([]);
     }
 
-    console.log(`data_2`, data);
     setArgs(data);
     updateParam(data, parentIdx, typeName);
   };
@@ -185,7 +176,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       data.splice(indices[0], 1);
       setArgs(data);
       updateParam(data, parentIdx, typeName);
-      console.log(`data_2`, data);
       return;
     }
 
@@ -198,7 +188,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
       }
     }
     (el as string[]).splice(indices[indices.length - 1], 1);
-    console.log(`data_2`, data);
     setArgs([...data]);
     updateParam(data, parentIdx, typeName);
   };
@@ -263,7 +252,6 @@ const VectorArgForm: React.FunctionComponent<Props> = ({
 
     return val.map((v, i) => {
       indexMemo.push(i);
-      // console.log(indexMemo);
       const b = (
         <div
           key={i}
