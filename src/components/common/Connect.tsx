@@ -9,6 +9,8 @@ import Petra from '../../assets/petra.png';
 import Keplr from '../../assets/Keplr-Big.svg';
 import Metamask from '../../assets/MetaMask.png';
 import OKX from '../../assets/okx.png';
+import Nightly from '../../assets/nightly.png';
+import { getAptosWallets } from '@aptos-labs/wallet-standard';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
@@ -28,14 +30,14 @@ const wallets = {
     errorMsg:
       'Please Install WELLDONE Wallet http://abit.ly/install-welldone-wallet . If you have installed it, please press the refresh button.',
   },
-  okx: {
+  nightly: {
     chains: ['movement'],
-    image: OKX,
-    label: 'Connect to OKX Wallet',
-    checkInstalled: () => !!(window as any).okxwallet,
+    image: Nightly,
+    label: 'Connect to Nightly',
+    checkInstalled: () => !!(window as any).nightly,
     errorMsg: (
       <>
-        Please Install OKX Wallet from{' '}
+        Please Install Nightly Wallet from{' '}
         <span
           style={{ cursor: 'pointer', color: '#0d6efd' }}
           onClick={(e) => {
@@ -43,17 +45,15 @@ const wallets = {
             const originalText = target.textContent;
             const tempInput = document.createElement('input');
             tempInput.value =
-              'https://chromewebstore.google.com/detail/okx-wallet/mcohilncbfahbmgdjkbpemcciiolgcge';
+              'https://chromewebstore.google.com/detail/nightly/fiikommddbeccaoicoejoniammnalkfa';
             document.body.appendChild(tempInput);
             tempInput.select();
             document.execCommand('copy');
             document.body.removeChild(tempInput);
 
-            // 복사 성공 시 텍스트 변경
             target.textContent = 'Copied!';
             target.style.color = '#198754';
 
-            // 2초 후 원래 텍스트로 복구
             setTimeout(() => {
               target.textContent = originalText;
               target.style.color = '#0d6efd';
@@ -67,22 +67,6 @@ const wallets = {
       </>
     ),
   },
-  // razor: {
-  //   chains: ['movement'],
-  //   image: Razor,
-  //   label: 'Connect to Razor',
-  //   checkInstalled: () => !!(window as any).razor,
-  //   errorMsg:
-  //     'Please Install Razor Wallet https://razor.network/ . If you have installed it, please press the refresh button.',
-  // },
-  // nightly: {
-  //   chains: ['movement'],
-  //   image: Nightly,
-  //   label: 'Connect to Nightly',
-  //   checkInstalled: () => !!(window as any).nightly,
-  //   errorMsg:
-  //     'Please Install Nightly Wallet https://wallet.nightly.app/ . If you have installed it, please press the refresh button.',
-  // },
   keplr: {
     chains: ['neutron'],
     image: Keplr,
