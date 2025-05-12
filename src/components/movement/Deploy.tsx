@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Button, Alert, Spinner, Modal } from 'react-bootstrap';
+import { Button, Alert, Spinner } from 'react-bootstrap';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import {
   getAccountResources,
+  getNetworkInfo,
   getTx,
   shortHex,
   waitForTransactionWithResult,
@@ -129,10 +130,15 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       setDeploymentStatus('preparing');
       setDeploymentError('');
 
+      const network = dapp.networks.movement.chain;
+
+      // Movement network information
+      const networkInfo = getNetworkInfo(network);
+
       // Aptos client setup
       const config = new AptosConfig({
-        network: Network.CUSTOM,
-        fullnode: 'https://testnet.bardock.movementnetwork.xyz/v1',
+        network: networkInfo.name,
+        fullnode: networkInfo.url,
       });
       const aptos = new Aptos(config);
 
@@ -141,13 +147,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       if (!adaptor) {
         throw new Error('Wallet connection failed');
       }
-
-      // Movement network information
-      const networkInfo = {
-        chainId: 250,
-        name: Network.CUSTOM,
-        url: 'https://testnet.bardock.movementnetwork.xyz/v1',
-      };
 
       // Wallet connection
       await adaptor.features['aptos:connect'].connect(true, networkInfo);
@@ -168,6 +167,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         const convertedModuleBytecodes = moduleBase64s.map((module) =>
           new HexString(Buffer.from(module, 'base64').toString('hex')).toUint8Array(),
         );
+        // const convertedModuleBytecodes = codeBytes(moduleBase64s);
 
         // Create transaction
         txnToSimulate = await aptos.publishPackageTransaction({
@@ -218,7 +218,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           // Wait for transaction completion
           const txResult = (await waitForTransactionWithResult(
             txHash,
-            'testnet',
+            network,
           )) as Types.UserTransaction;
           log.info('Transaction result:', txResult);
 
@@ -241,7 +241,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             // Get detailed transaction information for package registry
             const tx: Types.Transaction_UserTransaction = (await getTx(
               txHash,
-              'testnet',
+              network,
             )) as Types.Transaction_UserTransaction;
 
             // Find the package registry change in transaction
@@ -267,7 +267,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
               // Create and save deployment history
               const movementDeployHistoryCreateDto = {
-                chainId: 'testnet',
+                chainId: network,
                 account: accountID,
                 package: packageName,
                 compileTimestamp: Number(compileTimestamp),
@@ -296,7 +296,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             setAtAddress(accountID || '');
 
             // Update account resources
-            const moveResources = await getAccountResources(accountID || '', 'testnet');
+            const moveResources = await getAccountResources(accountID || '', network);
             log.info('Account resources:', moveResources);
             setAccountResources([...moveResources]);
 
@@ -308,7 +308,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
             setParameters([]);
 
             // Get module information
-            getAccountModulesFromAccount(accountID || '', 'testnet');
+            getAccountModulesFromAccount(accountID || '', network);
 
             log.info('Transaction execution successful');
           } else {

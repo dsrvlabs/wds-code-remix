@@ -6,8 +6,8 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import AlertCloseButton from '../common/AlertCloseButton';
 import { log } from '../../utils/logger';
 import { CopyToClipboard } from '../common/CopyToClipboard';
-import { Aptos, Network, AptosConfig } from '@aptos-labs/ts-sdk';
-import { NetworkInfo } from '@aptos-labs/wallet-standard';
+import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
+import { getNetworkInfo } from './movement-helper';
 
 // 타입 정의와 실제 구현의 불일치 문제를 해결하기 위한 인터페이스
 interface NightlyAptosExtended {
@@ -44,32 +44,6 @@ export const WalletConnect: React.FunctionComponent<InterfaceProps> = ({
   const [selectedNetwork, setSelectedNetwork] = useState<string>('Movement Testnet');
 
   const networks = ['Movement Mainnet', 'Movement Testnet'];
-
-  const getNetworkInfo = (network: string): NetworkInfo & { network: string } => {
-    switch (network) {
-      case 'Movement Mainnet':
-        return {
-          chainId: 1,
-          name: Network.CUSTOM,
-          network: 'mainnet',
-          url: 'https://bardock.movementnetwork.xyz/v1',
-        };
-      case 'Movement Testnet':
-        return {
-          chainId: 27,
-          name: Network.CUSTOM,
-          network: 'testnet',
-          url: 'https://testnet.bardock.movementnetwork.xyz/v1',
-        };
-      default:
-        return {
-          chainId: 27,
-          name: Network.CUSTOM,
-          network: 'testnet',
-          url: 'https://testnet.bardock.movementnetwork.xyz/v1',
-        };
-    }
-  };
 
   const fetchBalance = async (address: string) => {
     if (!address) return;

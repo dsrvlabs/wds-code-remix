@@ -14,6 +14,8 @@ import {
   ensureNumber,
   serializeArg,
 } from '../aptos/transaction_builder/builder_utils';
+import { NetworkInfo } from '@aptos-labs/wallet-standard';
+import { Network } from '@aptos-labs/ts-sdk';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -83,15 +85,15 @@ export function metadataSerializedBytes(base64EncodedMetadata: string) {
 }
 
 export function codeBytes(base64EncodedModules: string[]): BCS.Bytes {
-  // base64 인코딩된 모듈을 Uint8Array 배열로 변환
+  // Convert base64 encoded modules to Uint8Array array
   const moduleByteArrays = base64EncodedModules.map(
     (module) => new Uint8Array(Buffer.from(module, 'base64')),
   );
 
-  // BCS 직렬화
+  // BCS serialization
   const serializer = new BCS.Serializer();
 
-  // vector<vector<u8>> 직렬화
+  // Serialize vector<vector<u8>>
   serializer.serializeU32AsUleb128(moduleByteArrays.length);
   for (const byteArray of moduleByteArrays) {
     serializer.serializeBytes(byteArray);
@@ -107,23 +109,28 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: str
 
 export async function getTx(txnHash: string | any, chainId: string) {
   const movementClient = new AptosClient(movementNodeUrl(chainId));
-  // 트랜잭션 해시가 객체인 경우 문자열로 변환 시도
+  // Attempt to convert hash object to string
   let hashString: string;
   if (typeof txnHash === 'object') {
     try {
       if (txnHash.status) {
         hashString = txnHash.status;
+        // Return error immediately for rejected transactions
+        if (hashString === 'Rejected') {
+          log.error('Transaction rejected by user:', hashString);
+          throw new Error('Transaction rejected by user');
+        }
       } else if (txnHash.hash) {
         hashString = txnHash.hash;
       } else {
-        // 객체를 문자열로 변환
+        // Convert object to string
         hashString = JSON.stringify(txnHash);
-        log.error('객체 타입의 트랜잭션 해시:', hashString);
-        throw new Error('유효하지 않은 트랜잭션 해시 형식: 객체');
+        log.error('Transaction hash as object:', hashString);
+        throw new Error('Invalid transaction hash format: object');
       }
     } catch (e) {
-      log.error('트랜잭션 해시 처리 오류:', e);
-      throw new Error('유효하지 않은 트랜잭션 해시 형식');
+      log.error('Transaction hash processing error:', e);
+      throw new Error('Invalid transaction hash format');
     }
   } else {
     hashString = txnHash;
@@ -340,8 +347,8 @@ export async function viewFunction(
     }),
   };
   try {
-    // Aptos SDK의 view 함수는 두 번째 매개변수로 문자열을 요구합니다.
-    // 현재 버전에서는 ledger_version 옵션만 지원하므로 설정하지 않습니다
+    // The Aptos SDK view function requires a string as the second parameter
+    // In the current version, only the ledger_version option is supported, so we don't set it
     const res = await movementClient.view(payload);
     log.info(res);
     return {
@@ -361,11 +368,11 @@ export const getEstimateGas = async (
   pubKey: string,
   rawTransaction: TxnBuilderTypes.RawTransaction,
 ): Promise<{ gas_unit_price: string; max_gas_amount: string; gas_used: string }> => {
-  // pubKey가 없을 경우 기본값 제공
+  // Provide default value if pubKey is missing
   const defaultPubKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
   const pubKeyToUse = pubKey || defaultPubKey;
 
-  // 문자열에서 바로 Uint8Array로 변환
+  // Convert string to Uint8Array directly
   const keyHex = pubKeyToUse.replace('0x', '');
   const keyBytes = new Uint8Array(keyHex.length / 2);
 
@@ -444,49 +451,45 @@ export async function waitForTransactionResult(
   maxRetries = 15,
   initialDelayMs = 2000,
 ): Promise<any> {
-  // 해시가 객체인 경우 문자열로 변환 시도
+  // Attempt to convert hash object to string
   let hashString: string;
   if (typeof hash === 'object') {
     try {
       if (hash.status) {
         hashString = hash.status;
-        // 거부된 트랜잭션인 경우 즉시 오류 반환
+        // Return error immediately for rejected transactions
         if (hashString === 'Rejected') {
-          log.error('사용자가 트랜잭션을 거부했습니다:', hashString);
-          throw new Error('사용자가 트랜잭션을 거부했습니다');
+          log.error('Transaction rejected by user:', hashString);
+          throw new Error('Transaction rejected by user');
         }
       } else if (hash.hash) {
         hashString = hash.hash;
       } else {
-        // 객체를 문자열로 변환
+        // Convert object to string
         hashString = JSON.stringify(hash);
-        log.error('객체 타입의 트랜잭션 해시:', hashString);
-        throw new Error('유효하지 않은 트랜잭션 해시 형식: 객체');
+        log.error('Transaction hash as object:', hashString);
+        throw new Error('Invalid transaction hash format: object');
       }
     } catch (e) {
-      log.error('트랜잭션 해시 처리 오류:', e);
-      throw new Error('유효하지 않은 트랜잭션 해시 형식');
+      log.error('Transaction hash processing error:', e);
+      throw new Error('Invalid transaction hash format');
     }
   } else {
     hashString = hash;
-    // 문자열이 'Rejected'인 경우 처리
-    if (
-      hashString === 'Rejected' ||
-      hashString === 'undefined' ||
-      hashString === '알 수 없는 해시'
-    ) {
-      log.error('유효하지 않은 트랜잭션 해시:', hashString);
-      throw new Error('유효하지 않은 트랜잭션 해시입니다');
+    // String is 'Rejected' - handle
+    if (hashString === 'Rejected' || hashString === 'undefined' || hashString === 'Unknown hash') {
+      log.error('Invalid transaction hash:', hashString);
+      throw new Error('Invalid transaction hash');
     }
   }
 
-  // 최소한의 해시 형식 검증 (0x로 시작하고 최소 길이를 가져야 함)
+  // Minimal hash format validation (must start with 0x and have minimum length)
   if (!hashString.startsWith('0x') || hashString.length < 10) {
-    log.error('유효하지 않은 트랜잭션 해시 형식:', hashString);
-    throw new Error('유효하지 않은 트랜잭션 해시 형식입니다');
+    log.error('Invalid transaction hash format:', hashString);
+    throw new Error('Invalid transaction hash format');
   }
 
-  log.info(`트랜잭션 결과 대기 중 (해시: ${hashString}), 최대 ${maxRetries}회 재시도...`);
+  log.info(`Waiting for transaction result (hash: ${hashString}), max retries: ${maxRetries}...`);
 
   let retries = 0;
   let delayMs = initialDelayMs;
@@ -495,84 +498,107 @@ export async function waitForTransactionResult(
     try {
       const txResult: any = await getTx(hashString, chainId);
       if (txResult) {
-        // 성공 여부 명시적 확인
+        // Explicitly check for success
         if (txResult.success === false) {
           const vmStatus = txResult.vm_status || '';
           let errorMsg = '';
 
-          // VM 오류에 대한 구체적인 설명 추가
+          // Add specific description for VM errors
           if (vmStatus.includes('Move abort')) {
-            // Move abort 오류 형식 파싱 (예: "Move abort in 0x1::util: 0x10001")
+            // Parse Move abort error format (e.g., "Move abort in 0x1::util: 0x10001")
             const moduleMatch = vmStatus.match(/in ([^:]+):/);
             const codeMatch = vmStatus.match(/: (0x[0-9a-fA-F]+)/);
 
-            const module = moduleMatch ? moduleMatch[1] : '알 수 없는 모듈';
-            const errorCode = codeMatch ? codeMatch[1] : '알 수 없는 코드';
+            const module = moduleMatch ? moduleMatch[1] : 'Unknown module';
+            const errorCode = codeMatch ? codeMatch[1] : 'Unknown code';
 
-            errorMsg = `Move 컨트랙트 실행 오류: 모듈 ${module}에서 오류 코드 ${errorCode}`;
+            errorMsg = `Move contract execution error: Error code ${errorCode} in module ${module}`;
 
-            // 특정 오류 코드에 대한 추가 설명
+            // Add specific description for specific error codes
             if (errorCode === '0x10001' && module.includes('0x1::util')) {
-              errorMsg += '. 이는 일반적으로 권한 부족이나 잘못된 입력값으로 인해 발생합니다.';
+              errorMsg +=
+                '. This typically occurs due to insufficient permissions or invalid input.';
             } else if (errorCode === '0x1000A') {
-              errorMsg += '. 불충분한 잔액으로 인한 오류입니다.';
+              errorMsg += '. Error due to insufficient balance.';
             } else if (errorCode === '0x20001') {
-              errorMsg += '. 리소스가 이미 존재하거나 중복 발생 오류입니다.';
+              errorMsg += '. Resource already exists or duplication error.';
             } else if (errorCode === '0x30001') {
-              errorMsg += '. 필요한 리소스를 찾을 수 없습니다.';
+              errorMsg += '. Required resource not found.';
             }
           } else if (vmStatus.includes('EXECUTION_FAILURE')) {
-            errorMsg = `실행 오류: ${vmStatus}. 트랜잭션 실행 중 오류가 발생했습니다.`;
+            errorMsg = `Execution error: ${vmStatus}. An error occurred during transaction execution.`;
           } else if (vmStatus.includes('OUT_OF_GAS')) {
-            errorMsg = '가스 부족: 트랜잭션에 충분한 가스가 제공되지 않았습니다.';
+            errorMsg = 'Out of gas: Not enough gas was provided for the transaction.';
           } else {
-            errorMsg = `트랜잭션 실패: ${vmStatus || '알 수 없는 오류'}`;
+            errorMsg = `Transaction failed: ${vmStatus || 'Unknown error'}`;
           }
 
-          log.error('트랜잭션 실패:', errorMsg);
-          // VM 오류 발생 시 즉시 종료하고 더 이상 재시도하지 않음
+          log.error('Transaction failed:', errorMsg);
+          // VM error case - stop retrying immediately
           throw new Error(errorMsg);
         }
 
-        log.info('트랜잭션 조회 성공:', txResult);
+        log.info('Transaction query successful:', txResult);
         return txResult;
       }
-      throw new Error('트랜잭션 결과가 비어있습니다');
+      throw new Error('Transaction result is empty');
     } catch (error: any) {
-      // VM 오류인 경우 즉시 재시도 중단
+      // VM error case - stop retrying immediately
       if (
         error.message &&
-        (error.message.includes('Move 컨트랙트 실행 오류') ||
+        (error.message.includes('Move contract execution error') ||
           error.message.includes('Move abort') ||
-          error.message.includes('실행 오류') ||
-          error.message.includes('가스 부족'))
+          error.message.includes('Execution error') ||
+          error.message.includes('Out of gas'))
       ) {
-        log.error('VM 오류 발생으로 재시도 중단:', error.message);
-        throw error; // VM 오류는 재시도해도 결과가 바뀌지 않으므로 바로 오류 전파
+        log.error('Retry stopped due to VM error:', error.message);
+        throw error; // VM errors won't change with retries, so propagate immediately
       }
 
       retries++;
 
-      // 특정 오류 조건에서 즉시 실패 처리 (예: 잘못된 해시 형식)
+      // Specific error condition - stop immediately
       if (error.message && error.message.includes('Invalid hash')) {
-        log.error('잘못된 트랜잭션 해시 형식:', error);
+        log.error('Invalid transaction hash format:', error);
         throw error;
       }
 
       if (retries >= maxRetries) {
-        log.error(`최대 재시도 횟수(${maxRetries})에 도달했습니다.`);
-        throw new Error(`트랜잭션 확인 실패: ${error.message || '알 수 없는 오류'}`);
+        log.error(`Maximum retry count (${maxRetries}) reached.`);
+        throw new Error(`Transaction verification failed: ${error.message || 'Unknown error'}`);
       }
 
-      // 지수 백오프 적용 (최대 30초까지)
+      // Apply exponential backoff (up to 30 seconds)
       delayMs = Math.min(delayMs * 1.5, 30000);
 
       log.info(
-        `트랜잭션이 아직 처리 중입니다. ${delayMs}ms 후 재시도 (${retries}/${maxRetries})...`,
+        `Transaction is still being processed. Retrying after ${delayMs}ms (${retries}/${maxRetries})...`,
       );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
-  throw new Error('트랜잭션 조회 시간 초과');
+  throw new Error('Transaction query timeout');
 }
+
+export const getNetworkInfo = (network: string | number): NetworkInfo & { network: string } => {
+  switch (network) {
+    case 'Movement Mainnet':
+    case 1:
+      return {
+        chainId: 1,
+        name: Network.CUSTOM,
+        network: 'mainnet',
+        url: 'https://mainnet.movementnetwork.xyz/v1',
+      };
+    case 'Movement Testnet':
+    case 250:
+    default:
+      return {
+        chainId: 250,
+        name: Network.CUSTOM,
+        network: 'testnet',
+        url: 'https://testnet.bardock.movementnetwork.xyz/v1',
+      };
+  }
+};
