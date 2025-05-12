@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Form, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import JSZip from 'jszip';
@@ -35,30 +34,26 @@ import {
   movementNodeUrl,
   ArgTypeValuePair,
   codeBytes,
-  dappTxn,
   getEstimateGas,
   genPayload,
   getAccountModules,
   getAccountResources,
   metadataSerializedBytes,
-  serializedArgs,
   viewFunction,
 } from './movement-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { AptosClient as MovementClient, HexString, TxnBuilderTypes, Types } from 'aptos';
+import { AptosClient as MovementClient, HexString, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
-  COMPILER_MOVEMENT_COMPILE_COMPLETED_V2,
   COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
   COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
   COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
   COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
   COMPILER_MOVEMENT_PROVE_LOGGED_V2,
-  CompilerMovementCompileCompletedV2,
   CompilerMovementCompileErrorOccurredV2,
   CompilerMovementCompileLoggedV2,
   CompilerMovementProveCompletedV2,
@@ -203,7 +198,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const wrappedRequestCompile = () => wrapPromise(requestCompile(), client);
-  const wrappedRequestProve = () => wrapPromise(requestProve(), client);
 
   const createFile = (code: string, name: string) => {
     const blob = new Blob([code], { type: 'text/plain' });
@@ -338,19 +332,18 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             return;
           }
 
-          const origOutKey = S3Path.outKey(
-            CHAIN_NAME.movement,
-            dapp.networks.movement.chain,
-            address,
-            timestamp,
-            BUILD_FILE_TYPE.move,
-          );
           const res = await axios.request({
             method: 'GET',
             url: `${COMPILER_API_ENDPOINT}/s3Proxy`,
             params: {
               bucket: S3Path.bucket(),
-              fileKey: origOutKey,
+              fileKey: S3Path.outKey(
+                CHAIN_NAME.movement,
+                dapp.networks.movement.chain,
+                address,
+                timestamp,
+                BUILD_FILE_TYPE.move,
+              ),
             },
             responseType: 'arraybuffer',
             responseEncoding: 'null',
@@ -372,278 +365,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           let filenames: string[] = [];
           let moduleWrappers: ModuleWrapper[] = [];
 
-          await Promise.all(
-            Object.keys(zip.files).map(async (key) => {
-              console.log('@@@ key', key);
-
-              if (key === 'output.json') {
-                let content = await zip.file(key)?.async('blob');
-                const fileReader = new FileReader();
-
-                fileReader.onload = async (event) => {
-                  try {
-                    const jsonContent = JSON.parse(event.target?.result as string);
-                    console.log('output.json 내용:', jsonContent);
-
-                    // 패키지 이름, 모듈 정보 등을 추출
-                    if (jsonContent.function_id) {
-                      console.log('함수 ID:', jsonContent.function_id);
-                    }
-
-                    if (jsonContent.args && jsonContent.args.length > 0) {
-                      console.log('메타데이터 인자:', jsonContent.args[0]);
-                      // metaData64를 추출하여 설정
-                      if (jsonContent.args[0].type === 'hex' && jsonContent.args[0].value) {
-                        const metadataHex = jsonContent.args[0].value;
-                        console.log('메타데이터 Hex:', metadataHex);
-
-                        // hex를 base64로 변환
-                        const metadataBuffer = Buffer.from(metadataHex.slice(2), 'hex');
-                        metaData64 = metadataBuffer.toString('base64');
-                        console.log('변환된 메타데이터 Base64:', metaData64);
-
-                        // 패키지 이름 추출
-                        const packageNameLength = metadataBuffer[0];
-                        packageName = metadataBuffer.slice(1, packageNameLength + 1).toString();
-                        console.log('추출된 패키지 이름:', packageName);
-                        metaDataHex = metadataBuffer.toString('hex');
-                      }
-
-                      // 모듈 바이트코드 추출
-                      if (
-                        jsonContent.args[1].type === 'hex' &&
-                        Array.isArray(jsonContent.args[1].value)
-                      ) {
-                        console.log('모듈 바이트코드 배열:', jsonContent.args[1].value);
-
-                        const moduleByteCodeArray = jsonContent.args[1].value;
-
-                        // 각 모듈 바이트코드를 처리
-                        moduleByteCodeArray.forEach((moduleHex: string, index: number) => {
-                          // 모듈 이름은 이미 앞에서 추출했지만, 여기서는 인덱스로 임시 이름 생성
-                          const moduleName = `Module${index}`;
-                          console.log(
-                            `모듈 ${index} Hex(일부):`,
-                            moduleHex.substring(0, 50) + '...',
-                          );
-
-                          // hex를 base64로 변환
-                          const moduleBuffer = Buffer.from(moduleHex.slice(2), 'hex');
-                          const moduleBase64 = moduleBuffer.toString('base64');
-
-                          // 모듈 정보 저장 (moduleWrappers에서 찾지 못한 경우에만 새로 추가)
-                          const existingModuleIndex = moduleWrappers.findIndex(
-                            (m) => m.order === index,
-                          );
-
-                          if (existingModuleIndex === -1) {
-                            // 기존에 없는 경우 새로 추가
-                            moduleWrappers.push({
-                              packageName: packageName,
-                              path: `${packageName}/Module${index}.mv`,
-                              module: moduleBase64,
-                              moduleName: moduleName,
-                              moduleNameHex: Buffer.from(moduleName).toString('hex'),
-                              order: index,
-                            });
-
-                            filenames.push(`${compileTarget}/out/${moduleName}.mv`);
-
-                            // 모듈 파일 저장
-                            try {
-                              client?.fileManager
-                                .writeFile(
-                                  `browser/${compileTarget}/out/${moduleName}.mv`,
-                                  moduleBase64,
-                                )
-                                .then(() => {
-                                  console.log(`@@@ ${moduleName}.mv 저장 완료`);
-                                });
-                            } catch (e) {
-                              console.error(`${moduleName}.mv 저장 오류:`, e);
-                            }
-                          } else {
-                            // 기존에 있는 경우 base64 정보만 업데이트 (파일에서 추출한 정보 그대로 유지)
-                            moduleWrappers[existingModuleIndex].module = moduleBase64;
-                            console.log(
-                              `@@@ 기존 모듈 ${moduleWrappers[existingModuleIndex].moduleName}의 바이트코드 업데이트`,
-                            );
-                          }
-                        });
-                      }
-                    }
-
-                    try {
-                      await client?.fileManager.writeFile(
-                        'browser/' + compileTarget + '/out/output.json',
-                        JSON.stringify(jsonContent, null, 2),
-                      );
-                    } catch (e) {
-                      console.error('output.json 저장 오류:', e);
-                    }
-
-                    // output.json 처리 완료 후 여기서 바로 상태 업데이트 및 트랜잭션 생성
-                    console.log('@@@ output.json 처리 완료, 상태 업데이트 시작');
-                    console.log('@@@ 상태 업데이트 전 정보:', {
-                      packageName,
-                      moduleWrappers: moduleWrappers.map((mw) => ({
-                        moduleName: mw.moduleName,
-                        path: mw.path,
-                      })),
-                      filenames,
-                      metaData64Length: metaData64?.length || 0,
-                    });
-
-                    // output.json의 데이터가 우선순위를 가짐
-                    moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-
-                    setPackageName(packageName);
-                    setModuleWrappers([...moduleWrappers]);
-                    setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
-                    setFileNames([...filenames]);
-
-                    console.log('@@@ metaData64 설정 전 길이:', metaData64?.length || 0);
-                    setMetaDataBase64(metaData64);
-                    console.log('@@@ metaData64 설정 완료');
-
-                    setCliVersion(data.cliVersion);
-                    log.info(
-                      `@@@ data.movementGitDependencies ${JSON.stringify(
-                        data.movementGitDependencies,
-                      )}`,
-                    );
-                    setMovementGitDependencies([...data.movementGitDependencies]);
-
-                    const movementClient = new MovementClient(
-                      movementNodeUrl(dapp.networks.movement.chain),
-                    );
-
-                    // output.json에서 추출한 데이터로 트랜잭션 생성
-                    try {
-                      console.log('트랜잭션 생성 준비:', {
-                        accountID,
-                        metaData64Length: metaData64?.length || 0,
-                        moduleCount: moduleWrappers.length,
-                      });
-
-                      if (!metaData64 || metaData64.length === 0) {
-                        console.error('메타데이터가 없습니다. 트랜잭션을 생성할 수 없습니다.');
-                        throw new Error('메타데이터가 없습니다.');
-                      }
-
-                      // output.json에서 추출한 메타데이터와 모듈 데이터로 트랜잭션 생성
-                      const rawTransaction = await movementClient.generateRawTransaction(
-                        new HexString(accountID),
-                        genPayload(
-                          '0x1::code',
-                          'publish_package_txn',
-                          [],
-                          [
-                            metadataSerializedBytes(metaData64),
-                            codeBytes([...moduleWrappers.map((mw) => mw.module)]),
-                          ],
-                        ),
-                      );
-                      // pubKey가 없는 경우 기본값 사용
-                      console.log('@@@ dapp.networks.movement', dapp.networks.movement);
-                      const pubKey =
-                        dapp.networks.movement.account?.pubKey ||
-                        '0x0000000000000000000000000000000000000000000000000000000000000000';
-
-                      console.log('gas 추정 시작...');
-                      const estimatedGas = await getEstimateGas(
-                        movementNodeUrl(dapp.networks.movement.chain),
-                        pubKey,
-                        rawTransaction,
-                      );
-                      console.log('추정된 gas:', estimatedGas);
-
-                      setEstimatedGas(estimatedGas.gas_used);
-                      setGasUnitPrice(estimatedGas.gas_unit_price);
-                      setMaxGasAmount(estimatedGas.gas_used);
-                    } catch (e) {
-                      console.error('트랜잭션 생성 또는 가스 추정 오류:', e);
-                    }
-                  } catch (e) {
-                    console.error('JSON 파싱 오류:', e);
-                  }
-
-                  setLoading(false);
-                  socket.disconnect();
-                };
-
-                fileReader.readAsText(content || new Blob());
-
-                // 파일 리더가 비동기적으로 처리되기 때문에 여기서 return하여 후속 코드가 실행되지 않도록 함
-                return;
-              } else if (key.includes('package-metadata.bcs')) {
-                // 참고용으로만 처리하고 실제 배포에는 output.json의 메타데이터 사용
-                console.log('@@@ 메타데이터 파일 발견 (참고용):', key);
-                let content = await zip.file(key)?.async('blob');
-                content = content?.slice(0, content.size) ?? new Blob();
-                const metaDataFromFile = await readFile(new File([content], key));
-                const metaDataBufferFromFile = Buffer.from(metaDataFromFile, 'base64');
-                const packageNameLengthFromFile = metaDataBufferFromFile[0];
-                const packageNameFromFile = metaDataBufferFromFile
-                  .slice(1, packageNameLengthFromFile + 1)
-                  .toString();
-                console.log('@@@ 메타데이터 파일에서 추출한 패키지 이름:', packageNameFromFile);
-
-                try {
-                  await client?.fileManager.writeFile(
-                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
-                    metaDataFromFile,
-                  );
-                  console.log('@@@ 메타데이터 파일 저장 완료 (참고용)');
-                } catch (e) {
-                  log.error(e);
-                  console.error('메타데이터 파일 저장 오류:', e);
-                }
-              } else if (key.endsWith('.mv') && !key.includes('dependencies/')) {
-                // 모듈 파일 처리 (의존성 제외) - 파일 정보를 수집하지만 실제 배포에는 output.json의 데이터 사용
-                console.log('@@@ 모듈 파일 발견 (참고용):', key);
-
-                // 파일 경로에서 모듈 이름 추출
-                const moduleName = key.split('/').pop()?.replace('.mv', '') || '';
-                console.log('@@@ 모듈 이름:', moduleName);
-
-                // 모듈 바이트코드 가져오기
-                let content = await zip.file(key)?.async('blob');
-                content = content?.slice(0, content.size) ?? new Blob();
-
-                const moduleBase64 = await readFile(new File([content], key));
-                console.log(
-                  `@@@ ${moduleName} Base64(일부):`,
-                  moduleBase64.substring(0, 50) + '...',
-                );
-
-                const moduleNameHex = Buffer.from(moduleName).toString('hex');
-
-                // 모듈 정보 수집 (output.json에서 실제 데이터 사용 예정)
-                moduleWrappers.push({
-                  packageName: packageName || key.split('/')[0], // 패키지 이름이 없으면 첫 번째 폴더명 사용
-                  path: key,
-                  module: moduleBase64, // 나중에 output.json의 데이터로 덮어씌워질 수 있음
-                  moduleName: moduleName,
-                  moduleNameHex: moduleNameHex,
-                  order: moduleWrappers.length,
-                });
-
-                filenames.push(`${compileTarget}/out/${moduleName}.mv`);
-
-                // 모듈 파일 저장
-                try {
-                  client?.fileManager
-                    .writeFile(`browser/${compileTarget}/out/${moduleName}.mv`, moduleBase64)
-                    .then(() => {
-                      console.log(`@@@ ${moduleName}.mv 저장 완료`);
-                    });
-                } catch (e) {
-                  console.error(`${moduleName}.mv 저장 오류:`, e);
-                }
-              }
-            }),
-          );
+          log.debug(zip.files);
 
           if (!uploadCodeChecked) {
             try {
@@ -664,88 +386,114 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             }
           }
 
-          // FileReader가 비동기적으로 처리하므로 여기서는 상태 업데이트 및 트랜잭션 생성을 하지 않음
-          // output.json이 있는 경우는 위에서 처리됨, 없는 경우에만 여기서 처리
-          if (!zip.files['output.json']) {
-            console.log('@@@ output.json이 없어 기존 방식으로 상태 업데이트');
-            console.log('@@@ 상태 업데이트 전 정보:', {
-              packageName,
-              moduleWrappers: moduleWrappers.map((mw) => ({
-                moduleName: mw.moduleName,
-                path: mw.path,
-              })),
-              filenames,
-              metaData64Length: metaData64?.length || 0,
-            });
-
-            // output.json의 데이터가 우선순위를 가짐
-            moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-
-            setPackageName(packageName);
-            setModuleWrappers([...moduleWrappers]);
-            setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
-            setFileNames([...filenames]);
-            setMetaDataBase64(metaData64);
-            setCliVersion(data.cliVersion);
-            log.info(
-              `@@@ data.movementGitDependencies ${JSON.stringify(data.movementGitDependencies)}`,
-            );
-            setMovementGitDependencies([...data.movementGitDependencies]);
-
-            const movementClient = new MovementClient(
-              movementNodeUrl(dapp.networks.movement.chain),
-            );
-
-            // output.json에서 추출한 데이터로 트랜잭션 생성
-            try {
-              console.log('트랜잭션 생성 준비:', {
-                accountID,
-                metaData64Length: metaData64?.length || 0,
-                moduleCount: moduleWrappers.length,
-              });
-
-              if (!metaData64) {
-                console.error('메타데이터가 없습니다. 트랜잭션을 생성할 수 없습니다.');
-                throw new Error('메타데이터가 없습니다.');
+          await Promise.all(
+            Object.keys(zip.files).map(async (key) => {
+              if (key.includes('package-metadata.bcs')) {
+                let content = await zip.file(key)?.async('blob');
+                content = content?.slice(0, content.size) ?? new Blob();
+                metaData64 = await readFile(new File([content], key));
+                metaData = Buffer.from(metaData64, 'base64');
+                const packageNameLength = metaData[0];
+                packageName = metaData.slice(1, packageNameLength + 1).toString();
+                metaDataHex = metaData.toString('hex');
+                log.debug(`metadataFile_Base64=${metaData64}`);
+                try {
+                  await client?.fileManager.writeFile(
+                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(key),
+                    metaData64,
+                  );
+                } catch (e) {
+                  log.error(e);
+                  setLoading(false);
+                }
               }
+            }),
+          );
 
-              // output.json에서 추출한 메타데이터와 모듈 데이터로 트랜잭션 생성
-              const rawTransaction = await movementClient.generateRawTransaction(
-                new HexString(accountID),
-                genPayload(
-                  '0x1::code',
-                  'publish_package_txn',
-                  [],
-                  [
-                    metadataSerializedBytes(metaData64),
-                    codeBytes([...moduleWrappers.map((mw) => mw.module)]),
-                  ],
-                ),
-              );
-              // pubKey가 없는 경우 기본값 사용
-              console.log('@@@ dapp.networks.movement', dapp.networks.movement);
-              const pubKey =
-                dapp.networks.movement.account?.pubKey ||
-                '0x0000000000000000000000000000000000000000000000000000000000000000';
+          await Promise.all(
+            Object.keys(zip.files).map(async (filepath) => {
+              if (filepath.match('\\w+\\/bytecode_modules\\/\\w+.mv')) {
+                const moduleDataBuf = await zip.file(filepath)?.async('nodebuffer');
+                log.debug(`moduleDataBuf=${moduleDataBuf?.toString('hex')}`);
+                let content = await zip.file(filepath)?.async('blob');
+                content = content?.slice(0, content.size) ?? new Blob();
+                const moduleBase64 = await readFile(new File([content], filepath));
+                log.debug(`moduleBase64=${moduleBase64}`);
 
-              console.log('gas 추정 시작...');
-              const estimatedGas = await getEstimateGas(
-                movementNodeUrl(dapp.networks.movement.chain),
-                pubKey,
-                rawTransaction,
-              );
-              console.log('추정된 gas:', estimatedGas);
+                const moduleName = Buffer.from(
+                  FileUtil.extractFilenameWithoutExtension(filepath),
+                ).toString();
+                const moduleNameHex = Buffer.from(
+                  FileUtil.extractFilenameWithoutExtension(filepath),
+                ).toString('hex');
+                const order = metaDataHex.indexOf(moduleNameHex);
 
-              setEstimatedGas(estimatedGas.gas_used);
-              setGasUnitPrice(estimatedGas.gas_unit_price);
-              setMaxGasAmount(estimatedGas.gas_used);
-            } catch (e) {
-              console.error('트랜잭션 생성 또는 가스 추정 오류:', e);
-            }
-          }
+                moduleWrappers.push({
+                  packageName: packageName,
+                  path: filepath,
+                  module: moduleBase64,
+                  moduleName: moduleName,
+                  moduleNameHex: moduleNameHex,
+                  order: order,
+                });
 
-          setLoading(false);
+                try {
+                  await client?.fileManager.writeFile(
+                    'browser/' + compileTarget + '/out/' + FileUtil.extractFilename(filepath),
+                    moduleBase64,
+                  );
+                  filenames.push(compileTarget + '/out/' + FileUtil.extractFilename(filepath));
+                } catch (e) {
+                  log.error(e);
+                  setLoading(false);
+                }
+              }
+            }),
+          );
+          moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
+
+          setPackageName(packageName);
+          setModuleWrappers([...moduleWrappers]);
+          setModuleBase64s([...moduleWrappers.map((mw) => mw.module)]);
+          setFileNames([...filenames]);
+          setMetaDataBase64(metaData64);
+          setCliVersion(data.cliVersion);
+          log.info(
+            `@@@ data.movementGitDependencies ${JSON.stringify(data.movementGitDependencies)}`,
+          );
+          setMovementGitDependencies([...data.movementGitDependencies]);
+
+          const movementClient = new MovementClient(movementNodeUrl(dapp.networks.movement.chain));
+
+          const rawTransaction = await movementClient.generateRawTransaction(
+            new HexString(accountID),
+            genPayload(
+              '0x1::code',
+              'publish_package_txn',
+              [],
+              [
+                metadataSerializedBytes(metaData64),
+                codeBytes([...moduleWrappers.map((mw) => mw.module)]),
+              ],
+            ),
+          );
+          // pubKey가 없는 경우 기본값 사용
+          const pubKey =
+            dapp.networks.movement.account?.pubKey ||
+            '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+          const estimatedGas = await getEstimateGas(
+            movementNodeUrl(dapp.networks.movement.chain),
+            pubKey,
+            rawTransaction,
+          );
+
+          setEstimatedGas(estimatedGas.gas_used);
+          setGasUnitPrice(estimatedGas.gas_unit_price);
+          setMaxGasAmount(estimatedGas.gas_used);
+
           socket.disconnect();
+          setLoading(false);
         },
       );
 
@@ -1092,79 +840,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
-  const prepareModules = async () => {
-    const artifactPaths = await findArtifacts();
-
-    setPackageName('');
-    setCompileTimestamp('');
-    setModuleWrappers([]);
-    setMetaDataBase64('');
-    setModuleBase64s([]);
-    setFileNames([]);
-    setCliVersion('');
-    setMovementGitDependencies([]);
-
-    if (isEmptyList(artifactPaths)) {
-      return [];
-    }
-
-    let metaData64 = '';
-    let metaData: Buffer;
-    let metaDataHex = '';
-    let filenames: string[] = [];
-    let moduleWrappers: ModuleWrapper[] = [];
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (path.includes('package-metadata.bcs')) {
-          metaData64 = await client?.fileManager.readFile('browser/' + path);
-          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
-        }
-      }),
-    );
-    metaData = Buffer.from(metaData64, 'base64');
-    const packageNameLength = metaData[0];
-    const packageName = metaData.slice(1, packageNameLength + 1).toString();
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (getExtensionOfFilename(path) === '.mv') {
-          let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
-          if (moduleBase64) {
-            const moduleName = Buffer.from(
-              FileUtil.extractFilenameWithoutExtension(path),
-            ).toString();
-            const moduleNameHex = Buffer.from(
-              FileUtil.extractFilenameWithoutExtension(path),
-            ).toString('hex');
-            const order = metaDataHex.indexOf(moduleNameHex);
-
-            moduleWrappers.push({
-              packageName: packageName,
-              path: path,
-              module: moduleBase64,
-              moduleName: moduleName,
-              moduleNameHex: moduleNameHex,
-              order: order,
-            });
-          }
-          filenames.push(path);
-        }
-      }),
-    );
-
-    moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-    log.debug('@@@ moduleWrappers', moduleWrappers);
-
-    setPackageName(packageName);
-    setFileNames([...filenames]);
-    setModuleWrappers([...moduleWrappers]);
-    setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
-    setMetaDataBase64(metaData64);
-
-    return filenames;
-  };
-
   const requestCompile = async () => {
     if (loading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
@@ -1257,18 +932,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <span> Compile</span>
         </Button>
 
-        {/* <Button
-          variant="warning"
-          disabled={accountID === '' || proveLoading || loading || !compileTarget}
-          onClick={async () => {
-            await wrappedRequestProve();
-          }}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
-          <span> Prove</span>
-        </Button> */}
-
         {fileNames.map((filename, i) => (
           <small key={`movement-module-file-${i}`}>
             {filename}
@@ -1328,7 +991,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             </InputGroup>
           </Form.Group>
           <Deploy
-            wallet={'Nightly'}
+            wallet={'OKX'}
             accountID={accountID}
             compileTimestamp={compileTimestamp}
             packageName={packageName}

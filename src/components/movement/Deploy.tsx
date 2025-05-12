@@ -1,39 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button, Alert, Spinner, Modal } from 'react-bootstrap';
-import {
-  Aptos,
-  Network,
-  AptosConfig,
-  Account,
-  Ed25519PrivateKey,
-  PublicKey,
-  Ed25519PublicKey,
-  AnyRawTransaction,
-} from '@aptos-labs/ts-sdk';
-import { HexString } from 'aptos';
-import { MovementGitDependency } from 'wds-event';
-import { AptosWallet } from '@aptos-labs/wallet-standard';
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
-import { sendCustomEvent } from '../../utils/sendCustomEvent';
 import {
-  codeBytes,
   getAccountResources,
   getTx,
-  metadataSerializedBytes,
   shortHex,
   waitForTransactionWithResult,
-  getAccountModules,
 } from './movement-helper';
+
+import { Aptos, Network, AptosConfig } from '@aptos-labs/ts-sdk';
+import { HexString } from 'aptos';
 
 import copy from 'copy-to-clipboard';
 import { isNotEmptyList } from '../../utils/ListUtil';
-import axios from 'axios';
-import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 import { ModuleWrapper } from './Compiler';
 import { Types } from 'aptos';
+import { MovementGitDependency } from 'wds-event';
+import axios from 'axios';
+import { COMPILER_API_ENDPOINT } from '../../const/endpoint';
 
 export interface MovementDeployHistoryCreateDto {
   chainId: string;
@@ -114,37 +101,25 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('fa-spin');
   const [abi, setABI] = useState<any>({});
-  const [param, setParam] = useState<string>('');
-  const [resource, setResource] = useState<string>('');
-  const [userAccount, setUserAccount] = useState<
-    { address: string; publicKey: string } | undefined
-  >();
   const [deploymentStatus, setDeploymentStatus] = useState<string>('');
   const [deploymentError, setDeploymentError] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
-  const [copyTxMsg, setCopyTxMsg] = useState<string>('복사');
+  const [copyTxMsg, setCopyTxMsg] = useState<string>('Copy');
 
-  // 확인 대화상자 관련 상태
-  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
-  const [confirmAction, setConfirmAction] = useState<() => Promise<void>>(() => Promise.resolve());
-  const [confirmMessage, setConfirmMessage] = useState<string>('');
+  const checkExistContract = async () => {
+    if (!dapp) {
+      throw new Error('Wallet is not installed');
+    }
 
-  // 사용자 정의 확인 대화상자 호출 함수
-  const showConfirm = (message: string, action: () => Promise<void>) => {
-    setConfirmMessage(message);
-    setConfirmAction(() => action);
-    setShowConfirmModal(true);
-  };
+    if (!accountID) {
+      throw new Error('No account address provided');
+    }
 
-  // 확인 대화상자 확인 처리
-  const handleConfirm = async () => {
-    setShowConfirmModal(false);
-    await confirmAction();
-  };
+    if (!(metaData64 && moduleBase64s.length > 0)) {
+      throw new Error('Metadata or modules are not prepared');
+    }
 
-  // 확인 대화상자 취소 처리
-  const handleCancel = () => {
-    setShowConfirmModal(false);
+    await nightlyProceed();
   };
 
   const nightlyProceed = async () => {
@@ -154,198 +129,216 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       setDeploymentStatus('preparing');
       setDeploymentError('');
 
-      // Aptos 클라이언트 설정
+      // Aptos client setup
       const config = new AptosConfig({
         network: Network.CUSTOM,
         fullnode: 'https://testnet.bardock.movementnetwork.xyz/v1',
       });
       const aptos = new Aptos(config);
 
-      // Nightly 지갑 연결
+      // Nightly wallet connection
       const adaptor = window.nightly?.aptos;
       if (!adaptor) {
-        throw new Error('지갑 연결 실패');
+        throw new Error('Wallet connection failed');
       }
 
-      // Movement 네트워크 정보
+      // Movement network information
       const networkInfo = {
         chainId: 250,
         name: Network.CUSTOM,
         url: 'https://testnet.bardock.movementnetwork.xyz/v1',
       };
 
-      // 지갑 연결
+      // Wallet connection
       await adaptor.features['aptos:connect'].connect(true, networkInfo);
       const accountInfo = await adaptor.features['aptos:account'].account();
 
       if (!accountInfo) {
-        throw new Error('계정 정보를 가져올 수 없습니다.');
+        throw new Error('Could not get account information');
       }
-
-      // 트랜잭션 생성 전에 인코딩 시도를 확인할 수 있도록 디버그 로그와 데이터 변환 로직을 추가합니다.
-      console.log('트랜잭션 생성 전 데이터 형식 검사:');
 
       let txnToSimulate;
 
       try {
-        // 메타데이터가 base64 형식이 맞는지 확인
-        const isBase64 = (str: string) => {
-          try {
-            return btoa(atob(str)) === str;
-          } catch (err) {
-            return false;
-          }
-        };
-
-        console.log('메타데이터 base64 형식 여부:', isBase64(metaData64));
-        console.log('모듈 배열 길이:', moduleBase64s.length);
-
-        // Aptos ts-sdk 방식으로 데이터 변환
-        if (metaData64 && typeof metaData64 === 'string') {
-          try {
-            // Base64 문자열을 Uint8Array로 변환
-            const metadataBuffer = Buffer.from(metaData64, 'base64');
-            console.log('메타데이터 버퍼 생성 성공, 길이:', metadataBuffer.length);
-          } catch (err) {
-            console.error('메타데이터 버퍼 변환 오류:', err);
-          }
-        }
-
-        // 이제 publishPackageTransaction에 맞는 형태로 변환해 보기
+        // Convert data to format compatible with publishPackageTransaction
         const convertedMetadataBytes = new HexString(
           Buffer.from(metaData64, 'base64').toString('hex'),
         ).toUint8Array();
-        console.log('변환된 메타데이터:', convertedMetadataBytes.length > 0 ? '성공' : '실패');
 
         const convertedModuleBytecodes = moduleBase64s.map((module) =>
           new HexString(Buffer.from(module, 'base64').toString('hex')).toUint8Array(),
         );
-        console.log('변환된 모듈 바이트코드 배열 길이:', convertedModuleBytecodes.length);
 
-        // 트랜잭션 생성
+        // Create transaction
         txnToSimulate = await aptos.publishPackageTransaction({
           account: accountInfo.address,
           metadataBytes: convertedMetadataBytes,
           moduleBytecode: convertedModuleBytecodes,
         });
 
-        console.log('트랜잭션 생성 성공:', txnToSimulate);
-      } catch (error) {
-        console.error('데이터 변환 또는 트랜잭션 생성 중 오류:', error);
-        throw new Error(
-          `트랜잭션 생성 오류: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+        // Transaction simulation
+        const [simulationResult] = await aptos.transaction.simulate.simple({
+          signerPublicKey: accountInfo.publicKey,
+          transaction: txnToSimulate,
+        });
 
-      console.log('트랜잭션 요청 파라미터:', {
-        account: accountInfo.address,
-        metadataBytesType: typeof metaData64,
-        moduleBytecodeType: typeof moduleBase64s,
-        moduleBytecodeIsArray: Array.isArray(moduleBase64s),
-        moduleBytecodeLength: moduleBase64s.length,
-      });
-
-      // 트랜잭션 시뮬레이션
-      const [simulationResult] = await aptos.transaction.simulate.simple({
-        signerPublicKey: accountInfo.publicKey,
-        transaction: txnToSimulate,
-      });
-
-      console.log('simulationResult', simulationResult);
-
-      if (!simulationResult.success) {
-        throw new Error(`시뮬레이션 실패: ${simulationResult.vm_status}`);
-      }
-
-      // 가스 예상치 설정
-      if (simulationResult.gas_used) {
-        setEstimatedGas(simulationResult.gas_used.toString());
-      }
-
-      // 지갑으로 트랜잭션 서명 및 제출
-      const signAndSubmit = adaptor.features['aptos:signAndSubmitTransaction'];
-      if (!signAndSubmit) {
-        throw new Error('트랜잭션 서명 기능을 사용할 수 없습니다.');
-      }
-
-      const result = await signAndSubmit.signAndSubmitTransaction({
-        payload: {
-          function: '0x1::aptos_account::transfer_coins',
-          typeArguments: ['0x1::aptos_coin::AptosCoin'],
-          functionArguments: [
-            '0x8a0e6b5972fd11ef6572a54e58e7995b5d8331e8aec8be534f65865b7a4471f7',
-            1,
-          ],
-        },
-      });
-
-      // 트랜잭션 응답 타입 체크
-      type TransactionResponse = {
-        hash: string;
-      };
-
-      if (result && typeof result === 'object' && 'hash' in result) {
-        const txResponse = result as TransactionResponse;
-        const txHash = txResponse.hash;
-        setTxHash(txHash);
-
-        // 트랜잭션 완료 대기
-        const txResult = (await waitForTransactionWithResult(
-          txHash,
-          'testnet',
-        )) as Types.UserTransaction;
-        log.info('트랜잭션 결과:', txResult);
-
-        if ('success' in txResult && txResult.success) {
-          await client.terminal.log({
-            type: 'info',
-            value: {
-              hash: txResult.hash,
-              success: txResult.success,
-              vm_status: txResult.vm_status,
-              gas_used: txResult.gas_used,
-              sender: txResult.sender,
-              sequence_number: txResult.sequence_number,
-              timestamp: txResult.timestamp,
-            },
-          });
-
-          setDeploymentStatus('success');
-          setDeployedContract(accountID || '');
-          setAtAddress(accountID || '');
-
-          // 계정 리소스 업데이트
-          const moveResources = await getAccountResources(accountID || '', 'testnet');
-          log.info('계정 리소스:', moveResources);
-          setAccountResources([...moveResources]);
-
-          if (isNotEmptyList(moveResources)) {
-            setTargetResource(moveResources[0].type);
-          } else {
-            setTargetResource('');
-          }
-          setParameters([]);
-
-          log.info('트랜잭션 실행 성공');
-        } else {
-          const errorMsg = 'vm_status' in txResult ? txResult.vm_status : '알 수 없는 오류';
-          log.error(errorMsg);
-          await client.terminal.log({
-            type: 'error',
-            value: errorMsg,
-          });
-          throw new Error(`트랜잭션 실패: ${errorMsg}`);
+        if (!simulationResult.success) {
+          throw new Error(`Simulation failed: ${simulationResult.vm_status}`);
         }
-      } else {
-        throw new Error('트랜잭션 서명이 거부되었거나 실패했습니다.');
+
+        // Set estimated gas
+        if (simulationResult.gas_used) {
+          setEstimatedGas(simulationResult.gas_used.toString());
+        }
+
+        // Sign and submit transaction with wallet
+        const signAndSubmit = adaptor.features['aptos:signAndSubmitTransaction'];
+        if (!signAndSubmit) {
+          throw new Error('Transaction signing feature is not available');
+        }
+
+        const result = await signAndSubmit.signAndSubmitTransaction({
+          payload: {
+            function: '0x1::code::publish_package_txn',
+            typeArguments: [],
+            functionArguments: [convertedMetadataBytes, convertedModuleBytecodes],
+          },
+        });
+
+        // Check transaction response type
+        type TransactionResponse = {
+          hash: string;
+        };
+
+        if (result && typeof result === 'object' && 'hash' in result) {
+          const txResponse = result as TransactionResponse;
+          const txHash = txResponse.hash;
+          setTxHash(txHash);
+
+          // Wait for transaction completion
+          const txResult = (await waitForTransactionWithResult(
+            txHash,
+            'testnet',
+          )) as Types.UserTransaction;
+          log.info('Transaction result:', txResult);
+
+          if ('success' in txResult && txResult.success) {
+            await client.terminal.log({
+              type: 'info',
+              value: {
+                hash: txResult.hash,
+                success: txResult.success,
+                vm_status: txResult.vm_status,
+                gas_used: txResult.gas_used,
+                sender: txResult.sender,
+                sequence_number: txResult.sequence_number,
+                timestamp: txResult.timestamp,
+              },
+            });
+
+            setDeploymentStatus('success');
+
+            // Get detailed transaction information for package registry
+            const tx: Types.Transaction_UserTransaction = (await getTx(
+              txHash,
+              'testnet',
+            )) as Types.Transaction_UserTransaction;
+
+            // Find the package registry change in transaction
+            const change = tx.changes.find((change) => {
+              const change_: Types.WriteSetChange_WriteResource =
+                change as Types.WriteSetChange_WriteResource;
+              return (
+                change_.address === shortHex(accountID) &&
+                change_.type === 'write_resource' &&
+                change_.data.type === '0x1::code::PackageRegistry'
+              );
+            });
+
+            if (change) {
+              const change_: Types.WriteSetChange_WriteResource =
+                change as Types.WriteSetChange_WriteResource;
+
+              const data = change_.data.data as any;
+              const writeResourcePackages = data.packages as WriteResourcePackage[];
+              const writeResourcePackage = writeResourcePackages.find(
+                (pkg) => pkg.name === packageName,
+              );
+
+              // Create and save deployment history
+              const movementDeployHistoryCreateDto = {
+                chainId: 'testnet',
+                account: accountID,
+                package: packageName,
+                compileTimestamp: Number(compileTimestamp),
+                deployTimestamp: Number(txResult.timestamp),
+                upgradeNumber: writeResourcePackage?.upgrade_number,
+                upgradePolicy: writeResourcePackage?.upgrade_policy.policy,
+                cliVersion: cliVersion,
+                movementGitDependencies: movementGitDependencies,
+                txHash: txResult.hash,
+                modules: writeResourcePackage?.modules.map((m) => m.name),
+              };
+
+              try {
+                const res = await axios.post(
+                  COMPILER_API_ENDPOINT + '/movement-deploy-histories',
+                  movementDeployHistoryCreateDto,
+                );
+                console.log('@@@ res', res);
+                log.info('Movement deploy histories API response:', res);
+              } catch (apiError) {
+                log.error('Failed to save deployment history:', apiError);
+              }
+            }
+
+            setDeployedContract(accountID || '');
+            setAtAddress(accountID || '');
+
+            // Update account resources
+            const moveResources = await getAccountResources(accountID || '', 'testnet');
+            log.info('Account resources:', moveResources);
+            setAccountResources([...moveResources]);
+
+            if (isNotEmptyList(moveResources)) {
+              setTargetResource(moveResources[0].type);
+            } else {
+              setTargetResource('');
+            }
+            setParameters([]);
+
+            // Get module information
+            getAccountModulesFromAccount(accountID || '', 'testnet');
+
+            log.info('Transaction execution successful');
+          } else {
+            const errorMsg = 'vm_status' in txResult ? txResult.vm_status : 'Unknown error';
+            log.error(errorMsg);
+            await client.terminal.log({
+              type: 'error',
+              value: errorMsg,
+            });
+            throw new Error(`Transaction failed: ${errorMsg}`);
+          }
+        } else {
+          throw new Error('Transaction signing was rejected or failed');
+        }
+      } catch (e) {
+        log.error(e);
+        setDeploymentStatus('error');
+        setDeploymentError(e instanceof Error ? e.message : 'An unknown error occurred');
+        await client.terminal.log({
+          type: 'error',
+          value: e instanceof Error ? e.message : 'An unknown error occurred',
+        });
       }
     } catch (e) {
       log.error(e);
       setDeploymentStatus('error');
-      setDeploymentError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다');
+      setDeploymentError(e instanceof Error ? e.message : 'An unknown error occurred');
       await client.terminal.log({
         type: 'error',
-        value: e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다',
+        value: e instanceof Error ? e.message : 'An unknown error occurred',
       });
     } finally {
       setInProgress(false);
@@ -356,56 +349,20 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   const getStatusMessage = () => {
     switch (deploymentStatus) {
       case 'preparing':
-        return '무브 컨트랙트 배포 준비 중...';
+        return 'Preparing Move contract deployment...';
       case 'connecting':
-        return 'Nightly 지갑에 연결 중... 지갑 확장 프로그램을 확인하세요.';
+        return 'Connecting to Nightly wallet... Please check your wallet extension.';
       case 'signing':
-        return '트랜잭션 서명 대기 중... 지갑에서 트랜잭션을 확인하고 승인해주세요.';
+        return 'Waiting for transaction signing... Please confirm the transaction in your wallet.';
       case 'confirming':
-        return '트랜잭션 확인 중... (이 과정은 네트워크 상황에 따라 몇 분이 소요될 수 있습니다)';
+        return 'Confirming transaction... (This process may take a few minutes depending on network conditions)';
       case 'success':
-        return '컨트랙트 배포 성공! 이제 컨트랙트와 상호작용할 수 있습니다.';
+        return 'Contract deployment successful! You can now interact with the contract.';
       case 'error':
-        return '오류 발생: ' + deploymentError;
+        return 'Error occurred: ' + deploymentError;
       default:
         return '';
     }
-  };
-
-  const checkExistContract = async () => {
-    if (!accountID) {
-      throw new Error('계정 ID가 없습니다');
-    }
-
-    if (!(metaData64 && moduleBase64s.length > 0)) {
-      throw new Error('메타데이터 또는 모듈이 준비되지 않았습니다');
-    }
-
-    await nightlyProceed();
-  };
-
-  // 오류 코드 해석 함수 추가
-  const getErrorExplanation = (module: string, code: string): string => {
-    if (module.includes('0x1::code')) {
-      switch (code) {
-        case '0x3':
-          return '패키지가 이미 존재함 (EPACKAGE_DEP_MISSING)';
-        case '0x4':
-          return '업그레이드 호환성 오류 (EUPGRADE_IMMUTABLE)';
-        case '0x5':
-          return '호환되지 않는 메타데이터 버전 (EMODULE_METADATA)';
-        default:
-          return '알 수 없는 code 모듈 오류';
-      }
-    } else if (module.includes('0x1::util')) {
-      switch (code) {
-        case '0x10001':
-          return '권한 부족 또는 잘못된 입력값 (PERMISSION_DENIED)';
-        default:
-          return '알 수 없는 util 모듈 오류';
-      }
-    }
-    return '알 수 없는 오류';
   };
 
   return (
@@ -416,22 +373,17 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
           disabled={inProgress || !metaData64}
           onClick={async () => {
             try {
-              await nightlyProceed();
+              await checkExistContract();
             } catch (e) {
               log.error(e);
-              await client.terminal.log({
-                type: 'error',
-                value: e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다',
-              });
               setInProgress(false);
               setDeploymentStatus('error');
-              setDeploymentError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다');
+              setDeploymentError(e instanceof Error ? e.message : 'An unknown error occurred');
             }
           }}
           className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
         >
           <span>
-            {' '}
             {inProgress ? <i className={`fas fa-spinner ${deployIconSpin}`}></i> : ''} Deploy
           </span>
         </Button>
@@ -454,20 +406,21 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
               </div>
             )}
 
-            {/* 예상 가스 비용 표시 */}
+            {/* Display estimated gas cost */}
             {estimatedGas && !inProgress && (
               <div className="mt-2">
                 <small>
-                  예상 가스 사용량: {estimatedGas} 단위 (약 {parseInt(estimatedGas) * 100} Octa)
+                  Estimated gas usage: {estimatedGas} units (approx. {parseInt(estimatedGas) * 100}{' '}
+                  Octa)
                 </small>
               </div>
             )}
 
-            {/* 트랜잭션 해시 표시 및 복사 기능 */}
+            {/* Display transaction hash and copy feature */}
             {txHash && (deploymentStatus === 'confirming' || deploymentStatus === 'success') && (
               <div className="mt-2">
                 <small>
-                  트랜잭션 해시:{' '}
+                  Transaction hash:{' '}
                   {typeof txHash === 'string'
                     ? `${txHash.slice(0, 8)}...${txHash.slice(-6)}`
                     : txHash}
@@ -477,10 +430,10 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
                     className="mt-0 pt-0"
                     onClick={() => {
                       copy(txHash);
-                      setCopyTxMsg('복사됨!');
+                      setCopyTxMsg('Copied!');
                     }}
                     onMouseLeave={() => {
-                      setTimeout(() => setCopyTxMsg('복사'), 100);
+                      setTimeout(() => setCopyTxMsg('Copy'), 100);
                     }}
                   >
                     <i className="far fa-copy" /> <small>{copyTxMsg}</small>
@@ -506,28 +459,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
         )}
       </div>
       <hr />
-
-      {/* 사용자 정의 확인 대화상자 */}
-      <Modal
-        show={showConfirmModal}
-        onHide={handleCancel}
-        backdrop="static"
-        keyboard={false}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>확인</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>{confirmMessage}</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCancel}>
-            취소
-          </Button>
-          <Button variant="primary" onClick={handleConfirm}>
-            확인
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </>
   );
 };

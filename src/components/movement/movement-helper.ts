@@ -340,6 +340,8 @@ export async function viewFunction(
     }),
   };
   try {
+    // Aptos SDK의 view 함수는 두 번째 매개변수로 문자열을 요구합니다.
+    // 현재 버전에서는 ledger_version 옵션만 지원하므로 설정하지 않습니다
     const res = await movementClient.view(payload);
     log.info(res);
     return {
