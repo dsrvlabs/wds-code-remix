@@ -34,30 +34,26 @@ import {
   movementNodeUrl,
   ArgTypeValuePair,
   codeBytes,
-  dappTxn,
   getEstimateGas,
   genPayload,
   getAccountModules,
   getAccountResources,
   metadataSerializedBytes,
-  serializedArgs,
   viewFunction,
 } from './movement-helper';
 
 import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
-import { AptosClient as MovementClient, HexString, TxnBuilderTypes, Types } from 'aptos';
+import { AptosClient as MovementClient, HexString, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
 import {
-  COMPILER_MOVEMENT_COMPILE_COMPLETED_V2,
   COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
   COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
   COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
   COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
   COMPILER_MOVEMENT_PROVE_LOGGED_V2,
-  CompilerMovementCompileCompletedV2,
   CompilerMovementCompileErrorOccurredV2,
   CompilerMovementCompileLoggedV2,
   CompilerMovementProveCompletedV2,
@@ -202,7 +198,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   };
 
   const wrappedRequestCompile = () => wrapPromise(requestCompile(), client);
-  const wrappedRequestProve = () => wrapPromise(requestProve(), client);
 
   const createFile = (code: string, name: string) => {
     const blob = new Blob([code], { type: 'text/plain' });
@@ -845,79 +840,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     });
   };
 
-  const prepareModules = async () => {
-    const artifactPaths = await findArtifacts();
-
-    setPackageName('');
-    setCompileTimestamp('');
-    setModuleWrappers([]);
-    setMetaDataBase64('');
-    setModuleBase64s([]);
-    setFileNames([]);
-    setCliVersion('');
-    setMovementGitDependencies([]);
-
-    if (isEmptyList(artifactPaths)) {
-      return [];
-    }
-
-    let metaData64 = '';
-    let metaData: Buffer;
-    let metaDataHex = '';
-    let filenames: string[] = [];
-    let moduleWrappers: ModuleWrapper[] = [];
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (path.includes('package-metadata.bcs')) {
-          metaData64 = await client?.fileManager.readFile('browser/' + path);
-          metaDataHex = Buffer.from(metaData64, 'base64').toString('hex');
-        }
-      }),
-    );
-    metaData = Buffer.from(metaData64, 'base64');
-    const packageNameLength = metaData[0];
-    const packageName = metaData.slice(1, packageNameLength + 1).toString();
-
-    await Promise.all(
-      artifactPaths.map(async (path) => {
-        if (getExtensionOfFilename(path) === '.mv') {
-          let moduleBase64 = await client?.fileManager.readFile('browser/' + path);
-          if (moduleBase64) {
-            const moduleName = Buffer.from(
-              FileUtil.extractFilenameWithoutExtension(path),
-            ).toString();
-            const moduleNameHex = Buffer.from(
-              FileUtil.extractFilenameWithoutExtension(path),
-            ).toString('hex');
-            const order = metaDataHex.indexOf(moduleNameHex);
-
-            moduleWrappers.push({
-              packageName: packageName,
-              path: path,
-              module: moduleBase64,
-              moduleName: moduleName,
-              moduleNameHex: moduleNameHex,
-              order: order,
-            });
-          }
-          filenames.push(path);
-        }
-      }),
-    );
-
-    moduleWrappers = _.orderBy(moduleWrappers, (mw) => mw.order);
-    log.debug('@@@ moduleWrappers', moduleWrappers);
-
-    setPackageName(packageName);
-    setFileNames([...filenames]);
-    setModuleWrappers([...moduleWrappers]);
-    setModuleBase64s([...moduleWrappers.map((m) => m.module)]);
-    setMetaDataBase64(metaData64);
-
-    return filenames;
-  };
-
   const requestCompile = async () => {
     if (loading) {
       await client.terminal.log({ value: 'Server is working...', type: 'log' });
@@ -1009,18 +931,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
           <FaSyncAlt className={loading ? 'fa-spin' : ''} />
           <span> Compile</span>
         </Button>
-
-        {/* <Button
-          variant="warning"
-          disabled={accountID === '' || proveLoading || loading || !compileTarget}
-          onClick={async () => {
-            await wrappedRequestProve();
-          }}
-          className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-        >
-          <FaSyncAlt className={proveLoading ? 'fa-spin' : ''} />
-          <span> Prove</span>
-        </Button> */}
 
         {fileNames.map((filename, i) => (
           <small key={`movement-module-file-${i}`}>

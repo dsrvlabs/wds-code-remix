@@ -14,6 +14,8 @@ import {
   ensureNumber,
   serializeArg,
 } from '../aptos/transaction_builder/builder_utils';
+import { NetworkInfo } from '@aptos-labs/wallet-standard';
+import { Network } from '@aptos-labs/ts-sdk';
 
 export interface ViewResult {
   result?: Types.MoveValue;
@@ -54,10 +56,13 @@ export async function dappTxn(
   );
   log.info(`sendingRawTransaction`, sendingRawTransaction);
 
-  const header = Buffer.from(sha3_256(Buffer.from('MOVEMENT::RawTransaction', 'ascii')), 'hex');
+  const message = new TextEncoder().encode('MOVEMENT::RawTransaction');
+  const headerHash = sha3_256(message);
+  const headerBytes = new Uint8Array(Buffer.from(headerHash, 'hex'));
+
   return (
     '0x' +
-    header.toString('hex') +
+    Buffer.from(headerBytes).toString('hex') +
     Buffer.from(BCS.bcsToBytes(sendingRawTransaction)).toString('hex')
   );
 }
@@ -80,13 +85,21 @@ export function metadataSerializedBytes(base64EncodedMetadata: string) {
 }
 
 export function codeBytes(base64EncodedModules: string[]): BCS.Bytes {
-  const modules = base64EncodedModules
-    .map((module) => Buffer.from(module, 'base64'))
-    .map((buf) => new TxnBuilderTypes.Module(new HexString(buf.toString('hex')).toUint8Array()));
+  // Convert base64 encoded modules to Uint8Array array
+  const moduleByteArrays = base64EncodedModules.map(
+    (module) => new Uint8Array(Buffer.from(module, 'base64')),
+  );
 
-  const codeSerializer = new BCS.Serializer();
-  BCS.serializeVector(modules, codeSerializer);
-  return codeSerializer.getBytes();
+  // BCS serialization
+  const serializer = new BCS.Serializer();
+
+  // Serialize vector<vector<u8>>
+  serializer.serializeU32AsUleb128(moduleByteArrays.length);
+  for (const byteArray of moduleByteArrays) {
+    serializer.serializeBytes(byteArray);
+  }
+
+  return serializer.getBytes();
 }
 
 export async function waitForTransactionWithResult(txnHash: string, chainId: string) {
@@ -94,9 +107,35 @@ export async function waitForTransactionWithResult(txnHash: string, chainId: str
   return movementClient.waitForTransactionWithResult(txnHash);
 }
 
-export async function getTx(txnHash: string, chainId: string) {
+export async function getTx(txnHash: string | any, chainId: string) {
   const movementClient = new AptosClient(movementNodeUrl(chainId));
-  return movementClient.getTransactionByHash(txnHash);
+  // Attempt to convert hash object to string
+  let hashString: string;
+  if (typeof txnHash === 'object') {
+    try {
+      if (txnHash.status) {
+        hashString = txnHash.status;
+        // Return error immediately for rejected transactions
+        if (hashString === 'Rejected') {
+          log.error('Transaction rejected by user:', hashString);
+          throw new Error('Transaction rejected by user');
+        }
+      } else if (txnHash.hash) {
+        hashString = txnHash.hash;
+      } else {
+        // Convert object to string
+        hashString = JSON.stringify(txnHash);
+        log.error('Transaction hash as object:', hashString);
+        throw new Error('Invalid transaction hash format: object');
+      }
+    } catch (e) {
+      log.error('Transaction hash processing error:', e);
+      throw new Error('Invalid transaction hash format');
+    }
+  } else {
+    hashString = txnHash;
+  }
+  return movementClient.getTransactionByHash(hashString);
 }
 
 export function serializedArgs(args_: ArgTypeValuePair[]) {
@@ -308,6 +347,8 @@ export async function viewFunction(
     }),
   };
   try {
+    // The Aptos SDK view function requires a string as the second parameter
+    // In the current version, only the ledger_version option is supported, so we don't set it
     const res = await movementClient.view(payload);
     log.info(res);
     return {
@@ -327,9 +368,17 @@ export const getEstimateGas = async (
   pubKey: string,
   rawTransaction: TxnBuilderTypes.RawTransaction,
 ): Promise<{ gas_unit_price: string; max_gas_amount: string; gas_used: string }> => {
-  // pubKey가 없을 경우 기본값 제공
+  // Provide default value if pubKey is missing
   const defaultPubKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
   const pubKeyToUse = pubKey || defaultPubKey;
+
+  // Convert string to Uint8Array directly
+  const keyHex = pubKeyToUse.replace('0x', '');
+  const keyBytes = new Uint8Array(keyHex.length / 2);
+
+  for (let i = 0; i < keyHex.length; i += 2) {
+    keyBytes[i / 2] = parseInt(keyHex.substring(i, i + 2), 16);
+  }
 
   // eslint-disable-next-line no-unused-vars
   const txnBuilder = new TransactionBuilderEd25519(
@@ -338,7 +387,7 @@ export const getEstimateGas = async (
       const invalidSigBytes = new Uint8Array(64);
       return new TxnBuilderTypes.Ed25519Signature(invalidSigBytes);
     },
-    Buffer.from(pubKeyToUse.replace('0x', ''), 'hex'),
+    keyBytes,
   );
   const signedTxn = txnBuilder.sign(rawTransaction);
 
@@ -364,7 +413,7 @@ export function movementNodeUrl(chainId: string) {
     return 'https://mainnet.movementnetwork.xyz/v1';
   }
 
-  if (chainId === 'testnet') {
+  if (chainId === 'testnet' || chainId === '250') {
     return 'https://testnet.bardock.movementnetwork.xyz/v1';
   }
 
@@ -395,3 +444,161 @@ function toArrayBuffer(buffer: Buffer) {
   }
   return Uint8Array.from(view);
 }
+
+export async function waitForTransactionResult(
+  hash: string | any,
+  chainId: string,
+  maxRetries = 15,
+  initialDelayMs = 2000,
+): Promise<any> {
+  // Attempt to convert hash object to string
+  let hashString: string;
+  if (typeof hash === 'object') {
+    try {
+      if (hash.status) {
+        hashString = hash.status;
+        // Return error immediately for rejected transactions
+        if (hashString === 'Rejected') {
+          log.error('Transaction rejected by user:', hashString);
+          throw new Error('Transaction rejected by user');
+        }
+      } else if (hash.hash) {
+        hashString = hash.hash;
+      } else {
+        // Convert object to string
+        hashString = JSON.stringify(hash);
+        log.error('Transaction hash as object:', hashString);
+        throw new Error('Invalid transaction hash format: object');
+      }
+    } catch (e) {
+      log.error('Transaction hash processing error:', e);
+      throw new Error('Invalid transaction hash format');
+    }
+  } else {
+    hashString = hash;
+    // String is 'Rejected' - handle
+    if (hashString === 'Rejected' || hashString === 'undefined' || hashString === 'Unknown hash') {
+      log.error('Invalid transaction hash:', hashString);
+      throw new Error('Invalid transaction hash');
+    }
+  }
+
+  // Minimal hash format validation (must start with 0x and have minimum length)
+  if (!hashString.startsWith('0x') || hashString.length < 10) {
+    log.error('Invalid transaction hash format:', hashString);
+    throw new Error('Invalid transaction hash format');
+  }
+
+  log.info(`Waiting for transaction result (hash: ${hashString}), max retries: ${maxRetries}...`);
+
+  let retries = 0;
+  let delayMs = initialDelayMs;
+
+  while (retries < maxRetries) {
+    try {
+      const txResult: any = await getTx(hashString, chainId);
+      if (txResult) {
+        // Explicitly check for success
+        if (txResult.success === false) {
+          const vmStatus = txResult.vm_status || '';
+          let errorMsg = '';
+
+          // Add specific description for VM errors
+          if (vmStatus.includes('Move abort')) {
+            // Parse Move abort error format (e.g., "Move abort in 0x1::util: 0x10001")
+            const moduleMatch = vmStatus.match(/in ([^:]+):/);
+            const codeMatch = vmStatus.match(/: (0x[0-9a-fA-F]+)/);
+
+            const module = moduleMatch ? moduleMatch[1] : 'Unknown module';
+            const errorCode = codeMatch ? codeMatch[1] : 'Unknown code';
+
+            errorMsg = `Move contract execution error: Error code ${errorCode} in module ${module}`;
+
+            // Add specific description for specific error codes
+            if (errorCode === '0x10001' && module.includes('0x1::util')) {
+              errorMsg +=
+                '. This typically occurs due to insufficient permissions or invalid input.';
+            } else if (errorCode === '0x1000A') {
+              errorMsg += '. Error due to insufficient balance.';
+            } else if (errorCode === '0x20001') {
+              errorMsg += '. Resource already exists or duplication error.';
+            } else if (errorCode === '0x30001') {
+              errorMsg += '. Required resource not found.';
+            }
+          } else if (vmStatus.includes('EXECUTION_FAILURE')) {
+            errorMsg = `Execution error: ${vmStatus}. An error occurred during transaction execution.`;
+          } else if (vmStatus.includes('OUT_OF_GAS')) {
+            errorMsg = 'Out of gas: Not enough gas was provided for the transaction.';
+          } else {
+            errorMsg = `Transaction failed: ${vmStatus || 'Unknown error'}`;
+          }
+
+          log.error('Transaction failed:', errorMsg);
+          // VM error case - stop retrying immediately
+          throw new Error(errorMsg);
+        }
+
+        log.info('Transaction query successful:', txResult);
+        return txResult;
+      }
+      throw new Error('Transaction result is empty');
+    } catch (error: any) {
+      // VM error case - stop retrying immediately
+      if (
+        error.message &&
+        (error.message.includes('Move contract execution error') ||
+          error.message.includes('Move abort') ||
+          error.message.includes('Execution error') ||
+          error.message.includes('Out of gas'))
+      ) {
+        log.error('Retry stopped due to VM error:', error.message);
+        throw error; // VM errors won't change with retries, so propagate immediately
+      }
+
+      retries++;
+
+      // Specific error condition - stop immediately
+      if (error.message && error.message.includes('Invalid hash')) {
+        log.error('Invalid transaction hash format:', error);
+        throw error;
+      }
+
+      if (retries >= maxRetries) {
+        log.error(`Maximum retry count (${maxRetries}) reached.`);
+        throw new Error(`Transaction verification failed: ${error.message || 'Unknown error'}`);
+      }
+
+      // Apply exponential backoff (up to 30 seconds)
+      delayMs = Math.min(delayMs * 1.5, 30000);
+
+      log.info(
+        `Transaction is still being processed. Retrying after ${delayMs}ms (${retries}/${maxRetries})...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error('Transaction query timeout');
+}
+
+export const getNetworkInfo = (network: string | number): NetworkInfo & { network: string } => {
+  switch (network) {
+    case 'Movement Mainnet':
+    case 1:
+      return {
+        chainId: 1,
+        name: Network.CUSTOM,
+        network: 'mainnet',
+        url: 'https://mainnet.movementnetwork.xyz/v1',
+      };
+    case 'Movement Testnet':
+    case 250:
+    default:
+      return {
+        chainId: 250,
+        name: Network.CUSTOM,
+        network: 'testnet',
+        url: 'https://testnet.bardock.movementnetwork.xyz/v1',
+      };
+  }
+};
