@@ -5,12 +5,9 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { ListGroup, Alert } from 'react-bootstrap';
 import AlertCloseButton from '../common/AlertCloseButton';
 import Welldone from '../../assets/dsrv_wallet_icon.png';
-import Petra from '../../assets/petra.png';
 import Keplr from '../../assets/Keplr-Big.svg';
 import Metamask from '../../assets/MetaMask.png';
-import OKX from '../../assets/okx.png';
 import Nightly from '../../assets/nightly.png';
-import { getAptosWallets } from '@aptos-labs/wallet-standard';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
