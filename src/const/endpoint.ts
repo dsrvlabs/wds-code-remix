@@ -101,3 +101,18 @@ const MOVEMENT_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
 
 export const MOVEMENT_COMPILER_CONSUMER_API_ENDPOINT =
   MOVEMENT_COMPILER_CONSUMER_API_ENDPOINT_POOL[STAGE];
+
+const IOTA_COMPILER_CONSUMER_ENDPOINT_POOL = {
+  local: 'ws://localhost:8000',
+  dev: 'wss://dev.compiler.welldonestudio.io',
+  prod: 'wss://mac-arm-compiler.welldonestudio.io',
+};
+export const IOTA_COMPILER_CONSUMER_ENDPOINT = IOTA_COMPILER_CONSUMER_ENDPOINT_POOL[STAGE];
+
+const IOTA_COMPILER_CONSUMER_API_ENDPOINT_POOL = {
+  local: 'http://localhost:8000',
+  dev: 'https://dev.compiler.welldonestudio.io',
+  prod: 'https://mac-arm-compiler.welldonestudio.io',
+};
+
+export const IOTA_COMPILER_CONSUMER_API_ENDPOINT = IOTA_COMPILER_CONSUMER_API_ENDPOINT_POOL[STAGE];

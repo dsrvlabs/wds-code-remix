@@ -28,7 +28,7 @@ const wallets = {
       'Please Install WELLDONE Wallet http://abit.ly/install-welldone-wallet . If you have installed it, please press the refresh button.',
   },
   nightly: {
-    chains: ['movement'],
+    chains: ['movement', 'iota'],
     image: Nightly,
     label: 'Connect to Nightly',
     checkInstalled: () => !!(window as any).nightly,

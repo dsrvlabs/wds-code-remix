@@ -10,6 +10,8 @@ import { Connect as NeutronConnect } from './neutron/Connect';
 import { Connect as ArbitrumConnect } from './arbitrum/Connect';
 import { Connect as InjectiveConnect } from './injective/Connect';
 import { Connect as MovementConnect } from './movement/Connect';
+import { Connect as IotaConnect } from './iota/Connect';
+
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
@@ -129,6 +131,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
         return <InjectiveConnect client={client} />;
       case 'Movement':
         return <MovementConnect client={client} />;
+      case 'Iota':
+        return <IotaConnect client={client} />;
       default:
         return <></>;
     }

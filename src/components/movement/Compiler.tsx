@@ -13,13 +13,23 @@ import * as _ from 'lodash';
 import {
   MovementGitDependency,
   compileIdV2,
-  COMPILER_MOVEMENT_COMPILE_COMPLETED_V3,
+  reqIdV2,
+  RemixMovementCompileRequestedV2,
+  RemixMovementProveRequestedV2,
+  CompilerMovementCompileErrorOccurredV2,
+  CompilerMovementCompileLoggedV2,
+  CompilerMovementProveCompletedV2,
+  CompilerMovementProveErrorOccurredV2,
+  CompilerMovementProveLoggedV2,
   CompilerMovementCompileCompletedV3,
   REMIX_MOVEMENT_COMPILE_REQUESTED_V2,
   REMIX_MOVEMENT_PROVE_REQUESTED_V2,
-  RemixMovementCompileRequestedV2,
-  RemixMovementProveRequestedV2,
-  reqIdV2,
+  COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
+  COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
+  COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
+  COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
+  COMPILER_MOVEMENT_PROVE_LOGGED_V2,
+  COMPILER_MOVEMENT_COMPILE_COMPLETED_V3,
 } from 'wds-event';
 
 import { MOVEMENT_COMPILER_CONSUMER_ENDPOINT, COMPILER_API_ENDPOINT } from '../../const/endpoint';
@@ -48,18 +58,6 @@ import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { AptosClient as MovementClient, HexString, Types } from 'aptos';
 import { Parameters } from './Parameters';
 import { S3Path } from '../../const/s3-path';
-import {
-  COMPILER_MOVEMENT_COMPILE_ERROR_OCCURRED_V2,
-  COMPILER_MOVEMENT_COMPILE_LOGGED_V2,
-  COMPILER_MOVEMENT_PROVE_COMPLETED_V2,
-  COMPILER_MOVEMENT_PROVE_ERROR_OCCURRED_V2,
-  COMPILER_MOVEMENT_PROVE_LOGGED_V2,
-  CompilerMovementCompileErrorOccurredV2,
-  CompilerMovementCompileLoggedV2,
-  CompilerMovementProveCompletedV2,
-  CompilerMovementProveErrorOccurredV2,
-  CompilerMovementProveLoggedV2,
-} from 'wds-event/dist/event/compiler/movement/v2/movement';
 import { CHAIN_NAME } from '../../const/chain';
 import { BUILD_FILE_TYPE } from '../../const/build-file-type';
 import copy from 'copy-to-clipboard';

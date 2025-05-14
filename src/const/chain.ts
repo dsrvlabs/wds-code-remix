@@ -6,4 +6,5 @@ export const CHAIN_NAME = {
   juno: 'juno',
   injective: 'injective',
   movement: 'movement',
+  iota: 'iota',
 };

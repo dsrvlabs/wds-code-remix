@@ -11,7 +11,8 @@ type EventCategory =
   | 'sui'
   | 'neutron'
   | 'arbitrum'
-  | 'movement';
+  | 'movement'
+  | 'iota';
 
 interface EventOptions {
   event_category: EventCategory;
