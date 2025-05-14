@@ -160,7 +160,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
 
     const txid = await nightyIota.signAndExecuteTransaction({
       transaction: tx,
-      chain: 'iota:testnet',
+      chain: `iota:${dapp.networks.iota.chain}`,
       signer: accounts[0],
     });
 
