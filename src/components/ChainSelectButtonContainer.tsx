@@ -10,6 +10,7 @@ import Klaytn from '../assets/Klaytn-Big.png';
 import Arbitrum from '../assets/Arbitrum.png';
 import Injective from '../assets/Injective-Big.png';
 import Movement from '../assets/Movement-Big.png';
+import Iota from '../assets/Iota-Big.svg';
 import RefreshButton from './common/RefreshButton';
 import { FunctionComponent } from 'react';
 import { EditorClient } from '../utils/editor';
@@ -73,6 +74,20 @@ export const ChainSelectButtonContainer: FunctionComponent<InterfaceProps> = ({
             alt="Injective logo"
           />
           <b>Injective</b>
+          <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
+            New
+          </Badge>
+        </ListGroup.Item>
+        <ListGroup.Item
+          as="li"
+          style={{ cursor: 'pointer' }}
+          action
+          onClick={() => {
+            setChain('Iota');
+          }}
+        >
+          <img src={Iota} style={{ width: '35px', marginRight: '20px' }} alt="Iota logo" />
+          <b>Iota</b>
           <Badge bg="danger" style={{ position: 'absolute', right: '10px', top: '0px' }}>
             New
           </Badge>
