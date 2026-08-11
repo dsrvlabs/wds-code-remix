@@ -10,7 +10,8 @@ import {
   TypeTagParser,
 } from './builder_utils';
 import { TextEncoder } from 'util';
-global.TextEncoder = TextEncoder;
+// jsdom ships no TextEncoder. The node one differs only in its ArrayBuffer generic.
+global.TextEncoder = TextEncoder as unknown as typeof global.TextEncoder;
 
 describe('BuilderUtils', () => {
   it('parses a bool TypeTag', async () => {

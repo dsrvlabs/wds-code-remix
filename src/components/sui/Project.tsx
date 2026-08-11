@@ -15,19 +15,12 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 
 interface InterfaceProps {
-  wallet: string;
   account: string;
   client: Client<Api, Readonly<IRemixApi>>;
-  dapp: any;
 }
 
 const DEFAULT_GAS = '30000000';
-export const Project: React.FunctionComponent<InterfaceProps> = ({
-  wallet,
-  account,
-  dapp,
-  client,
-}) => {
+export const Project: React.FunctionComponent<InterfaceProps> = ({ account, client }) => {
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
@@ -263,7 +256,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
       <Compiler
         compileTarget={compileTarget}
         accountID={account}
-        dapp={dapp}
         client={client}
         gas={gas}
       />
