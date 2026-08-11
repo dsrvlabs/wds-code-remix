@@ -141,30 +141,90 @@
   font-size: 13px;
 }
 
-.wds-wallets .list-group-item {
+.wds-wallets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wds-wallet {
   display: flex;
   align-items: center;
   gap: 10px;
-  cursor: pointer;
-  color: var(--bs-body-color);
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  text-align: left;
   text-decoration: none;
+  color: var(--bs-body-color);
+  background-color: var(--custom-onsurface-layer-2, transparent);
+  border: 1px solid var(--custom-border-light, var(--bs-border-color));
+  border-radius: var(--bs-border-radius, 4px);
+  cursor: pointer;
 }
 
-.wds-wallets__icon {
-  width: 20px;
-  height: 20px;
+.wds-wallet:hover {
+  color: var(--bs-body-color);
+  border-color: var(--custom-primary, var(--bs-primary));
+}
+
+.wds-wallet:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.wds-wallet--lead {
+  padding: 12px;
+}
+
+.wds-wallet__mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
-  text-align: center;
-  opacity: 0.85;
+  border-radius: 6px;
 }
 
-.wds-wallets__hint {
+/* No extension means no wallet icon, so the brand initial stands in. */
+.wds-wallet__mark--letter {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid currentColor;
+}
+
+.wds-wallet__hint {
   margin-left: auto;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.45;
+}
+
+.wds-wallets__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: var(--bs-body-color);
+  background: none;
+  border: 0;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.wds-wallets__toggle:hover {
+  opacity: 1;
+}
+
+.wds-wallets__more {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* ---- footer ---------------------------------------------------------- */

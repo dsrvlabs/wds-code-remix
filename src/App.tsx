@@ -38,7 +38,9 @@ export const App: React.FunctionComponent = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-        <WalletProvider autoConnect>
+        {/* Slush registers itself as a wallet even without the extension, which
+            also gives the panel its official icon. */}
+        <WalletProvider autoConnect slushWallet={{ name: 'WELLDONE CODE' }}>
           <div className="App wds-panel">{client && <Main client={client} />}</div>
         </WalletProvider>
       </SuiClientProvider>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Button, Form, InputGroup, ListGroup } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Button, Form, InputGroup } from 'react-bootstrap';
 import {
   useConnectWallet,
   useCurrentAccount,
@@ -15,20 +15,21 @@ import { SectionTitle } from '../common/SectionTitle';
 const MIST_PER_SUI = 1_000_000_000;
 
 /**
- * Wallets we offer even when they are not installed, so the list never comes
- * up empty. Each site routes to the right store for the current browser.
+ * Wallets we offer even when they are not installed, so the panel always has
+ * something to press. Each site routes to the right store for the browser.
+ * Slush leads: it is the wallet Mysten ships for Sui.
  */
 const KNOWN_WALLETS = [
-  { name: 'Slush', site: 'https://slush.app/' },
-  { name: 'Suiet', site: 'https://suiet.app/' },
-  { name: 'Nightly', site: 'https://nightly.app/' },
-  { name: 'Ethos', site: 'https://ethoswallet.xyz/' },
-  { name: 'Backpack', site: 'https://backpack.app/' },
+  { name: 'Slush', site: 'https://slush.app/', tint: '#4da2ff' },
+  { name: 'Suiet', site: 'https://suiet.app/', tint: '#5a68ff' },
+  { name: 'Nightly', site: 'https://nightly.app/', tint: '#8b5cf6' },
+  { name: 'Ethos', site: 'https://ethoswallet.xyz/', tint: '#22c55e' },
+  { name: 'Backpack', site: 'https://backpack.app/', tint: '#e5484d' },
 ];
 
 type Row =
   | { kind: 'installed'; name: string; icon: string; wallet: WalletWithRequiredFeatures }
-  | { kind: 'install'; name: string; site: string };
+  | { kind: 'install'; name: string; site: string; tint: string };
 
 function formatSui(totalBalance: string) {
   const sui = Number(totalBalance) / MIST_PER_SUI;
@@ -48,7 +49,7 @@ function buildRows(installed: readonly WalletWithRequiredFeatures[]): Row[] {
 
   for (const known of KNOWN_WALLETS) {
     if (!isInstalled(known.name)) {
-      rows.push({ kind: 'install', name: known.name, site: known.site });
+      rows.push({ kind: 'install', ...known });
     }
   }
 
@@ -61,6 +62,7 @@ export const WalletConnect: React.FunctionComponent = () => {
   const { network, networks, selectNetwork } = useSuiClientContext();
   const { mutate: connect, isPending: connecting } = useConnectWallet();
   const { mutate: disconnect } = useDisconnectWallet();
+  const [showAll, setShowAll] = useState(false);
 
   const { data: balance } = useSuiClientQuery(
     'getBalance',
@@ -69,6 +71,43 @@ export const WalletConnect: React.FunctionComponent = () => {
   );
 
   const rows = buildRows(wallets);
+  const [lead, ...rest] = rows;
+
+  const WalletRow = ({ row, lead: isLead }: { row: Row; lead?: boolean }) => {
+    const className = isLead ? 'wds-wallet wds-wallet--lead' : 'wds-wallet';
+
+    const mark =
+      row.kind === 'installed' ? (
+        <img src={row.icon} alt="" className="wds-wallet__mark" />
+      ) : (
+        <span className="wds-wallet__mark wds-wallet__mark--letter" style={{ color: row.tint }}>
+          {row.name.charAt(0)}
+        </span>
+      );
+
+    if (row.kind === 'installed') {
+      return (
+        <button
+          type="button"
+          className={className}
+          disabled={connecting}
+          onClick={() => connect({ wallet: row.wallet })}
+        >
+          {mark}
+          <b>{row.name}</b>
+          <span className="wds-wallet__hint">{connecting ? 'Connecting…' : 'Connect'}</span>
+        </button>
+      );
+    }
+
+    return (
+      <a className={className} href={row.site} target="_blank" rel="noreferrer">
+        {mark}
+        <b>{row.name}</b>
+        <span className="wds-wallet__hint">Install</span>
+      </a>
+    );
+  };
 
   return (
     <div>
@@ -112,35 +151,31 @@ export const WalletConnect: React.FunctionComponent = () => {
           </Button>
         </>
       ) : (
-        <ListGroup className="wds-wallets">
-          {rows.map((row) =>
-            row.kind === 'installed' ? (
-              <ListGroup.Item
-                as="li"
-                key={row.name}
-                action
-                disabled={connecting}
-                onClick={() => connect({ wallet: row.wallet })}
+        <div className="wds-wallets">
+          {lead && <WalletRow row={lead} lead />}
+
+          {rest.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="wds-wallets__toggle"
+                aria-expanded={showAll}
+                onClick={() => setShowAll((open) => !open)}
               >
-                <img src={row.icon} alt="" className="wds-wallets__icon" />
-                <b>{row.name}</b>
-              </ListGroup.Item>
-            ) : (
-              <ListGroup.Item
-                as="a"
-                key={row.name}
-                action
-                href={row.site}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <i className="fas fa-wallet wds-wallets__icon" />
-                <b>{row.name}</b>
-                <span className="wds-wallets__hint">Install</span>
-              </ListGroup.Item>
-            ),
+                <i className={`fas fa-chevron-${showAll ? 'up' : 'down'}`} />
+                {showAll ? 'Fewer wallets' : `More wallets (${rest.length})`}
+              </button>
+
+              {showAll && (
+                <div className="wds-wallets__more">
+                  {rest.map((row) => (
+                    <WalletRow key={row.name} row={row} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
-        </ListGroup>
+        </div>
       )}
     </div>
   );
