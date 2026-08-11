@@ -163,6 +163,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
   const [zipBlob, setZipBlob] = useState<Blob | undefined>(undefined);
 
   const [uploadCodeChecked, setUploadCodeChecked] = useState(true);
+  // Also keyed on the network. Compilation is requested per chain and every
+  // package, object and module below is read from one, so switching network has
+  // to drop them. It used to be impossible to switch without a reload, because
+  // the chain came from the wallet and a change there reloaded the page.
   useEffect(() => {
     setPackageName('');
     setBuildInfo(undefined);
@@ -172,7 +176,21 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
     setCompiledModulesAndDeps(undefined);
     setCliVersion('');
     setZipBlob(undefined);
-  }, [compileTarget]);
+
+    setDeployedContract('');
+    setAtAddress('');
+    setSuiObjects([]);
+    setTargetObjectId('');
+    setPackageIds([]);
+    setTargetPackageId('');
+    setQueryMode('');
+    setModules([]);
+    setTargetModuleName('');
+    setFuncs([]);
+    setTargetFunc(undefined);
+    setGenericParameters([]);
+    setParameters([]);
+  }, [compileTarget, network]);
 
   const handleCheckboxChange = (event: {
     target: { checked: boolean | ((prevState: boolean) => boolean) };
@@ -1133,12 +1151,29 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
       Number(gas),
     );
 
-    const { digest } = await signAndExecuteTransaction({
-      transaction: Transaction.from(dappTxn_),
-    });
+    let digest: string;
+    try {
+      // The wallet rejects by throwing, where the WELLDONE provider used to
+      // resolve empty, so this has to be caught or the click ends in an
+      // unhandled rejection and the user is told nothing.
+      ({ digest } = await signAndExecuteTransaction({
+        transaction: Transaction.from(dappTxn_),
+      }));
+    } catch (e: any) {
+      log.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: `Transaction was not sent: ${e?.message ?? e}`,
+      });
+      return;
+    }
+
     const txnHash: string[] = digest ? [digest] : [];
     if (isEmptyList(txnHash)) {
-      console.error('signAndExecuteTransaction returned no digest');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The wallet returned no transaction digest.',
+      });
       return;
     }
     log.info('@@@ txnHash', txnHash);

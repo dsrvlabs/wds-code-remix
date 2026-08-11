@@ -107,6 +107,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     });
 
     if (!account) {
+      setInProgress(false);
       return;
     }
 
@@ -118,12 +119,32 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       Number(gas),
     );
 
-    const { digest } = await signAndExecuteTransaction({
-      transaction: Transaction.from(rawTx_),
-    });
+    let digest: string;
+    try {
+      // The wallet rejects by throwing, where the WELLDONE provider used to
+      // resolve empty. Without this the spinner would run forever.
+      ({ digest } = await signAndExecuteTransaction({
+        transaction: Transaction.from(rawTx_),
+      }));
+    } catch (e: any) {
+      log.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: `Publish was not sent: ${e?.message ?? e}`,
+      });
+      setInProgress(false);
+      setDeployIconSpin('');
+      return;
+    }
+
     const txnHash: string[] = digest ? [digest] : [];
     if (isEmptyList(txnHash)) {
-      console.error('signAndExecuteTransaction returned no digest');
+      await client.terminal.log({
+        type: 'error',
+        value: 'The wallet returned no transaction digest.',
+      });
+      setInProgress(false);
+      setDeployIconSpin('');
       return;
     }
     log.info('@@@ txnHash', txnHash);
