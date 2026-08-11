@@ -1,16 +1,6 @@
 import RefreshButton from './common/RefreshButton';
 import { FaChevronLeft } from 'react-icons/fa';
-import { Connect as NearConnect } from './near/Connect';
-import { Connect as CeloConnect } from './celo/Connect';
-import { Connect as KlayConnect } from './klaytn/Connect';
-import { Connect as AptosConnect } from './aptos/Connect';
 import { Connect as SuiConnect } from './sui/Connect';
-import { Connect as JunoConnect } from './juno/Connect';
-import { Connect as NeutronConnect } from './neutron/Connect';
-import { Connect as ArbitrumConnect } from './arbitrum/Connect';
-import { Connect as InjectiveConnect } from './injective/Connect';
-import { Connect as MovementConnect } from './movement/Connect';
-import { Connect as IotaConnect } from './iota/Connect';
 
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
@@ -44,18 +34,7 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   setChain,
 }) => {
   log.debug(chain);
-  const docsChains = [
-    'near',
-    'sui',
-    'aptos',
-    'juno',
-    'celo',
-    'klaytn',
-    'neutron',
-    'arbitrum',
-    'injective',
-    'movement',
-  ];
+  const docsChains = ['sui'];
 
   const handleLeftBtn = async () => {
     setChain('');
@@ -111,28 +90,8 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
 
   const ChainConnect = (props: { chain: string }) => {
     switch (props.chain) {
-      case 'Near':
-        return <NearConnect client={client} />;
-      case 'Celo':
-        return <CeloConnect client={client} />;
-      case 'Klaytn':
-        return <KlayConnect client={client} />;
-      case 'Aptos':
-        return <AptosConnect client={client} />;
       case 'Sui':
         return <SuiConnect client={client} />;
-      case 'Juno':
-        return <JunoConnect client={client} />;
-      case 'Neutron':
-        return <NeutronConnect client={client} />;
-      case 'Arbitrum':
-        return <ArbitrumConnect />;
-      case 'Injective':
-        return <InjectiveConnect client={client} />;
-      case 'Movement':
-        return <MovementConnect client={client} />;
-      case 'Iota':
-        return <IotaConnect client={client} />;
       default:
         return <></>;
     }
