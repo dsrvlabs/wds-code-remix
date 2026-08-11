@@ -185,15 +185,6 @@
   border-radius: 6px;
 }
 
-/* No extension means no wallet icon, so the brand initial stands in. */
-.wds-wallet__mark--letter {
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 800;
-  border: 1px solid currentColor;
-}
-
 .wds-wallet__hint {
   margin-left: auto;
   font-size: 10.5px;

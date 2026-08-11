@@ -11,25 +11,31 @@ import {
 import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { CopyToClipboard } from '../common/CopyToClipboard';
 import { SectionTitle } from '../common/SectionTitle';
+import suietLogo from '../../assets/wallets/suiet.png';
+import nightlyLogo from '../../assets/wallets/nightly.png';
+import phantomLogo from '../../assets/wallets/phantom.svg';
+import backpackLogo from '../../assets/wallets/backpack.png';
 
 const MIST_PER_SUI = 1_000_000_000;
 
 /**
  * Wallets we offer even when they are not installed, so the panel always has
  * something to press. Each site routes to the right store for the browser.
- * Slush leads: it is the wallet Mysten ships for Sui.
+ *
+ * Slush is absent on purpose: dapp-kit registers it without an extension, so it
+ * arrives through useWallets with its own icon. Logos here are each wallet's own
+ * mark, kept locally because an uninstalled wallet has nothing to hand us one.
  */
 const KNOWN_WALLETS = [
-  { name: 'Slush', site: 'https://slush.app/', tint: '#4da2ff' },
-  { name: 'Suiet', site: 'https://suiet.app/', tint: '#5a68ff' },
-  { name: 'Nightly', site: 'https://nightly.app/', tint: '#8b5cf6' },
-  { name: 'Ethos', site: 'https://ethoswallet.xyz/', tint: '#22c55e' },
-  { name: 'Backpack', site: 'https://backpack.app/', tint: '#e5484d' },
+  { name: 'Suiet', site: 'https://suiet.app/', logo: suietLogo },
+  { name: 'Nightly', site: 'https://nightly.app/', logo: nightlyLogo },
+  { name: 'Phantom', site: 'https://phantom.app/', logo: phantomLogo },
+  { name: 'Backpack', site: 'https://backpack.app/', logo: backpackLogo },
 ];
 
 type Row =
   | { kind: 'installed'; name: string; icon: string; wallet: WalletWithRequiredFeatures }
-  | { kind: 'install'; name: string; site: string; tint: string };
+  | { kind: 'install'; name: string; site: string; logo: string };
 
 function formatSui(totalBalance: string) {
   const sui = Number(totalBalance) / MIST_PER_SUI;
@@ -76,14 +82,13 @@ export const WalletConnect: React.FunctionComponent = () => {
   const WalletRow = ({ row, lead: isLead }: { row: Row; lead?: boolean }) => {
     const className = isLead ? 'wds-wallet wds-wallet--lead' : 'wds-wallet';
 
-    const mark =
-      row.kind === 'installed' ? (
-        <img src={row.icon} alt="" className="wds-wallet__mark" />
-      ) : (
-        <span className="wds-wallet__mark wds-wallet__mark--letter" style={{ color: row.tint }}>
-          {row.name.charAt(0)}
-        </span>
-      );
+    const mark = (
+      <img
+        src={row.kind === 'installed' ? row.icon : row.logo}
+        alt=""
+        className="wds-wallet__mark"
+      />
+    );
 
     if (row.kind === 'installed') {
       return (
