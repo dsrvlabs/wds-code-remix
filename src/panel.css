@@ -94,6 +94,45 @@
   margin: 18px 0;
 }
 
+/* ---- stage headings -------------------------------------------------- */
+
+.wds-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.wds-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--custom-border-light, var(--bs-border-color));
+}
+
+/* ---- package lookup -------------------------------------------------- */
+
+.wds-lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.wds-lookup__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wds-lookup__actions .btn {
+  flex: 1;
+}
+
 /* ---- wallet list ----------------------------------------------------- */
 
 .wds-panel .list-group-item {

@@ -9,6 +9,7 @@ import {
   useWallets,
 } from '@mysten/dapp-kit';
 import { CopyToClipboard } from '../common/CopyToClipboard';
+import { SectionTitle } from '../common/SectionTitle';
 
 const MIST_PER_SUI = 1_000_000_000;
 
@@ -38,6 +39,7 @@ export const WalletConnect: React.FunctionComponent = () => {
 
   return (
     <div>
+      <SectionTitle>Wallet</SectionTitle>
       <Form.Label htmlFor="wds-network">Network</Form.Label>
       <Form.Select
         id="wds-network"

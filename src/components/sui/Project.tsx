@@ -3,6 +3,7 @@ import { Button, Form, InputGroup } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 import { Compiler } from './Compiler';
+import { SectionTitle } from '../common/SectionTitle';
 
 import axios from 'axios';
 import JSZip from 'jszip';
@@ -177,6 +178,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ account, clie
 
   return (
     <div>
+      <SectionTitle>Project</SectionTitle>
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
@@ -237,7 +239,11 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ account, clie
             </Form.Control>
           </InputGroup>
         </Form.Group>
-        <Form.Group style={mt8}>
+      </Form>
+
+      <SectionTitle>Build</SectionTitle>
+      <Form>
+        <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
             <small>GAS</small>
           </Form.Text>
@@ -252,7 +258,6 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({ account, clie
         </Form.Group>
       </Form>
 
-      <hr />
       <Compiler
         compileTarget={compileTarget}
         accountID={account}

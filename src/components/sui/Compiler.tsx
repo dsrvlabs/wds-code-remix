@@ -34,6 +34,7 @@ import { PROD, STAGE } from '../../const/stage';
 import { Socket } from 'socket.io-client/build/esm/socket';
 import { isEmptyList, isNotEmptyList } from '../../utils/ListUtil';
 import { Parameters } from './Parameters';
+import { SectionTitle } from '../common/SectionTitle';
 import { S3Path } from '../../const/s3-path';
 import {
   CompiledModulesAndDeps,
@@ -1429,10 +1430,10 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
         //   <small>NO COMPILED CONTRACT</small>
         // </p>
       }
+      <SectionTitle>Package lookup</SectionTitle>
       <Form.Group>
-        <InputGroup>
-          <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-            <Form.Control
+        <div className="wds-lookup">
+          <Form.Control
               type="text"
               placeholder="Package or Address"
               size="sm"
@@ -1442,12 +1443,7 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
               disabled={accountID === '' || isProgress}
               value={inputAddress}
             />
-            <div style={{ marginLeft: '0.3em' }}> </div>
-            {/*<CustomTooltip*/}
-            {/*  placement="top"*/}
-            {/*  tooltipId="overlay-package"*/}
-            {/*  tooltipText="Package Object ID"*/}
-            {/*>*/}
+          <div className="wds-lookup__actions">
             <Button
               variant="info"
               size="sm"
@@ -1458,9 +1454,6 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             >
               <small>Package</small>
             </Button>
-            {/*</CustomTooltip>*/}
-            <div style={{ marginLeft: '0.3em' }}> </div>
-            {/*<CustomTooltip placement="top" tooltipId="overlay-ataddresss" tooltipText="Account ID">*/}
             <Button
               variant="info"
               size="sm"
@@ -1471,9 +1464,8 @@ export const Compiler: React.FunctionComponent<InterfaceProps> = ({
             >
               <small>Address</small>
             </Button>
-            {/*</CustomTooltip>*/}
           </div>
-        </InputGroup>
+        </div>
       </Form.Group>
       {suiObjects.length > 0 ? (
         <Form.Group>
