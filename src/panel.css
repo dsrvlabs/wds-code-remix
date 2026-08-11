@@ -141,6 +141,32 @@
   font-size: 13px;
 }
 
+.wds-wallets .list-group-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+.wds-wallets__icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.wds-wallets__hint {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
 /* ---- footer ---------------------------------------------------------- */
 
 .wds-footer {
