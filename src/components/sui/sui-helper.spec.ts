@@ -6,7 +6,8 @@
 // import {ArgsAbi} from './ArgsAbi';
 import { TextEncoder } from 'util';
 
-global.TextEncoder = TextEncoder;
+// jsdom ships no TextEncoder. The node one differs only in its ArrayBuffer generic.
+global.TextEncoder = TextEncoder as unknown as typeof global.TextEncoder;
 
 // require('../../../jest.config');
 

@@ -11,7 +11,7 @@ import {
 } from '@mysten/sui/client';
 import { SuiFunc, SuiModule } from './sui-types';
 import { SuiObjectData } from '@mysten/sui/client';
-import { delay } from '../near/utils/waitForTransaction';
+import { delay } from '../../utils/delay';
 
 const yaml = require('js-yaml');
 export type SuiChainId = 'mainnet' | 'testnet' | 'devnet';

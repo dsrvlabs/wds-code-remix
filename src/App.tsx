@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Container } from 'react-bootstrap';
 import { Main } from './components/Main';
+import './panel.css';
 
 import type { Api } from '@remixproject/plugin-utils';
 import { Client } from '@remixproject/plugin';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { createClient } from '@remixproject/plugin-iframe';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SuiClientProvider, WalletProvider, createNetworkConfig } from '@mysten/dapp-kit';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { log } from './utils/logger';
+
+const { networkConfig } = createNetworkConfig({
+  mainnet: { url: getFullnodeUrl('mainnet') },
+  testnet: { url: getFullnodeUrl('testnet') },
+  devnet: { url: getFullnodeUrl('devnet') },
+});
+
+const queryClient = new QueryClient();
 
 export const App: React.FunctionComponent = () => {
   const [client, setClient] = useState<Client<Api, Readonly<IRemixApi>> | undefined | null>(null);
@@ -21,13 +32,19 @@ export const App: React.FunctionComponent = () => {
       setConnection(true);
     };
     if (!connection) init();
-    log.debug(`%cẅël̈l̈c̈öm̈ë-̈ẗö-̈ẅël̈l̈d̈ön̈ë-̈c̈öd̈ë!̈`, 'color:yellow');
+    log.debug(`%cẅël̈l̈c̈öm̈ë-̈ẗö-̈ẅël̈l̈d̈ön̈ë-̈c̈öd̈ë!̈`, 'color:yellow');
   }, []);
 
   return (
-    <div className="App">
-      <Container>{client && <Main client={client} />}</Container>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+        {/* Slush registers itself as a wallet even without the extension, which
+            also gives the panel its official icon. */}
+        <WalletProvider autoConnect slushWallet={{ name: 'WELLDONE CODE' }}>
+          <div className="App wds-panel">{client && <Main client={client} />}</div>
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
   );
 };
 

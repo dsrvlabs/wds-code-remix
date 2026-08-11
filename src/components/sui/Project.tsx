@@ -3,6 +3,7 @@ import { Button, Form, InputGroup } from 'react-bootstrap';
 import { FaSyncAlt } from 'react-icons/fa';
 
 import { Compiler } from './Compiler';
+import { SectionTitle } from '../common/SectionTitle';
 
 import axios from 'axios';
 import JSZip from 'jszip';
@@ -15,19 +16,12 @@ import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 
 interface InterfaceProps {
-  wallet: string;
   account: string;
   client: Client<Api, Readonly<IRemixApi>>;
-  dapp: any;
 }
 
 const DEFAULT_GAS = '30000000';
-export const Project: React.FunctionComponent<InterfaceProps> = ({
-  wallet,
-  account,
-  dapp,
-  client,
-}) => {
+export const Project: React.FunctionComponent<InterfaceProps> = ({ account, client }) => {
   const [projectName, setProjectName] = useState<string>('noname');
   const [projectList, setProjectList] = useState<string[]>([]);
   const [compileTarget, setCompileTarget] = useState<string>('');
@@ -184,6 +178,7 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
 
   return (
     <div>
+      <SectionTitle>Project</SectionTitle>
       <Form>
         <Form.Group style={mt8}>
           <Form.Text className="text-muted" style={mb4}>
@@ -244,7 +239,11 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
             </Form.Control>
           </InputGroup>
         </Form.Group>
-        <Form.Group style={mt8}>
+      </Form>
+
+      <SectionTitle>Build</SectionTitle>
+      <Form>
+        <Form.Group>
           <Form.Text className="text-muted" style={mb4}>
             <small>GAS</small>
           </Form.Text>
@@ -259,11 +258,9 @@ export const Project: React.FunctionComponent<InterfaceProps> = ({
         </Form.Group>
       </Form>
 
-      <hr />
       <Compiler
         compileTarget={compileTarget}
         accountID={account}
-        dapp={dapp}
         client={client}
         gas={gas}
       />

@@ -6,6 +6,12 @@ import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { log } from '../../utils/logger';
 import { dappPublishTxn, SuiChainId, waitForTransactionWithResult } from './sui-helper';
+import { Transaction } from '@mysten/sui/transactions';
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+  useSuiClientContext,
+} from '@mysten/dapp-kit';
 
 import copy from 'copy-to-clipboard';
 import axios from 'axios';
@@ -28,13 +34,11 @@ export interface SuiDeployHistoryCreateDto {
 }
 
 interface InterfaceProps {
-  wallet: string;
   accountID: string;
   compileTimestamp: string;
   cliVersion: string;
   packageName: string;
   compiledModulesAndDeps: CompiledModulesAndDeps;
-  dapp: any;
   client: Client<Api, Readonly<IRemixApi>>;
   gas: string;
   setDeployedContract: Function;
@@ -56,8 +60,6 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   cliVersion,
   packageName,
   compiledModulesAndDeps,
-  wallet,
-  dapp,
   gas,
   setDeployedContract,
   setAtAddress,
@@ -70,6 +72,11 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   uploadCodeChecked,
   blob,
 }) => {
+  const account = useCurrentAccount();
+  const { network: networkName } = useSuiClientContext();
+  const network = networkName as SuiChainId;
+  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+
   const [inProgress, setInProgress] = useState<boolean>(false);
   const [deployIconSpin, setDeployIconSpin] = useState<string>('');
   const [abi, setABI] = useState<any>({});
@@ -77,17 +84,12 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
   const [resource, setResource] = useState<string>('');
 
   const checkExistContract = async () => {
-    if (!dapp) {
-      // todo uncomment
-      throw new Error('Wallet is not installed');
+    if (!account) {
+      throw new Error('Wallet is not connected');
     }
 
     if (!accountID) {
       throw new Error('No accountID');
-    }
-
-    if (wallet !== 'Dsrv') {
-      throw new Error('Wallet is not Dsrv');
     }
 
     if (!compiledModulesAndDeps) {
@@ -104,31 +106,52 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
       method: 'deploy',
     });
 
-    if (!dapp) {
+    if (!account) {
+      setInProgress(false);
       return;
     }
 
     setDeployIconSpin('fa-spin');
     const rawTx_ = await dappPublishTxn(
       accountID,
-      dapp.networks.sui.chain as SuiChainId,
+      network,
       compiledModulesAndDeps,
       Number(gas),
     );
 
-    const txnHash: string[] = await dapp.request('sui', {
-      method: 'dapp:signAndSendTransaction',
-      params: [rawTx_],
-    });
+    let digest: string;
+    try {
+      // The wallet rejects by throwing, where the WELLDONE provider used to
+      // resolve empty. Without this the spinner would run forever.
+      ({ digest } = await signAndExecuteTransaction({
+        transaction: Transaction.from(rawTx_),
+      }));
+    } catch (e: any) {
+      log.error(e);
+      await client.terminal.log({
+        type: 'error',
+        value: `Publish was not sent: ${e?.message ?? e}`,
+      });
+      setInProgress(false);
+      setDeployIconSpin('');
+      return;
+    }
+
+    const txnHash: string[] = digest ? [digest] : [];
     if (isEmptyList(txnHash)) {
-      console.error(`dapp:signAndSendTransaction fail`);
+      await client.terminal.log({
+        type: 'error',
+        value: 'The wallet returned no transaction digest.',
+      });
+      setInProgress(false);
+      setDeployIconSpin('');
       return;
     }
     log.info('@@@ txnHash', txnHash);
 
     let result;
     try {
-      result = await waitForTransactionWithResult(txnHash, dapp.networks.sui.chain);
+      result = await waitForTransactionWithResult(txnHash, network);
     } catch (e) {
       console.error(e);
       await client.terminal.log({
@@ -179,7 +202,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
     const modules = publishedChange.modules || [];
 
     const suiDeployHistoryCreateDto: SuiDeployHistoryCreateDto = {
-      chainId: dapp.networks.sui.chain,
+      chainId: network,
       account: accountID,
       packageId: publishedChange.packageId,
       packageName: packageName,
@@ -245,7 +268,7 @@ export const Deploy: React.FunctionComponent<InterfaceProps> = ({
                   if (walrusBlobId) {
                     try {
                       const res = await axios.post(COMPILER_API_ENDPOINT + '/sui/walrus-blob-id', {
-                        chainId: dapp.networks.sui.chain,
+                        chainId: network,
                         packageId: publishedChange.packageId,
                         blobId: walrusBlobId,
                       });

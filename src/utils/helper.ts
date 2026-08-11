@@ -77,6 +77,4 @@ export const shortenHexString = (address: string, first: number, last: number) =
   return address === '' ? '' : `${address.slice(0, first)}...${address.slice(-last)}`;
 };
 
-export const enableAptosProve = () => STAGE !== PROD;
-export const enableJuno = () => STAGE !== PROD;
 export const enableSui = () => STAGE !== PROD;

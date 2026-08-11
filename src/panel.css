@@ -1,0 +1,248 @@
+/*
+ * Panel chrome.
+ *
+ * Remix injects its own theme stylesheet into the plugin iframe, so every
+ * colour here comes from that theme. Nothing is hardcoded: switching the IDE
+ * between light and dark repaints the panel with it.
+ */
+
+.wds-panel {
+  padding: 8px 12px 24px;
+  font-size: 13px;
+}
+
+/* ---- header ---------------------------------------------------------- */
+
+.wds-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 10px 0;
+  margin-bottom: 4px;
+  background-color: var(--bs-body-bg);
+  border-bottom: 1px solid var(--custom-border-light, var(--bs-border-color));
+}
+
+.wds-header__chain {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wds-header__links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- form fields ----------------------------------------------------- */
+
+.wds-panel .form-label,
+.wds-panel .input-group + label,
+.wds-panel label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.66;
+  margin-bottom: 4px;
+}
+
+.wds-panel .form-check-label {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 1;
+}
+
+.wds-panel .form-control,
+.wds-panel .form-select {
+  font-size: 13px;
+  padding: 6px 10px;
+  background-color: var(--custom-onsurface-layer-1, var(--bs-body-bg));
+  border-color: var(--custom-border-light, var(--bs-border-color));
+}
+
+.wds-panel .form-control:focus,
+.wds-panel .form-select:focus {
+  box-shadow: none;
+  border-color: var(--custom-primary, var(--bs-primary));
+}
+
+.wds-panel .input-group {
+  margin-bottom: 12px;
+}
+
+.wds-panel .input-group .btn {
+  font-size: 12px;
+  padding-inline: 12px;
+}
+
+/* ---- actions --------------------------------------------------------- */
+
+.wds-panel .btn {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wds-panel hr {
+  opacity: 0.16;
+  margin: 18px 0;
+}
+
+/* ---- stage headings -------------------------------------------------- */
+
+.wds-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.wds-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--custom-border-light, var(--bs-border-color));
+}
+
+/* ---- package lookup -------------------------------------------------- */
+
+.wds-lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.wds-lookup__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wds-lookup__actions .btn {
+  flex: 1;
+}
+
+/* ---- wallet list ----------------------------------------------------- */
+
+.wds-panel .list-group-item {
+  background-color: var(--custom-onsurface-layer-2, transparent);
+  border-color: var(--custom-border-light, var(--bs-border-color));
+  font-size: 13px;
+}
+
+.wds-wallets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wds-wallet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  color: var(--bs-body-color);
+  background-color: var(--custom-onsurface-layer-2, transparent);
+  border: 1px solid var(--custom-border-light, var(--bs-border-color));
+  border-radius: var(--bs-border-radius, 4px);
+  cursor: pointer;
+}
+
+.wds-wallet:hover {
+  color: var(--bs-body-color);
+  border-color: var(--custom-primary, var(--bs-primary));
+}
+
+.wds-wallet:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.wds-wallet--lead {
+  padding: 12px;
+}
+
+.wds-wallet__mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.wds-wallet__hint {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+.wds-wallets__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: var(--bs-body-color);
+  background: none;
+  border: 0;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.wds-wallets__toggle:hover {
+  opacity: 1;
+}
+
+.wds-wallets__more {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---- footer ---------------------------------------------------------- */
+
+.wds-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--custom-border-light, var(--bs-border-color));
+}
+
+.wds-footer a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--bs-body-color);
+  text-decoration: none;
+  border: 1px solid var(--custom-border-light, var(--bs-border-color));
+  border-radius: var(--bs-border-radius, 4px);
+}
+
+.wds-footer a:hover {
+  background-color: var(--custom-onsurface-layer-2, transparent);
+  border-color: var(--custom-primary, var(--bs-primary));
+}
