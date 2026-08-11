@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Container } from 'react-bootstrap';
 import { Main } from './components/Main';
+import './panel.css';
 
 import type { Api } from '@remixproject/plugin-utils';
 import { Client } from '@remixproject/plugin';
@@ -25,9 +25,7 @@ export const App: React.FunctionComponent = () => {
   }, []);
 
   return (
-    <div className="App">
-      <Container>{client && <Main client={client} />}</Container>
-    </div>
+    <div className="App wds-panel">{client && <Main client={client} />}</div>
   );
 };
 

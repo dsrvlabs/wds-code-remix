@@ -12,18 +12,6 @@ interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
 }
 
-const STYLE: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-end',
-  position: 'sticky',
-  top: 0,
-  backgroundColor: 'var(--body-bg)',
-  zIndex: 3,
-  paddingBottom: '10px',
-  marginTop: '40px',
-};
-
 const DOCS_LINK = 'https://docs.welldonestudio.io/code/deploy-and-run/sui';
 const ISSUES_LINK = 'https://support.welldonestudio.io/';
 
@@ -35,39 +23,37 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({ clien
     window.location.reload();
   };
 
-  const Header = () => {
-    return (
-      <div style={STYLE}>
-        <div className="d-flex align-items-center">
-          <span>Sui</span>
-        </div>
-        <div className="d-flex align-items-center">
+  return (
+    <>
+      <div className="wds-header">
+        <span className="wds-header__chain">Sui</span>
+        <div className="wds-header__links">
           <a href={DOCS_LINK} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Badge pill bg="primary" style={{ color: 'white', marginRight: '10px' }}>
+            <Badge pill bg="primary" style={{ color: 'white' }}>
               {'docs'}
             </Badge>
           </a>
           <a href={ISSUES_LINK} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Badge
-              pill
-              bg="danger"
-              className="me-2"
-              style={{ color: 'white', marginRight: '10px' }}
-            >
+            <Badge pill bg="danger" style={{ color: 'white' }}>
               {'issues'}
             </Badge>
           </a>
           <RefreshButton handleRefresh={handleRefresh} />
         </div>
       </div>
-    );
-  };
 
-  return (
-    <>
-      <Header />
-      <div style={{ height: '0.7em' }}></div>
       <SuiConnect client={client} />
+
+      <div className="wds-footer">
+        <a href={DOCS_LINK} target="_blank" rel="noreferrer">
+          <i className="fas fa-book" />
+          Documentation
+        </a>
+        <a href={ISSUES_LINK} target="_blank" rel="noreferrer">
+          <i className="fab fa-github" />
+          Make an issue
+        </a>
+      </div>
     </>
   );
 };
