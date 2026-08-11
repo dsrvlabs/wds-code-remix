@@ -1,19 +1,15 @@
 import RefreshButton from './common/RefreshButton';
-import { FaChevronLeft } from 'react-icons/fa';
 import { Connect as SuiConnect } from './sui/Connect';
 
 import { Client } from '@remixproject/plugin';
 import { Api } from '@remixproject/plugin-utils';
 import { IRemixApi } from '@remixproject/plugin-api';
 import { FunctionComponent } from 'react';
-import { log } from '../utils/logger';
 import { EditorClient } from '../utils/editor';
 import Badge from 'react-bootstrap/Badge';
 
 interface InterfaceProps {
   client: Client<Api, Readonly<IRemixApi>>;
-  chain: string;
-  setChain: Function;
 }
 
 const STYLE: React.CSSProperties = {
@@ -28,21 +24,10 @@ const STYLE: React.CSSProperties = {
   marginTop: '40px',
 };
 
-export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
-  client,
-  chain,
-  setChain,
-}) => {
-  log.debug(chain);
-  const docsChains = ['sui'];
+const DOCS_LINK = 'https://docs.welldonestudio.io/code/deploy-and-run/sui';
+const ISSUES_LINK = 'https://support.welldonestudio.io/';
 
-  const handleLeftBtn = async () => {
-    setChain('');
-    const editorClient = new EditorClient(client);
-    await editorClient.discardHighlight();
-    await editorClient.clearAnnotations();
-  };
-
+export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({ client }) => {
   const handleRefresh = async () => {
     const editorClient = new EditorClient(client);
     await editorClient.discardHighlight();
@@ -51,28 +36,18 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
   };
 
   const Header = () => {
-    let docsLink = 'https://docs.welldonestudio.io/code/';
-    if (docsChains.includes(chain.toLowerCase())) {
-      docsLink = `https://docs.welldonestudio.io/code/deploy-and-run/${chain.toLowerCase()}`;
-    }
     return (
       <div style={STYLE}>
         <div className="d-flex align-items-center">
-          <FaChevronLeft style={{ cursor: 'pointer' }} onClick={handleLeftBtn} />
-          <span style={{ marginLeft: '5px' }}>{chain}</span>
+          <span>Sui</span>
         </div>
         <div className="d-flex align-items-center">
-          <a href={docsLink} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+          <a href={DOCS_LINK} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <Badge pill bg="primary" style={{ color: 'white', marginRight: '10px' }}>
               {'docs'}
             </Badge>
           </a>
-          <a
-            href="https://support.welldonestudio.io/"
-            target="_blank"
-            rel="noreferrer"
-            style={{ textDecoration: 'none' }}
-          >
+          <a href={ISSUES_LINK} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <Badge
               pill
               bg="danger"
@@ -88,20 +63,11 @@ export const ChainConnectContainer: FunctionComponent<InterfaceProps> = ({
     );
   };
 
-  const ChainConnect = (props: { chain: string }) => {
-    switch (props.chain) {
-      case 'Sui':
-        return <SuiConnect client={client} />;
-      default:
-        return <></>;
-    }
-  };
-
   return (
     <>
       <Header />
       <div style={{ height: '0.7em' }}></div>
-      <ChainConnect chain={chain} />
+      <SuiConnect client={client} />
     </>
   );
 };
